@@ -29,6 +29,55 @@
       "when": 1779235541477,
       "tag": "0003_create_client_product",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1779279549193,
+      "tag": "0004_nebulous_lord_hawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1779280234604,
+      "tag": "0005_create_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1779281899907,
+      "tag": "0006_create_cash_auditing",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1779283819014,
+      "tag": "0007_create_references_cash_and_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1779285043707,
+      "tag": "0008_create_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1779285268337,
+      "tag": "0009_create_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1779286689974,
+      "tag": "0010_create_auth",
+      "breakpoints": true
     }
   ]
 }

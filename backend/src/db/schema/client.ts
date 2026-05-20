@@ -1,4 +1,4 @@
-import { timestamps } from "@/utils/drizzle";
+import { auditing, timestamps } from "@/utils/drizzle";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const client = sqliteTable("client", {
@@ -7,5 +7,7 @@ export const client = sqliteTable("client", {
     document: text("document"),
     email: text("email"),
     phone: text("phone"),
-    ...timestamps
+
+    ...auditing(),
+    ...timestamps()
 })

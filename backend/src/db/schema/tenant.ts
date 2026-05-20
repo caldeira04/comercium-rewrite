@@ -1,10 +1,7 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
-import { generateUniqueString } from "@/utils/general"
-import { timestamps } from "@/utils/drizzle"
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { timestamps, id } from "@/utils/drizzle"
 
 export const tenant = sqliteTable("tenant", {
-    id: text("id").primaryKey().$default(() => generateUniqueString(24)),
-
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     legalName: text("legal_name"),
@@ -34,16 +31,8 @@ export const tenant = sqliteTable("tenant", {
 
     isActive: integer("is_active", { mode: "boolean" }).default(true),
 
-    ...timestamps
-})
-
-export const tenantUser = sqliteTable("tenant_users", {
-    id: text("id").primaryKey().$default(() => generateUniqueString(24)),
-    tenantId: text("tenant_id").notNull().references(() => tenant.id, { onDelete: "cascade" }),
-    login: text("login").notNull().unique(),
-    password: text("password").notNull(),
-
-    ...timestamps
+    ...id(),
+    ...timestamps()
 })
 
 export const subscriptionStatus = sqliteTable("subscription_status", {

@@ -1,4 +1,4 @@
-import { timestamps } from "@/utils/drizzle";
+import { auditing, timestamps } from "@/utils/drizzle";
 import { relations } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
@@ -9,7 +9,8 @@ export const product = sqliteTable("product", {
     sellPrice: integer("sell_price").notNull(),
     buyPrice: integer("buy_price").notNull(),
     productSettingsId: integer("product_settings_id").references(() => productSettings.id, { onDelete: "set null" }),
-    ...timestamps
+    ...auditing(),
+    ...timestamps()
 })
 
 export const productSettings = sqliteTable("product_settings", {
