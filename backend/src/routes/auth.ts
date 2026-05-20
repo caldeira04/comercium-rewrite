@@ -1,7 +1,7 @@
-import { login } from "@/domain/tenant/auth"
+import { login } from "@/domain/tenant/AuthService"
 import { Elysia } from "elysia"
 
-const auth = new Elysia()
+const auth = new Elysia({ prefix: "/auth" })
 
 auth.post("/login", async ({ body, cookie, set }) => {
     const { login: userLogin, password } = body as {

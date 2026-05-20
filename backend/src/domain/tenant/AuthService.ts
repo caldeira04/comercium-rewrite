@@ -1,7 +1,6 @@
 import { db } from "@/db/db"
 import { session, tenantUser } from "@/db/schema/auth"
-import { hashToken, verifyPassword } from "@/utils/auth"
-import { generateUniqueString } from "@/utils/general"
+import { generateSessionToken, hashToken, verifyPassword } from "@/utils/auth"
 import { eq } from "drizzle-orm"
 
 export async function login(username: string, password: string) {
@@ -20,7 +19,7 @@ export async function login(username: string, password: string) {
         throw new Error("Invalid Credentials")
     }
 
-    const token = generateUniqueString(48)
+    const token = generateSessionToken()
     const tokenHash = await hashToken(token)
 
     await db.insert(session).values({
