@@ -7,6 +7,10 @@ export async function verifyPassword(password: string, hash: string) {
     return await Bun.password.verify(password, hash)
 }
 
+export function generateSessionToken() {
+    return crypto.randomUUID() + crypto.randomUUID()
+}
+
 export async function hashToken(token: string) {
     const data = new TextEncoder().encode(token)
     const hashBuffer = await crypto.subtle.digest("SHA-256", data)

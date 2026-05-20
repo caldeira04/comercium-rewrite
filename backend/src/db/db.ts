@@ -23,3 +23,6 @@ export function getTenantDb(tenantId: string) {
 
     return db
 }
+
+const master = new Database("./master.db")
+export const db = drizzle(master)
