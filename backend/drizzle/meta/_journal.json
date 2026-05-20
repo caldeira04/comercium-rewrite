@@ -8,6 +8,27 @@
       "when": 1779224017363,
       "tag": "0000_create_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779235360998,
+      "tag": "0001_create_product",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779235394292,
+      "tag": "0002_update_timestamps",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1779235541477,
+      "tag": "0003_create_client_product",
+      "breakpoints": true
     }
   ]
 }
