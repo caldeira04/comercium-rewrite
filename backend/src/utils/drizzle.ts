@@ -3,8 +3,8 @@ import { sql } from "drizzle-orm"
 import { generateUniqueString } from "./general"
 
 export const timestamps = () => ({
-    createdAt: text("created_at").notNull().default(sql`(CURRENT TIMESTAMP)`),
-    updatedAt: text("updated_at").notNull().default(sql`(CURRENT TIMESTAMP)`),
+    createdAt: text("created_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text("updated_at").notNull().default(sql`(CURRENT_TIMESTAMP)`),
     deletedAt: text("deleted_at"),
 })
 

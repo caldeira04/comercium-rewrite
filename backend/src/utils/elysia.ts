@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia"
-import { validateSession } from "@/domain/tenant/auth"
+import { validateSession } from "@/domain/master/AuthService"
 
 export const sessionCookie = new Elysia().guard({
     cookie: t.Object({

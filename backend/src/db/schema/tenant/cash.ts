@@ -1,8 +1,8 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
-import { timestamps, auditing, id } from "@/utils/drizzle"
+import { timestamps, auditing } from "@/utils/drizzle"
 
 export const cash = sqliteTable("cash", {
-    ...id(),
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
 
     openingAmount: integer("opening_amount").notNull().default(0),
     expectedClosingAmount: integer("expected_closing_amount"),
@@ -14,7 +14,7 @@ export const cash = sqliteTable("cash", {
 })
 
 export const cashMovement = sqliteTable("cash_movement", {
-    ...id(),
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
 
     cashId: text("cash_id").notNull().references(() => cash.id, { onDelete: "restrict" }),
     nature: text("nature", { enum: ["in", "out"] }).notNull(),

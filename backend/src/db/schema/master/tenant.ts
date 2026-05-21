@@ -1,9 +1,11 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
-import { timestamps, id } from "@/utils/drizzle"
+import { timestamps } from "@/utils/drizzle"
 
 export const tenant = sqliteTable("tenant", {
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
+
     name: text("name").notNull(),
-    slug: text("slug").notNull(),
+    slug: text("slug").notNull().unique(),
     legalName: text("legal_name"),
 
     document: text("document").notNull(),
@@ -26,12 +28,11 @@ export const tenant = sqliteTable("tenant", {
     currency: text("currency").notNull().default("BRL"),
 
     planId: text("plan_id"),
-    subscriptionStatusId: text("subscription_status_id").notNull(),
+    subscriptionStatusId: text("subscription_status_id"),
     subscriptionExpireDate: text("subscription_expire_date"),
 
     isActive: integer("is_active", { mode: "boolean" }).default(true),
 
-    ...id(),
     ...timestamps()
 })
 

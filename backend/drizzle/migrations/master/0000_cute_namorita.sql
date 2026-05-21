@@ -3,7 +3,7 @@ CREATE TABLE `session` (
 	`tenant_user_id` text NOT NULL,
 	`token_hash` text NOT NULL,
 	`expires_at` text NOT NULL,
-	`created_at` text DEFAULT (CURRENT TIMESTAMP) NOT NULL,
+	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	FOREIGN KEY (`tenant_user_id`) REFERENCES `tenant_users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -13,8 +13,8 @@ CREATE TABLE `tenant_users` (
 	`login` text NOT NULL,
 	`password` text NOT NULL,
 	`id` text PRIMARY KEY NOT NULL,
-	`created_at` text DEFAULT (CURRENT TIMESTAMP) NOT NULL,
-	`updated_at` text DEFAULT (CURRENT TIMESTAMP) NOT NULL,
+	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`deleted_at` text,
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenant`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -48,7 +48,7 @@ CREATE TABLE `tenant` (
 	`subscription_expire_date` text,
 	`is_active` integer DEFAULT true,
 	`id` text PRIMARY KEY NOT NULL,
-	`created_at` text DEFAULT (CURRENT TIMESTAMP) NOT NULL,
-	`updated_at` text DEFAULT (CURRENT TIMESTAMP) NOT NULL,
+	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`deleted_at` text
 );

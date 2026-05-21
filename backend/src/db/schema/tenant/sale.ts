@@ -1,11 +1,11 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { product } from "./product";
-import { timestamps, auditing, id } from "@/utils/drizzle";
+import { timestamps, auditing } from "@/utils/drizzle";
 import { client } from "./client";
 
 export const sale = sqliteTable("sale", {
-    ...id(),
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
 
     totalAmount: integer("total_amount").notNull().default(0),
     clientId: integer("client_id").notNull().references(() => client.id, { onDelete: "restrict" }),
@@ -21,13 +21,13 @@ export const saleRelations = relations(sale, ({ many }) => ({
 }))
 
 export const saleItem = sqliteTable("sale_items", {
-    saleId: text("id").notNull().references(() => sale.id, { onDelete: "cascade" }),
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
+    saleId: text("sale_id").notNull().references(() => sale.id, { onDelete: "cascade" }),
     productId: integer("product_id").notNull().references(() => product.id, { onDelete: "restrict" }),
     quantity: integer("quantity").notNull(),
     unitPrice: integer("unit_price").notNull(),
     totalPrice: integer("total_price").notNull(),
 
-    ...id(),
     ...auditing(),
     ...timestamps()
 })
