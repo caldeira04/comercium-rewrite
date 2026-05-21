@@ -9,7 +9,7 @@ export const sessionCookie = new Elysia().guard({
 
 export const authPlugin = new Elysia()
     .use(sessionCookie)
-    .derive(async ({ cookie, set }) => {
+    .derive({ as: "scoped" }, async ({ cookie, set }) => {
         const token = cookie.session.value
 
         if (typeof token !== "string" || !token) {

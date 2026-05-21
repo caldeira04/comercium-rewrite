@@ -1,7 +1,7 @@
 import { db } from "@/db/db"
 import { session, tenantUser } from "@/db/schema/master/auth"
 import { tenant } from "@/db/schema/master/tenant"
-import { generateSessionToken, hashToken, verifyPassword } from "@/utils/auth"
+import { generateSessionToken, hashPassword, hashToken, verifyPassword } from "@/utils/auth"
 import { and, eq, isNull } from "drizzle-orm"
 import path from "node:path"
 import { existsSync, mkdirSync } from "node:fs"
@@ -52,7 +52,7 @@ export async function signUp(
 
     const exampleUser = await masterDb.insert(tenantUser).values({
         login: email,
-        password,
+        password: await hashPassword(password),
         tenantId: createdTenant[0].id
     }).returning({ id: tenantUser.id })
 
