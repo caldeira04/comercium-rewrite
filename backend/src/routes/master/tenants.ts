@@ -7,13 +7,15 @@ tenants
 
     .get("/", async ({ query }) => {
         const includeDeleted = query.includeDeleted === "true"
-        const tenants = await listTenants(includeDeleted)
+        const includeUsers = query.includeUsers === "true"
+        const tenants = await listTenants(includeDeleted, includeUsers)
 
         return tenants
     }, {
         query: t.Partial(
             t.Object({
-                includeDeleted: t.String()
+                includeDeleted: t.String(),
+                includeUsers: t.String(),
             }))
     })
 

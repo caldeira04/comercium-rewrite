@@ -8,6 +8,13 @@
       "when": 1779320207958,
       "tag": "0000_premium_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779566604298,
+      "tag": "0001_parched_steve_rogers",
+      "breakpoints": true
     }
   ]
 }

@@ -1,42 +1,41 @@
 import { db } from "@/db/db"
-import { subscriptionStatus, tenant } from "@/db/schema/master/tenant"
-import { and, asc, eq, isNull, sql } from "drizzle-orm"
+import { tenant } from "@/db/schema/master/tenant"
+import { asc, eq, sql } from "drizzle-orm"
 
-export async function listTenants(includeDeleted?: boolean) {
+export async function listTenants(
+    includeDeleted?: boolean,
+    includeUsers?: boolean
+) {
+    const tenants = await db.query.tenant.findMany({
+        columns: {
+            id: true,
+            name: true,
+            slug: true,
+        },
 
-    const conditions = []
-    if (!includeDeleted) {
-        conditions.push(eq(tenant.isActive, true), isNull(tenant.deletedAt))
-    }
+        with: includeUsers
+            ? {
+                tenantUsers: {
+                    columns: {
+                        login: true,
+                    },
+                },
+            }
+            : undefined,
 
-    const tenants = await db
-        .select({
-            id: tenant.id,
-            name: tenant.name,
-            slug: tenant.slug,
-            legalName: tenant.legalName,
-            logoUrl: tenant.logoUrl,
-            primaryColor: tenant.primaryColor,
-            timezone: tenant.timezone,
-            currency: tenant.currency,
-            subscriptionStatusId: tenant.subscriptionStatusId,
-            subscriptionStatus: subscriptionStatus.label,
-            createdAt: tenant.createdAt,
-            updatedAt: tenant.updatedAt,
-            deletedAt: tenant.deletedAt
-        })
-        .from(tenant)
-        .leftJoin(
-            subscriptionStatus,
-            eq(tenant.subscriptionStatusId, subscriptionStatus.id)
-        )
-        .where(conditions.length ? and(...conditions) : undefined)
-        .orderBy(asc(tenant.name))
+        where: includeDeleted
+            ? undefined
+            : (tenant, { and, eq, isNull }) =>
+                and(
+                    eq(tenant.isActive, true),
+                    isNull(tenant.deletedAt)
+                ),
+
+        orderBy: [asc(tenant.createdAt)],
+    })
 
     return tenants
-
 }
-
 export async function deleteTenant(tenantId: string) {
     const deleted = await db.update(tenant).set({
         deletedAt: sql`(CURRENT_TIMESTAMP)`

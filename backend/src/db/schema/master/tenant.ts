@@ -1,5 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 import { timestamps } from "@/utils/drizzle"
+import { relations } from "drizzle-orm"
+import { tenantUser } from "./auth"
 
 export const tenant = sqliteTable("tenant", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -40,3 +42,7 @@ export const subscriptionStatus = sqliteTable("subscription_status", {
     id: integer("id").primaryKey({ autoIncrement: true }),
     label: text("label").notNull()
 })
+
+export const tenantRelations = relations(tenant, ({ many }) => ({
+    tenantUsers: many(tenantUser)
+}))

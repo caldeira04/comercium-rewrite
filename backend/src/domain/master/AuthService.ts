@@ -118,11 +118,11 @@ export async function validateSession(token: string) {
         .select({
             sessionId: session.id,
             expiresAt: session.expiresAt,
-
             userId: tenantUser.id,
             login: tenantUser.login,
             tenantId: tenantUser.tenantId,
             tenantSlug: tenant.slug,
+            tenantName: tenant.name
         })
         .from(session)
         .innerJoin(

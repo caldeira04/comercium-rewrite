@@ -1,6 +1,7 @@
 import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { timestamps, id } from "@/utils/drizzle"
 import { tenant } from "./tenant"
+import { relations } from "drizzle-orm"
 
 export const tenantUser = sqliteTable("tenant_users", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -20,3 +21,10 @@ export const session = sqliteTable("session", {
     expiresAt: text("expires_at").notNull(),
     createdAt: timestamps().createdAt,
 })
+
+export const tenantUserRelations = relations(tenantUser, ({ one }) => ({
+    tenant: one(tenant, {
+        fields: [tenantUser.tenantId],
+        references: [tenant.id]
+    })
+}))
