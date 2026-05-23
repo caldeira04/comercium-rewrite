@@ -35,9 +35,9 @@ auth.post("/signup", async ({ body, cookie, set }) => {
 })
 
 auth.post("/login", async ({ body, cookie, set }) => {
-    const { tenantSlug, login: userLogin, password } = body
+    const { login: userLogin, password } = body
 
-    const token = await login(tenantSlug, userLogin, password)
+    const token = await login(userLogin, password)
 
     if (!token) {
         set.status = 401
@@ -56,7 +56,6 @@ auth.post("/login", async ({ body, cookie, set }) => {
     return { ok: true }
 }, {
     body: t.Object({
-        tenantSlug: t.String({ minLength: 1 }),
         login: t.String({ minLength: 1 }),
         password: t.String({ minLength: 1 }),
     })

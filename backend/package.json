@@ -11,6 +11,7 @@
     "db:tenant:migrate:all": "bun scripts/migrate-tenants.ts"
   },
   "dependencies": {
+    "@elysia/cors": "^1.4.2",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
     "elysia": "latest"

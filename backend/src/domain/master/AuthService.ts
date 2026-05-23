@@ -50,19 +50,19 @@ export async function signUp(
 
     if (!createdTenant) throw new Error("Erro ao criar nova loja")
 
-    const exampleUser = await masterDb.insert(tenantUser).values({
+    const [newUser] = await masterDb.insert(tenantUser).values({
         login: email,
         password: await hashPassword(password),
         tenantId: createdTenant[0].id
     }).returning({ id: tenantUser.id })
 
-    if (!exampleUser) throw new Error("Erro ao criar usuário em nova loja")
+    if (!newUser) throw new Error("Erro ao criar usuário em nova loja")
 
     const token = generateSessionToken()
     const tokenHash = await hashToken(token)
 
     await db.insert(session).values({
-        tenantUserId: exampleUser[0].id,
+        tenantUserId: newUser.id,
         tokenHash,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
         createdAt: new Date().toISOString()
@@ -71,7 +71,7 @@ export async function signUp(
     return token
 }
 
-export async function login(tenantSlug: string, username: string, password: string) {
+export async function login(username: string, password: string) {
     const [user] = await db
         .select({
             id: tenantUser.id,
@@ -82,7 +82,6 @@ export async function login(tenantSlug: string, username: string, password: stri
         .from(tenantUser)
         .innerJoin(tenant, eq(tenantUser.tenantId, tenant.id))
         .where(and(
-            eq(tenant.slug, tenantSlug),
             eq(tenant.isActive, true),
             isNull(tenant.deletedAt),
             eq(tenantUser.login, username),
