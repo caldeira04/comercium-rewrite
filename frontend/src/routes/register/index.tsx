@@ -54,6 +54,7 @@ function RouteComponent() {
             try {
                 const response = await fetch("http://localhost:3000/master/auth/signup", {
                     method: "POST",
+                    credentials: "include",
                     headers: {
                         "Content-Type": "application/json"
                     },
@@ -254,4 +255,3 @@ function RouteComponent() {
         </Card>
     )
 }
-

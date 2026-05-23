@@ -1,4 +1,4 @@
-import { login, signUp } from "@/domain/master/AuthService"
+import { login, signUp, validateSession } from "@/domain/master/AuthService"
 import { Elysia, t } from "elysia"
 
 const auth = new Elysia({ prefix: "/auth" })
@@ -59,6 +59,24 @@ auth.post("/login", async ({ body, cookie, set }) => {
         login: t.String({ minLength: 1 }),
         password: t.String({ minLength: 1 }),
     })
+})
+
+auth.get("/me", async ({ cookie, set }) => {
+    const token = cookie.session.value
+
+    if (typeof token !== "string" || !token) {
+        set.status = 401
+        return { error: "Unauthorized" }
+    }
+
+    const auth = await validateSession(token)
+
+    if (!auth) {
+        set.status = 401
+        return { error: "Unauthorized" }
+    }
+
+    return auth
 })
 
 export default auth

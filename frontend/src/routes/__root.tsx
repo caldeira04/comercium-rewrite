@@ -4,6 +4,8 @@ import { TanStackDevtools } from "@tanstack/react-devtools"
 
 import appCss from "../styles.css?url"
 import { Toaster } from "@/components/ui/sonner"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { ThemeProvider } from "next-themes"
 
 export const Route = createRootRoute({
     head: () => ({
@@ -42,10 +44,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 <HeadContent />
             </head>
             <body>
-                <div className="flex w-full h-screen items-center justify-center">
-                    {children}
-                    <Toaster />
-                </div>
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="light"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    <div className="flex w-full min-h-screen items-center justify-center">
+                        <TooltipProvider>
+                            {children}
+                        </TooltipProvider>
+                        <Toaster />
+                    </div>
+                </ThemeProvider>
                 <TanStackDevtools
                     config={{
                         position: "bottom-right",

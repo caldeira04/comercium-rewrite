@@ -6,7 +6,10 @@ import { authPlugin } from "./utils/elysia"
 import { cors } from "@elysia/cors"
 
 const app = new Elysia()
-    .use(cors())
+    .use(cors({
+        origin: "http://localhost:5173",
+        credentials: true,
+    }))
     .group('/master', (master) =>
         master
             .use(auth)
