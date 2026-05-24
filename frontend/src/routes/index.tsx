@@ -1,115 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import LandingPage from "@/components/landing/landing-page"
-import { BanknoteArrowUpIcon, BanknoteIcon, BarcodeIcon, ChartCandlestickIcon, HandCoinsIcon, LandmarkIcon, PackageIcon, PackageOpenIcon, PackageSearchIcon, SettingsIcon, ShoppingCartIcon, StoreIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-type ResponseUser = {
-    userId: number
-    tenantSlug: string
-    login: string
-    tenantName: string
-}
-
-const items = [
-    {
-        label: "vendas",
-        icon: <ShoppingCartIcon />,
-        subitems: [
-            {
-                label: "pdv",
-                url: "/sales/daily",
-                icon: <StoreIcon />
-            },
-            {
-                label: "histórico",
-                url: "/sales/list",
-                icon: <ChartCandlestickIcon />
-            },
-            {
-                label: "rel. vendas",
-                url: "/sales/report",
-                icon: <BanknoteArrowUpIcon />
-            }
-        ]
-    },
-    {
-        label: "estoque",
-        icon: <PackageIcon />,
-        subitems: [
-            {
-                label: "catálogo",
-                url: "/products/list",
-                icon: <PackageSearchIcon />
-            },
-            {
-                label: "rel. estoque",
-                url: "/products/report",
-                icon: <PackageOpenIcon />
-            }
-        ]
-    },
-    {
-        label: "caixa",
-        icon: <BanknoteIcon />,
-        subitems: [
-            {
-                label: "gerenciar caixa",
-                url: "/cash/current",
-                icon: <LandmarkIcon />
-            },
-            {
-                label: "histórico",
-                url: "/cash/list",
-                icon: <HandCoinsIcon />
-            },
-            {
-                label: "rel. caixas",
-                url: "/cash/report",
-                icon: <BanknoteArrowUpIcon />
-            }
-        ]
-    },
-    {
-        label: "configurações",
-        icon: <SettingsIcon />,
-        url: "/settings"
-    },
-]
+import { type ResponseUser } from "@/utils/auth"
+import { loaderCredentials } from "@/utils/auth"
+import { items } from "@/components/items"
 
 export const Route = createFileRoute("/")({
-    loader: async () => {
-        try {
-            const headers = new Headers()
-
-            if (typeof document === "undefined") {
-                const { getRequestHeader } = await import("@tanstack/react-start/server")
-                const cookie = getRequestHeader("cookie")
-
-                if (cookie) {
-                    headers.set("cookie", cookie)
-                }
-            }
-
-            const response = await fetch("http://localhost:3000/master/auth/me", {
-                headers,
-                credentials: "include"
-            })
-
-            if (!response.ok) return { user: null }
-
-            return { user: (await response.json()) as ResponseUser }
-        } catch {
-            return { user: null }
-        }
-    },
+    loader: loaderCredentials,
     component: IndexPage
 })
 

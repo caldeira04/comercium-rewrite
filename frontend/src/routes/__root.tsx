@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import { HeadContent, Scripts, createRootRoute, useLocation } from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 
@@ -6,6 +6,9 @@ import appCss from "../styles.css?url"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
+import AppSidebar from "@/components/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
+import { loaderCredentials } from "@/utils/auth"
 
 export const Route = createRootRoute({
     head: () => ({
@@ -35,9 +38,15 @@ export const Route = createRootRoute({
         </main>
     ),
     shellComponent: RootDocument,
+    loader: loaderCredentials
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+    const { pathname } = useLocation()
+    const isSidebarVisible = pathname !== "/"
+
+    const { user } = Route.useLoaderData()
+
     return (
         <html lang="en">
             <head>
@@ -50,12 +59,23 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <div className="flex w-full min-h-screen items-center justify-center">
-                        <TooltipProvider>
-                            {children}
-                        </TooltipProvider>
-                        <Toaster />
-                    </div>
+                    <SidebarProvider>
+                        <div className="flex w-full min-h-screen items-center justify-center">
+                            {isSidebarVisible && (
+                                <AppSidebar
+                                    login={user!.login}
+                                    tenantName={user!.tenantName}
+                                    tenantSlug={user!.tenantSlug}
+                                    userId={user!.userId}
+                                />
+                            )}
+
+                            <TooltipProvider>
+                                {children}
+                            </TooltipProvider>
+                            <Toaster />
+                        </div>
+                    </SidebarProvider>
                 </ThemeProvider>
                 <TanStackDevtools
                     config={{
