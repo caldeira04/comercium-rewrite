@@ -27,6 +27,7 @@ export const saleItem = sqliteTable("sale_items", {
     quantity: integer("quantity").notNull(),
     unitPrice: integer("unit_price").notNull(),
     totalPrice: integer("total_price").notNull(),
+    deleteReason: text("delete_reason"),
 
     ...auditing(),
     ...timestamps()

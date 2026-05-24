@@ -1,0 +1,1 @@
+ALTER TABLE `sale_items` ADD `delete_reason` text;

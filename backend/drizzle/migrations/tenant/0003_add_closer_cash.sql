@@ -1,0 +1,1 @@
+ALTER TABLE `cash` ADD `closed_by_user_id` text;

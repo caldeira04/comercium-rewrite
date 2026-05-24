@@ -1,6 +1,7 @@
 import { timestamps, auditing } from "@/utils/drizzle";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { product } from "./product";
+import { relations } from "drizzle-orm";
 
 export const stockMovement = sqliteTable("stock_movement", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -18,3 +19,10 @@ export const stockMovement = sqliteTable("stock_movement", {
     ...auditing(),
     ...timestamps()
 })
+
+export const stockMovementRelations = relations(stockMovement, ({ one }) => ({
+    product: one(product, {
+        fields: [stockMovement.productId],
+        references: [product.id]
+    })
+}))

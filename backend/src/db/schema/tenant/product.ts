@@ -1,6 +1,7 @@
 import { auditing, timestamps } from "@/utils/drizzle";
 import { relations } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { stockMovement } from "./stock";
 
 export const product = sqliteTable("product", {
     id: integer("id").primaryKey({ autoIncrement: true }),
@@ -25,7 +26,7 @@ export const category = sqliteTable("category", {
     ...timestamps()
 })
 
-export const productRelations = relations(product, ({ one }) => ({
+export const productRelations = relations(product, ({ one, many }) => ({
     productSettings: one(productSettings, {
         fields: [product.productSettingsId],
         references: [productSettings.id]
@@ -33,7 +34,8 @@ export const productRelations = relations(product, ({ one }) => ({
     category: one(category, {
         fields: [product.categoryId],
         references: [category.id]
-    })
+    }),
+    stockMovement: many(stockMovement)
 }))
 
 export const productSettingsRelations = relations(productSettings, ({ many }) => ({

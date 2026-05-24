@@ -8,6 +8,7 @@ export const cash = sqliteTable("cash", {
     expectedClosingAmount: integer("expected_closing_amount"),
     actualClosingAmount: integer("actual_closing_amount"),
     closedAt: text("closed_at"),
+    closedByUserId: text("closed_by_user_id"),
 
     ...auditing(),
     ...timestamps()
