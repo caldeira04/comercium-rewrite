@@ -36,6 +36,22 @@ export function useSales() {
         }
     })
 
+    const settleSaleMutation = useMutation({
+        mutationFn: async () => {
+            const { data, error } = await api.tenant.sales.settle.post({
+                fetch: {
+                    credentials: "include"
+                }
+            })
+            if (error) throw error
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] }),
+                queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
     const addProductToSaleMutation = useMutation({
         mutationFn: async ({ productId, quantity }: {
             productId: number,
@@ -70,6 +86,9 @@ export function useSales() {
         createSale: createSaleMutation.mutateAsync,
         createSaleIsPending: createSaleMutation.isPending,
         createSaleIsError: createSaleMutation.isError,
+        settleSale: settleSaleMutation.mutateAsync,
+        settleSaleIsPending: settleSaleMutation.isPending,
+        settleSaleIsError: settleSaleMutation.isError,
         addProductToSale: addProductToSaleMutation.mutateAsync,
         addProductToSaleIsPending: addProductToSaleMutation.isPending,
         addProductToSaleIsError: addProductToSaleMutation.isError,

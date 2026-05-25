@@ -1,5 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
 import { timestamps, auditing } from "@/utils/drizzle"
+import { relations } from "drizzle-orm"
+import { sale } from "./sale"
 
 export const cash = sqliteTable("cash", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -29,3 +31,8 @@ export const cashMovement = sqliteTable("cash_movement", {
     ...auditing(),
     ...timestamps()
 })
+
+export const cashRelations = relations(cash, ({ many }) => ({
+    cashMovements: many(cashMovement),
+    sales: many(sale)
+}))

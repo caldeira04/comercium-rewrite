@@ -9,23 +9,24 @@ CREATE TABLE `session` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `session_token_hash_unique` ON `session` (`token_hash`);--> statement-breakpoint
 CREATE TABLE `tenant_users` (
+	`id` text PRIMARY KEY NOT NULL,
 	`tenant_id` text NOT NULL,
 	`login` text NOT NULL,
 	`password` text NOT NULL,
-	`id` text PRIMARY KEY NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`deleted_at` text,
 	FOREIGN KEY (`tenant_id`) REFERENCES `tenant`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `tenant_users_login_unique` ON `tenant_users` (`login`);--> statement-breakpoint
+CREATE UNIQUE INDEX `tenant_users_tenant_id_login_unique` ON `tenant_users` (`tenant_id`,`login`);--> statement-breakpoint
 CREATE TABLE `subscription_status` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`label` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `tenant` (
+	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`slug` text NOT NULL,
 	`legal_name` text,
@@ -44,11 +45,12 @@ CREATE TABLE `tenant` (
 	`timezone` text DEFAULT 'America/Sao_Paulo' NOT NULL,
 	`currency` text DEFAULT 'BRL' NOT NULL,
 	`plan_id` text,
-	`subscription_status_id` text NOT NULL,
+	`subscription_status_id` text,
 	`subscription_expire_date` text,
 	`is_active` integer DEFAULT true,
-	`id` text PRIMARY KEY NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`deleted_at` text
 );
+--> statement-breakpoint
+CREATE UNIQUE INDEX `tenant_slug_unique` ON `tenant` (`slug`);

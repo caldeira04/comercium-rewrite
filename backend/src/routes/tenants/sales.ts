@@ -55,21 +55,12 @@ const sales = new Elysia({ prefix: "/sales" })
         })
     })
 
-    .group("/:id", (id) =>
-        id
-            .post("/settle", async ({ auth, params }) => {
-                const settle = await settleSale(auth.tenantSlug, {
-                    saleId: params.id,
-                    userId: auth.userId
-                })
+    .post("/settle", async ({ auth }) => {
+        const settle = await settleSale(auth.tenantSlug, {
+            userId: auth.userId
+        })
 
-                return settle
-
-            }, {
-                params: t.Object({
-                    id: t.String()
-                }),
-            })
-    )
+        return settle
+    })
 
 export default sales

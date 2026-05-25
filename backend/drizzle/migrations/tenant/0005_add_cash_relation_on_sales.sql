@@ -1,0 +1,1 @@
+ALTER TABLE `sale` ADD `cash_id` text NOT NULL REFERENCES cash(id);

@@ -2,7 +2,7 @@ import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
 import { desc, eq, isNull, sql } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
-import { createCashMovement } from "../cash/CashService";
+import { createCashMovement, currentCash } from "../cash/CashService";
 import { cash } from "@/db/schema/tenant";
 
 export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
@@ -101,8 +101,13 @@ export async function createSale(tenantSlug: string, data: {
     const db = getTenantDb(tenantSlug)
     const { clientId, userId } = data
 
+    const cashId = await currentCash(tenantSlug)
+
+    if (!cashId) throw new Error("o caixa deve estar aberto para iniciar uma nova venda")
+
     const [newSale] = await db.insert(sale).values({
         clientId,
+        cashId: cashId?.id,
         createdByUserId: userId,
     }).returning()
 
@@ -110,15 +115,18 @@ export async function createSale(tenantSlug: string, data: {
 }
 
 export async function settleSale(tenantSlug: string, data: {
-    saleId: string
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { userId, saleId } = data
+    const { userId } = data
+
+    const saleId = await currentSale(tenantSlug)
+
+    if (!saleId) throw new Error("venda não encontrada")
 
     const settlement = db.transaction(async (tx) => {
         const currentSale = await tx.query.sale.findFirst({
-            where: (sale, { eq }) => eq(sale.id, saleId)
+            where: (sale, { eq }) => eq(sale.id, saleId.id)
         })
 
         if (!currentSale) throw new Error("venda não encontrada no sistema")

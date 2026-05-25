@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "941a4ec8-1bfb-46b3-b452-5e0cc6005df4",
+  "id": "5d3061e6-bd0d-44bf-aea5-7c539b393020",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "session": {
@@ -75,6 +75,13 @@
     "tenant_users": {
       "name": "tenant_users",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
         "tenant_id": {
           "name": "tenant_id",
           "type": "text",
@@ -93,13 +100,6 @@
           "name": "password",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
@@ -128,9 +128,10 @@
         }
       },
       "indexes": {
-        "tenant_users_login_unique": {
-          "name": "tenant_users_login_unique",
+        "tenant_users_tenant_id_login_unique": {
+          "name": "tenant_users_tenant_id_login_unique",
           "columns": [
+            "tenant_id",
             "login"
           ],
           "isUnique": true
@@ -182,6 +183,13 @@
     "tenant": {
       "name": "tenant",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -314,7 +322,7 @@
           "name": "subscription_status_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "subscription_expire_date": {
@@ -331,13 +339,6 @@
           "notNull": false,
           "autoincrement": false,
           "default": true
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
@@ -363,7 +364,15 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "tenant_slug_unique": {
+          "name": "tenant_slug_unique",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

@@ -36,6 +36,13 @@
       "when": 1779679464913,
       "tag": "0004_broken_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1779750399443,
+      "tag": "0005_add_cash_relation_on_sales",
+      "breakpoints": true
     }
   ]
 }

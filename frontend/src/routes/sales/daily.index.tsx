@@ -18,7 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import {
     Combobox,
     ComboboxContent,
@@ -38,7 +38,7 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InputGroup } from "@/components/ui/input-group"
-import { Clock, ClockIcon, MinusIcon, PlusIcon } from "lucide-react"
+import { ClockIcon, MinusIcon, PlusIcon } from "lucide-react"
 import { formatTime } from "@/utils/time"
 
 export const Route = createFileRoute('/sales/daily/')({
@@ -68,22 +68,34 @@ function RouteComponent() {
             </div>
             {/* barra lateral direita */}
             <div className='w-1/4 max-w-1/4'>
-                {currentSaleIsPending && (
+                {currentSaleIsPending ? (
                     <Spinner />
-                )}
-                <SaleDetails
-                    sale={currentSale}
-                    productId={selectedProduct}
-                    removeSelection={() => setSelectedProduct(null)}
-                />
+                ) : (
+                    <SaleDetails
+                        sale={currentSale}
+                        productId={selectedProduct}
+                        removeSelection={() => setSelectedProduct(null)}
+                    />)}
             </div>
         </div>
     )
 }
 
+interface Product {
+    id: number
+    name: string
+    sellPrice: number
+    buyPrice: number
+    gtin: string
+    stockMovement: {
+        quantity: number
+        type: string
+    }[]
+}
+
 interface SearchBarProps {
     disabled: boolean
-    products: any
+    products: Product[]
     onSelectProduct: (productId: string) => void
 }
 
@@ -141,6 +153,9 @@ interface Sale {
         createdAt: number
         product: {
             name: string
+            gtin?: string
+            buyPrice?: number
+            sellPrice?: number
         }
     }[]
 }
@@ -164,7 +179,7 @@ function ProductsTable({ sale }: ProductsTableProps) {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sale.saleItem.map((item) => (
+                {sale.saleItem ? sale.saleItem.map((item) => (
                     <TableRow key={item.createdAt}>
                         <TableCell className="font-medium">
                             {formatTime(new Date(item.createdAt)).hhMM}
@@ -175,14 +190,20 @@ function ProductsTable({ sale }: ProductsTableProps) {
                         <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
                         <TableCell className="text-right"></TableCell>
                     </TableRow>
-                ))}
+                )) : (
+                    <TableRow>
+                        <TableCell className="text-center">
+                            <span>nenhum produto foi registrado na venda</span>
+                        </TableCell>
+                    </TableRow>
+                )}
             </TableBody>
         </Table>
     )
 }
 
 interface SaleDetailsProps {
-    sale: any
+    sale: Sale
     productId?: string | null
     removeSelection: () => void
 }
@@ -197,7 +218,9 @@ function SaleDetails({
         createSaleIsPending,
         addProductToSale,
         addProductToSaleIsPending,
-        addProductToSaleIsError
+        addProductToSaleIsError,
+        settleSale,
+        settleSaleIsPending,
     } = useSales()
     const {
         singleProduct: product,
@@ -218,6 +241,8 @@ function SaleDetails({
         toast.success("item adicionado à venda com sucesso")
     }
 
+    const saleTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0) : 0
+
     return (
         <Card className='w-full flex items-center justify-start h-screen'>
             <h2 className='font-bold text-xl text-center'>{
@@ -226,7 +251,7 @@ function SaleDetails({
                     : sale ? "detalhes da venda"
                         : "inicie uma venda para começar"
             }</h2>
-            <CardContent className='w-full'>
+            <CardContent className='w-full flex flex-col h-full justify-between'>
                 {!sale ? (
                     <div className="flex flex-col gap-2">
                         <Combobox
@@ -277,7 +302,7 @@ function SaleDetails({
                                     <Input
                                         className="text-center"
                                         value={quantity}
-                                        onChange={(e) => setQuantity(Number(e.target.value))} k
+                                        onChange={(e) => setQuantity(Number(e.target.value))}
                                     />
                                     <Button className="w-1/3"
                                         onClick={() => setQuantity(val => val + 1)}
@@ -293,6 +318,12 @@ function SaleDetails({
                             </>
                         )}
                     </div>
+                )}
+                {sale.saleItem && (
+                    <CardFooter className="flex flex-col gap-2">
+                        <span>valor total da venda: {formatCurrency(saleTotal)}</span>
+                        <Button disabled={settleSaleIsPending} onClick={() => settleSale()}>encerrar venda</Button>
+                    </CardFooter>
                 )}
             </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import { readdirSync, existsSync, mkdirSync } from "node:fs"
+import { readdirSync, existsSync, mkdirSync, unlinkSync } from "node:fs"
 import path from "node:path"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import { drizzle } from "drizzle-orm/bun-sqlite"
@@ -6,6 +6,7 @@ import { Database } from "bun:sqlite"
 
 const tenantsDir = path.join(process.cwd(), "data", "tenants")
 const migrationsFolder = path.join(process.cwd(), "drizzle", "migrations", "tenant")
+const fresh = process.argv.includes("--fresh")
 
 if (!existsSync(tenantsDir)) {
     mkdirSync(tenantsDir, { recursive: true })
@@ -21,6 +22,11 @@ if (tenantDbFiles.length === 0) {
 
 for (const file of tenantDbFiles) {
     const dbPath = path.join(tenantsDir, file)
+
+    if (fresh) {
+        console.log(`Removendo ${file} para migração limpa...`)
+        unlinkSync(dbPath)
+    }
 
     console.log(`Migrando ${file}...`)
 

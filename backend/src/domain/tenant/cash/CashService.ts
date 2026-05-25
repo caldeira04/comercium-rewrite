@@ -1,6 +1,43 @@
 import { getTenantDb } from "@/db/db"
 import { cash, cashMovement } from "@/db/schema/tenant"
-import { sql } from "drizzle-orm"
+import { desc, sql } from "drizzle-orm"
+
+export async function currentCash(tenantSlug: string) {
+    const db = getTenantDb(tenantSlug)
+
+    const currentCash = await db.query.cash.findFirst({
+        orderBy: [desc(cash.createdAt)],
+        columns: {
+            actualClosingAmount: true,
+            id: true,
+            closedAt: true,
+            closedByUserId: true,
+            createdAt: true,
+            createdByUserId: true,
+            updatedAt: true,
+            updatedByUserId: true,
+            openingAmount: true,
+            expectedClosingAmount: true
+        },
+        with: {
+            cashMovements: {
+                columns: {
+                    id: true,
+                    amount: true,
+                    nature: true,
+                    createdAt: true,
+                    createdByUserId: true,
+                    description: true,
+                    type: true
+                }
+            }
+        },
+    })
+
+    if (!currentCash) return null
+
+    return currentCash
+}
 
 export async function createCash(tenantSlug: string, data: {
     openingAmount: number,

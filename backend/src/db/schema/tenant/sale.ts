@@ -3,6 +3,7 @@ import { relations } from "drizzle-orm";
 import { product } from "./product";
 import { timestamps, auditing } from "@/utils/drizzle";
 import { client } from "./client";
+import { cash } from "./cash";
 
 export const sale = sqliteTable("sale", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -11,6 +12,7 @@ export const sale = sqliteTable("sale", {
     clientId: integer("client_id").notNull().references(() => client.id, { onDelete: "restrict" }),
     settledAt: text("settled_at"),
     cancelledAt: text("cancelled_at"),
+    cashId: text("cash_id").notNull().references(() => cash.id, { onDelete: "restrict" }),
 
     ...auditing(),
     ...timestamps()
@@ -21,6 +23,10 @@ export const saleRelations = relations(sale, ({ many, one }) => ({
     client: one(client, {
         fields: [sale.clientId],
         references: [client.id]
+    }),
+    cash: one(cash, {
+        fields: [sale.cashId],
+        references: [cash.id]
     })
 }))
 
