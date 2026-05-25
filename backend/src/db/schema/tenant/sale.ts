@@ -16,8 +16,12 @@ export const sale = sqliteTable("sale", {
     ...timestamps()
 })
 
-export const saleRelations = relations(sale, ({ many }) => ({
-    saleItem: many(saleItem)
+export const saleRelations = relations(sale, ({ many, one }) => ({
+    saleItem: many(saleItem),
+    client: one(client, {
+        fields: [sale.clientId],
+        references: [client.id]
+    })
 }))
 
 export const saleItem = sqliteTable("sale_items", {

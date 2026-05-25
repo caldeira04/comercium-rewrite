@@ -40,13 +40,13 @@ function Home({ user }: { user: ResponseUser }) {
                 const hasSubitem = i.subitems && i.subitems?.length > 0
                 if (hasSubitem) {
                     return (
-                        <DropdownMenu>
+                        <DropdownMenu key={i.label}>
                             <DropdownMenuTrigger asChild>
                                 <Button variant={"ghost"}>{i.icon} {i.label}</Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-48">
                                 {i.subitems.map((s) => (
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem key={s.label}>
                                         <Button variant={"link"}>
                                             <Link to={s.url} className="flex gap-2 items-center justify-center">
                                                 {s.icon} {s.label}
@@ -61,7 +61,7 @@ function Home({ user }: { user: ResponseUser }) {
                 }
 
                 return (
-                    <Button variant={"link"}>
+                    <Button key={i.label} variant={"link"}>
                         <Link to={i.url} className="flex gap-2 items-center justify-center">
                             {i.icon} {i.label}
                         </Link>

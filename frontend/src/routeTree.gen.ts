@@ -16,7 +16,9 @@ import { Route as RegisterIndexRouteImport } from './routes/register/index'
 import { Route as ProductsIndexRouteImport } from './routes/products/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as ClientsIndexRouteImport } from './routes/clients/index'
 import { Route as CashIndexRouteImport } from './routes/cash/index'
+import { Route as SalesListIndexRouteImport } from './routes/sales/list.index'
 import { Route as SalesDailyIndexRouteImport } from './routes/sales/daily.index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -54,9 +56,19 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/dashboard/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientsIndexRoute = ClientsIndexRouteImport.update({
+  id: '/clients/',
+  path: '/clients/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CashIndexRoute = CashIndexRouteImport.update({
   id: '/cash/',
   path: '/cash/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesListIndexRoute = SalesListIndexRouteImport.update({
+  id: '/sales/list/',
+  path: '/sales/list/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalesDailyIndexRoute = SalesDailyIndexRouteImport.update({
@@ -68,6 +80,7 @@ const SalesDailyIndexRoute = SalesDailyIndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cash/': typeof CashIndexRoute
+  '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
   '/products/': typeof ProductsIndexRoute
@@ -75,10 +88,12 @@ export interface FileRoutesByFullPath {
   '/sales/': typeof SalesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
+  '/sales/list/': typeof SalesListIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cash': typeof CashIndexRoute
+  '/clients': typeof ClientsIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
   '/products': typeof ProductsIndexRoute
@@ -86,11 +101,13 @@ export interface FileRoutesByTo {
   '/sales': typeof SalesIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/sales/daily': typeof SalesDailyIndexRoute
+  '/sales/list': typeof SalesListIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cash/': typeof CashIndexRoute
+  '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
   '/products/': typeof ProductsIndexRoute
@@ -98,12 +115,14 @@ export interface FileRoutesById {
   '/sales/': typeof SalesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
+  '/sales/list/': typeof SalesListIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/cash/'
+    | '/clients/'
     | '/dashboard/'
     | '/login/'
     | '/products/'
@@ -111,10 +130,12 @@ export interface FileRouteTypes {
     | '/sales/'
     | '/settings/'
     | '/sales/daily/'
+    | '/sales/list/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/cash'
+    | '/clients'
     | '/dashboard'
     | '/login'
     | '/products'
@@ -122,10 +143,12 @@ export interface FileRouteTypes {
     | '/sales'
     | '/settings'
     | '/sales/daily'
+    | '/sales/list'
   id:
     | '__root__'
     | '/'
     | '/cash/'
+    | '/clients/'
     | '/dashboard/'
     | '/login/'
     | '/products/'
@@ -133,11 +156,13 @@ export interface FileRouteTypes {
     | '/sales/'
     | '/settings/'
     | '/sales/daily/'
+    | '/sales/list/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CashIndexRoute: typeof CashIndexRoute
+  ClientsIndexRoute: typeof ClientsIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
   ProductsIndexRoute: typeof ProductsIndexRoute
@@ -145,6 +170,7 @@ export interface RootRouteChildren {
   SalesIndexRoute: typeof SalesIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   SalesDailyIndexRoute: typeof SalesDailyIndexRoute
+  SalesListIndexRoute: typeof SalesListIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -198,11 +224,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clients/': {
+      id: '/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof ClientsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cash/': {
       id: '/cash/'
       path: '/cash'
       fullPath: '/cash/'
       preLoaderRoute: typeof CashIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales/list/': {
+      id: '/sales/list/'
+      path: '/sales/list'
+      fullPath: '/sales/list/'
+      preLoaderRoute: typeof SalesListIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sales/daily/': {
@@ -218,6 +258,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CashIndexRoute: CashIndexRoute,
+  ClientsIndexRoute: ClientsIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
   ProductsIndexRoute: ProductsIndexRoute,
@@ -225,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   SalesIndexRoute: SalesIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   SalesDailyIndexRoute: SalesDailyIndexRoute,
+  SalesListIndexRoute: SalesListIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

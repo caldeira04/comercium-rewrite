@@ -1,14 +1,30 @@
-import { createSale, currentSale, settleSale } from "@/domain/tenant/sales/SalesService";
+import { createSale, currentSale, getSales, settleSale } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
 import Elysia, { t } from "elysia";
 
 const sales = new Elysia({ prefix: "/sales" })
     .use(authPlugin)
-    .get("/", async ({ auth }) => {
+
+    .get("/", async ({ auth, query }) => {
+        const includeDeleted = query.includeDeleted === "true"
+
+        const sales = await getSales(auth.tenantSlug, includeDeleted)
+
+        return sales
+    }, {
+        query: t.Partial(
+            t.Object({
+                includeDeleted: t.String()
+            })
+        )
+    })
+
+    .get("/current", async ({ auth }) => {
         const sale = await currentSale(auth.tenantSlug)
 
         return sale
     })
+
     .post("/new", async ({ body, auth }) => {
         const sale = await createSale(auth.tenantSlug, {
             clientId: body.clientId,

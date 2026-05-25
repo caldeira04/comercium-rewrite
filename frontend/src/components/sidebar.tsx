@@ -17,7 +17,7 @@ import { Button } from "./ui/button"
 import { Link } from "@tanstack/react-router"
 import { type ResponseUser } from "@/utils/auth"
 
-export default function AppSidebar({ login, tenantName, tenantSlug, userId }: ResponseUser) {
+export default function AppSidebar({ login, tenantName, tenantSlug }: ResponseUser) {
 
     return (
         <Sidebar>
@@ -29,11 +29,11 @@ export default function AppSidebar({ login, tenantName, tenantSlug, userId }: Re
                     const hasSubitem = i.subitems && i.subitems?.length > 0
                     if (hasSubitem) {
                         return (
-                            <SidebarGroup>
+                            <SidebarGroup key={i.label}>
                                 <SidebarGroupLabel>{i.label}</SidebarGroupLabel>
                                 <SidebarGroupContent>
                                     {i.subitems.map((s) => (
-                                        <SidebarMenuItem>
+                                        <SidebarMenuItem key={s.label}>
                                             <Button variant={"link"}>
                                                 <Link to={s.url} className="flex gap-2 items-center justify-center">
                                                     {s.icon} {s.label}
@@ -45,6 +45,21 @@ export default function AppSidebar({ login, tenantName, tenantSlug, userId }: Re
                             </SidebarGroup>
                         )
                     }
+
+                    return (
+                        <SidebarGroup key={i.label}>
+                            <SidebarGroupLabel>{i.label}</SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenuItem>
+                                    <Button variant={"link"}>
+                                        <Link to={i.url} className="flex gap-2 items-center justify-center">
+                                            {i.icon} {i.label}
+                                        </Link>
+                                    </Button>
+                                </SidebarMenuItem>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    )
                 })}
             </SidebarContent>
             <SidebarFooter>

@@ -1,17 +1,64 @@
 import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, isNull, sql } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
 import { createCashMovement } from "../cash/CashService";
 import { cash } from "@/db/schema/tenant";
+
+export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
+    const db = getTenantDb(tenantSlug)
+    const conditions = []
+    if (!includeDeleted) {
+        conditions.push(isNull(sale.deletedAt))
+    }
+
+    const sales = await db.query.sale.findMany({
+        columns: {
+            id: true,
+            createdAt: true,
+            settledAt: true,
+            totalAmount: true
+        },
+        where: includeDeleted
+            ? undefined
+            : (sale, { isNull }) =>
+                isNull(sale.deletedAt),
+        orderBy: [desc(sale.createdAt)],
+        with: {
+            client: {
+                columns: {
+                    id: true,
+                    name: true
+                }
+            },
+            saleItem: {
+                columns: {
+                    quantity: true,
+                    totalPrice: true
+                },
+                with: {
+                    product: {
+                        columns: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            }
+        }
+    })
+
+    return sales
+
+}
 
 export async function currentSale(tenantSlug: string) {
     const db = getTenantDb(tenantSlug)
 
     const currentSale = await db.query.sale.findFirst({
         orderBy: [desc(sale.createdAt)],
-        where: (sale, { isNotNull }) =>
-            isNotNull(sale.settledAt)
+        where: (sale, { isNull }) =>
+            isNull(sale.settledAt)
     })
 
     if (!currentSale) return null

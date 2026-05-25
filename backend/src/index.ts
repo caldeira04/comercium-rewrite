@@ -5,6 +5,7 @@ import products from "./routes/tenants/products"
 import { authPlugin } from "./utils/elysia"
 import { cors } from "@elysia/cors"
 import sales from "./routes/tenants/sales"
+import clients from "./routes/tenants/clients"
 
 const app = new Elysia()
     .use(cors({
@@ -21,6 +22,7 @@ const app = new Elysia()
             .use(authPlugin)
             .use(products)
             .use(sales)
+            .use(clients)
     )
     .get("/", () => "Hello Elysia")
     .listen(3000)

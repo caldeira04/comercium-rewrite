@@ -3,11 +3,14 @@ import { writeFileSync } from "fs"
 
 function main() {
     const newProducts = []
+    let index = 1
     for (const product of products) {
         newProducts.push({
-            id: crypto.randomUUID(),
-            ...product
+            ...product,
+            id: index + 1
         })
+        console.log(`ID de produto convertido: ${product.name}, ${index}`)
+        index++
     }
 
     try {
