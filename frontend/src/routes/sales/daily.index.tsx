@@ -6,6 +6,7 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
+    CommandShortcut,
 } from "@/components/ui/command"
 import {
     Table,
@@ -19,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card'
 
 import products from "@/utils/products.json"
 import { formatCurrency } from '@/utils/finance'
+import { useState } from 'react'
 
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
@@ -42,17 +44,28 @@ function RouteComponent() {
 }
 
 function SearchBar() {
+    const [search, setSearch] = useState<string>("")
 
     return (
-        <Command className="rounded-lg w-full max-h-fit border">
-            <CommandInput placeholder="busque por um produto ou escaneie o código de barras" />
+        <Command className="rounded-lg w-full max-h-fit border"
+            filter={(value, search) => {
+                if (value.toLowerCase().match(search.toLowerCase())) return 1
+                return 0
+            }}
+        >
+            <CommandInput placeholder="busque por um produto ou escaneie o código de barras"
+                value={search}
+                onValueChange={(e) => setSearch(e)}
+            />
             <CommandList>
                 <CommandEmpty>nenhum produto encontrado</CommandEmpty>
-                {products.map((p) => (
+                {search && products.map((p) => (
                     <CommandItem
-                        value={p.id}
+                        key={p.id}
+                        value={`{${p.name} ${p.gtin}}`}
                     >
                         {p.name} - {p.gtin} - {formatCurrency(p.sellPrice)}
+                        <CommandShortcut>↵</CommandShortcut>
                     </CommandItem>
                 ))}
             </CommandList>

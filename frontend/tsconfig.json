@@ -24,7 +24,14 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/db/*": ["../backend/src/db/*"],
+      "@/domain/*": ["../backend/src/domain/*"],
+      "@/routes/*": ["../backend/src/routes/*"],
+      "@/utils/drizzle": ["../backend/src/utils/drizzle.ts"],
+      "@/utils/elysia": ["../backend/src/utils/elysia.ts"],
+      "@/utils/general": ["../backend/src/utils/general.ts"],
+      "@/*": ["./src/*"],
+      "backend/*": ["../backend/src/*"]
     }
   }
 }

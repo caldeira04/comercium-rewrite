@@ -1,7 +1,7 @@
 import { db } from "@/db/db"
 import { session, tenantUser } from "@/db/schema/master/auth"
 import { tenant } from "@/db/schema/master/tenant"
-import { generateSessionToken, hashPassword, hashToken, verifyPassword } from "@/utils/auth"
+import { generateSessionToken, hashPassword, hashToken, verifyPassword } from "../../utils/auth"
 import { and, eq, isNull } from "drizzle-orm"
 import path from "node:path"
 import { existsSync, mkdirSync } from "node:fs"

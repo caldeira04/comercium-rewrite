@@ -1,5 +1,5 @@
 import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
-import { timestamps, id } from "@/utils/drizzle"
+import { timestamps } from "@/utils/drizzle"
 import { tenant } from "./tenant"
 import { relations } from "drizzle-orm"
 

@@ -61,12 +61,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 >
                     <SidebarProvider>
                         <div className="flex w-full min-h-screen items-center justify-center">
-                            {isSidebarVisible && (
+                            {isSidebarVisible && user && (
                                 <AppSidebar
-                                    login={user!.login}
-                                    tenantName={user!.tenantName}
-                                    tenantSlug={user!.tenantSlug}
-                                    userId={user!.userId}
+                                    login={user.login}
+                                    tenantName={user.tenantName}
+                                    tenantSlug={user.tenantSlug}
+                                    userId={user.userId}
                                 />
                             )}
 

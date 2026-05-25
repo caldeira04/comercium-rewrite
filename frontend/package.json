@@ -12,10 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-devtools": "^0.10.0",
     "@tanstack/react-form": "^1.32.0",
+    "@tanstack/react-query": "^5.100.14",
     "@tanstack/react-router": "^1.167.4",
     "@tanstack/react-router-devtools": "^1.166.9",
     "@tanstack/react-router-ssr-query": "^1.166.9",

@@ -5,20 +5,30 @@ import { createBulkStockMovements } from "../stock/StockService";
 import { createCashMovement } from "../cash/CashService";
 import { cash } from "@/db/schema/tenant";
 
+export async function currentSale(tenantSlug: string) {
+    const db = getTenantDb(tenantSlug)
+
+    const currentSale = await db.query.sale.findFirst({
+        orderBy: [desc(sale.createdAt)],
+        where: (sale, { isNotNull }) =>
+            isNotNull(sale.settledAt)
+    })
+
+    if (!currentSale) return null
+
+    return currentSale
+}
+
 export async function createSale(tenantSlug: string, data: {
     clientId: number
-    totalAmount?: number
-    settledAt?: string | null
-    createdByUserId: string
+    userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { clientId, totalAmount, settledAt, createdByUserId } = data
+    const { clientId, userId } = data
 
     const [newSale] = await db.insert(sale).values({
         clientId,
-        totalAmount,
-        settledAt,
-        createdByUserId,
+        createdByUserId: userId,
     }).returning()
 
     return newSale
@@ -98,11 +108,11 @@ export async function addProductToSale(tenantSlug: string, data: {
     saleId: string,
     productId: number,
     quantity: number,
-    createdByUserId: string
+    userId: string
 }) {
     const db = getTenantDb(tenantSlug)
 
-    const { saleId, productId, quantity, createdByUserId } = data
+    const { saleId, productId, quantity, userId } = data
 
     const saleProduct = await db.query.product.findFirst({
         where: (product, { eq }) => eq(product.id, productId),
@@ -119,8 +129,8 @@ export async function addProductToSale(tenantSlug: string, data: {
         quantity,
         unitPrice: saleProduct.sellPrice,
         totalPrice: quantity * saleProduct.sellPrice,
-        createdByUserId,
-        updatedByUserId: createdByUserId
+        createdByUserId: userId,
+        updatedByUserId: userId
     })
         .returning()
 
