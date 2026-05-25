@@ -1,23 +1,26 @@
+import { db, getTenantDb } from "@/db/db"
+import { product } from "@/db/schema/tenant"
 import products from "@/utils/products.json"
-import { writeFileSync } from "fs"
 
-function main() {
-    const newProducts = []
-    let index = 1
-    for (const product of products) {
-        newProducts.push({
-            ...product,
-            id: index + 1
-        })
-        console.log(`ID de produto convertido: ${product.name}, ${index}`)
-        index++
-    }
+async function main() {
+    const tenantDb = getTenantDb("fullbeer")
+    const user = await db.query.tenant.findFirst({
+        where: (tenant, { eq }) => eq(tenant.slug, "fullbeer"),
+        with: {
+            tenantUsers: {
+                columns: {
+                    id: true
+                }
+            }
+        }
+    })
 
-    try {
-        writeFileSync('parsedProducts.json', JSON.stringify(newProducts))
-    } catch (e) {
-        console.error(e)
-    }
+    await tenantDb.insert(product).values(products.map((p) => ({
+        ...p,
+        createdByUserId: user?.tenantUsers[0].id,
+        updatedByUserId: user?.tenantUsers[0].id,
+    })))
+
 }
 
 main()

@@ -1,4 +1,4 @@
-import { createProduct, deleteProduct, getProducts } from "@/domain/tenant/products/ProductsService"
+import { createProduct, deleteProduct, getProducts, getSingleProduct } from "@/domain/tenant/products/ProductsService"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
@@ -8,7 +8,7 @@ const products = new Elysia({ prefix: "/products" })
     .get("/", async ({ query, auth }) => {
         const includeDeleted = query.includeDeleted === "true"
 
-        const products = getProducts(auth.tenantSlug, includeDeleted)
+        const products = await getProducts(auth.tenantSlug, includeDeleted)
 
         return products
     }, {
@@ -17,6 +17,14 @@ const products = new Elysia({ prefix: "/products" })
                 includeDeleted: t.String()
             })
         )
+    })
+
+    .get("/:productId", async ({ params, auth }) => {
+        return await getSingleProduct(auth.tenantSlug, Number(params.productId))
+    }, {
+        params: t.Object({
+            productId: t.String()
+        })
     })
 
     .post("/", async ({ body, auth }) => {

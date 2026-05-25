@@ -32,25 +32,59 @@ export async function getProducts(tenantSlug: string, includeDeleted?: boolean) 
     }
 
     const products = await db
-        .select({
-            id: product.id,
-            name: product.name,
-            sellPrice: product.sellPrice,
-            buyPrice: product.buyPrice,
-            gtin: product.gtin,
-            createdAt: product.createdAt,
-            updatedAt: product.updatedAt,
-            deletedAt: product.deletedAt,
-            createdByUserId: product.createdByUserId,
-            updatedByUserId: product.updatedByUserId,
-            deletedByUserId: product.deletedByUserId,
+        .query.product.findMany({
+            columns: {
+                id: true,
+                name: true,
+                sellPrice: true,
+                buyPrice: true,
+                gtin: true,
+            },
+            with: {
+                stockMovement: {
+                    columns: {
+                        quantity: true,
+                        type: true
+                    }
+                }
+            },
+            where: includeDeleted
+                ? undefined
+                : (product, { isNull }) =>
+                    isNull(product.deletedAt),
+            orderBy: [asc(product.id)]
         })
-        .from(product)
-        .where(conditions.length ? conditions[0] : undefined)
-        .orderBy(asc(product.createdAt))
 
     return products
 }
+
+export async function getSingleProduct(tenantSlug: string, productId: number) {
+    const db = getTenantDb(tenantSlug)
+
+    const product = await db
+        .query.product.findFirst({
+            columns: {
+                id: true,
+                name: true,
+                sellPrice: true,
+                buyPrice: true,
+                gtin: true,
+            },
+            with: {
+                stockMovement: {
+                    columns: {
+                        quantity: true,
+                        type: true
+                    }
+                }
+            },
+            where: (product, { eq }) =>
+                eq(product.id, productId),
+        })
+
+    return product
+}
+
 
 export async function deleteProduct(tenantSlug: string, productId: number, userId: string) {
     const db = getTenantDb(tenantSlug)

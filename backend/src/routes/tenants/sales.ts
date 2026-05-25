@@ -1,4 +1,4 @@
-import { createSale, currentSale, getSales, settleSale } from "@/domain/tenant/sales/SalesService";
+import { addProductToSale, createSale, currentSale, getSales, settleSale } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
 import Elysia, { t } from "elysia";
 
@@ -37,6 +37,24 @@ const sales = new Elysia({ prefix: "/sales" })
             clientId: t.Number(),
         })
     })
+
+    .post("/item/:productId", async ({ params, body, auth }) => {
+        const added = await addProductToSale(auth.tenantSlug, {
+            productId: Number(params.productId),
+            userId: auth.userId,
+            quantity: body.quantity
+        })
+
+        return added
+    }, {
+        params: t.Object({
+            productId: t.Number(),
+        }),
+        body: t.Object({
+            quantity: t.Number()
+        })
+    })
+
     .group("/:id", (id) =>
         id
             .post("/settle", async ({ auth, params }) => {

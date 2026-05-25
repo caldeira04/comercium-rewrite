@@ -22,7 +22,9 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: ResponseUs
     return (
         <Sidebar>
             <SidebarHeader className="mt-2 flex items-center justify-center">
-                <h1 className="text-3xl font-bold uppercase">Comercium</h1>
+                <Link to="/">
+                    <h1 className="text-3xl font-bold uppercase">Comercium</h1>
+                </Link>
             </SidebarHeader>
             <SidebarContent>
                 {items.map((i) => {

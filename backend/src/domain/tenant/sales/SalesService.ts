@@ -57,6 +57,34 @@ export async function currentSale(tenantSlug: string) {
 
     const currentSale = await db.query.sale.findFirst({
         orderBy: [desc(sale.createdAt)],
+        columns: {
+            id: true,
+            createdAt: true,
+            updatedAt: true
+        },
+        with: {
+            client: {
+                columns: {
+                    name: true
+                }
+            },
+            saleItem: {
+                columns: {
+                    quantity: true,
+                    totalPrice: true,
+                    unitPrice: true,
+                    createdAt: true
+                },
+                orderBy: [desc(saleItem.createdAt)],
+                with: {
+                    product: {
+                        columns: {
+                            name: true
+                        }
+                    }
+                }
+            }
+        },
         where: (sale, { isNull }) =>
             isNull(sale.settledAt)
     })
@@ -152,14 +180,16 @@ export async function settleSale(tenantSlug: string, data: {
 }
 
 export async function addProductToSale(tenantSlug: string, data: {
-    saleId: string,
     productId: number,
     quantity: number,
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
 
-    const { saleId, productId, quantity, userId } = data
+    const { productId, quantity, userId } = data
+    const saleId = await currentSale(tenantSlug)
+
+    if (!saleId) throw new Error("venda é obrigatória para adicionar produtos")
 
     const saleProduct = await db.query.product.findFirst({
         where: (product, { eq }) => eq(product.id, productId),
@@ -168,10 +198,11 @@ export async function addProductToSale(tenantSlug: string, data: {
         }
     })
 
+
     if (!saleProduct) throw new Error("produto não encontrado")
 
     const [newSaleItem] = await db.insert(saleItem).values({
-        saleId,
+        saleId: saleId.id,
         productId,
         quantity,
         unitPrice: saleProduct.sellPrice,

@@ -28,12 +28,18 @@ import {
     ComboboxList,
 } from "@/components/ui/combobox"
 import NewClientDialog from "@/components/new-client-dialog"
-import products from "@/utils/products.json"
 import { formatCurrency } from '@/utils/finance'
 import { useState } from 'react'
 import { useSales } from '@/hooks/use-sales'
 import { Button } from '@/components/ui/button'
 import { Spinner } from "@/components/ui/spinner"
+import { useProducts } from "@/hooks/use-products"
+import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { InputGroup } from "@/components/ui/input-group"
+import { Clock, ClockIcon, MinusIcon, PlusIcon } from "lucide-react"
+import { formatTime } from "@/utils/time"
 
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
@@ -43,6 +49,7 @@ export const Route = createFileRoute('/sales/daily/')({
 function RouteComponent() {
     const { currentSale, currentSaleIsPending, currentSaleIsError } = useSales()
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
+    const { products, productsIsPending } = useProducts()
 
     const canAddProduct = currentSale !== null
 
@@ -51,19 +58,24 @@ function RouteComponent() {
             {/* barra de pesquisa e tabela de itens */}
             <div className='w-full flex flex-col'>
                 <SearchBar
-                    disabled={!canAddProduct}
+                    disabled={!canAddProduct || productsIsPending}
+                    products={products}
                     onSelectProduct={(productId) => setSelectedProduct(productId)}
                 />
-                <ProductsTable />
+                {!currentSaleIsPending && (
+                    <ProductsTable sale={currentSale} />
+                )}
             </div>
             {/* barra lateral direita */}
-            <div className='w-1/4'>
+            <div className='w-1/4 max-w-1/4'>
                 {currentSaleIsPending && (
                     <Spinner />
                 )}
-                {currentSale && (
-                    <SaleDetails sale={currentSale} productId={selectedProduct} />
-                )}
+                <SaleDetails
+                    sale={currentSale}
+                    productId={selectedProduct}
+                    removeSelection={() => setSelectedProduct(null)}
+                />
             </div>
         </div>
     )
@@ -71,11 +83,13 @@ function RouteComponent() {
 
 interface SearchBarProps {
     disabled: boolean
+    products: any
     onSelectProduct: (productId: string) => void
 }
 
 function SearchBar({
     disabled,
+    products,
     onSelectProduct
 }: SearchBarProps) {
     const [search, setSearch] = useState<string>("")
@@ -114,25 +128,54 @@ function SearchBar({
     )
 }
 
-function ProductsTable() {
+interface Sale {
+    createdAt: string
+    updatedAt: string
+    client: {
+        name: string
+    }
+    saleItem: {
+        quantity: number
+        totalPrice: number
+        unitPrice: number
+        createdAt: number
+        product: {
+            name: string
+        }
+    }[]
+}
+
+interface ProductsTableProps {
+    sale: Sale
+}
+
+function ProductsTable({ sale }: ProductsTableProps) {
 
     return (
         <Table className='min-h-full'>
             <TableHeader>
                 <TableRow>
-                    <TableHead className="w-[100px]">Invoice</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="w-[100px]"><ClockIcon /></TableHead>
+                    <TableHead>produto</TableHead>
+                    <TableHead>preço unit.</TableHead>
+                    <TableHead>quantidade</TableHead>
+                    <TableHead>preço total</TableHead>
+                    <TableHead className="text-right">ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                <TableRow>
-                    <TableCell className="font-medium">INV001</TableCell>
-                    <TableCell>Paid</TableCell>
-                    <TableCell>Credit Card</TableCell>
-                    <TableCell className="text-right">$250.00</TableCell>
-                </TableRow>
+                {sale.saleItem.map((item) => (
+                    <TableRow key={item.createdAt}>
+                        <TableCell className="font-medium">
+                            {formatTime(new Date(item.createdAt)).hhMM}
+                        </TableCell>
+                        <TableCell>{item.product.name}</TableCell>
+                        <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
+                        <TableCell className="text-right"></TableCell>
+                    </TableRow>
+                ))}
             </TableBody>
         </Table>
     )
@@ -141,21 +184,47 @@ function ProductsTable() {
 interface SaleDetailsProps {
     sale: any
     productId?: string | null
+    removeSelection: () => void
 }
 
 
 function SaleDetails({
     sale,
-    productId
+    productId,
+    removeSelection
 }: SaleDetailsProps) {
-    const { createSale, createSaleIsPending } = useSales()
+    const { createSale,
+        createSaleIsPending,
+        addProductToSale,
+        addProductToSaleIsPending,
+        addProductToSaleIsError
+    } = useSales()
+    const {
+        singleProduct: product,
+        singleProductIsPending,
+    } = useProducts(Number(productId))
     const { clients } = useClients()
-
     const [selectedClient, setSelectedClient] = useState<number | null>(null)
+    const [quantity, setQuantity] = useState<number>(1)
+
+    async function confirmSelection() {
+        await addProductToSale({
+            productId: Number(productId),
+            quantity
+        })
+
+        removeSelection()
+        setQuantity(1)
+        toast.success("item adicionado à venda com sucesso")
+    }
+
     return (
         <Card className='w-full flex items-center justify-start h-screen'>
             <h2 className='font-bold text-xl text-center'>{
-                sale ? "detalhes da venda" : "inicie uma venda para começar"
+                product
+                    ? "adicionar produto?"
+                    : sale ? "detalhes da venda"
+                        : "inicie uma venda para começar"
             }</h2>
             <CardContent className='w-full'>
                 {!sale ? (
@@ -191,9 +260,37 @@ function SaleDetails({
                         </Button>
                     </div>
                 ) : (
-                    <div className='flex flex-col gap-4'>
-                        {productId && (
-                            <span>produto selecionado: {productId}</span>
+                    <div className='flex flex-col gap-2'>
+                        {productId && !singleProductIsPending && (
+                            <>
+                                <Label>nome</Label>
+                                <Input value={product.name} disabled />
+                                <Label>código de barras</Label>
+                                <Input value={product.gtin} disabled />
+                                <Label>valor de venda</Label>
+                                <Input value={formatCurrency(product.sellPrice)} disabled />
+                                <Label>quantidade</Label>
+                                <InputGroup className="flex items-center justify-between">
+                                    <Button
+                                        onClick={() => setQuantity(val => val - 1)}
+                                        className="w-1/3" variant={"ghost"}><MinusIcon /></Button>
+                                    <Input
+                                        className="text-center"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(Number(e.target.value))} k
+                                    />
+                                    <Button className="w-1/3"
+                                        onClick={() => setQuantity(val => val + 1)}
+                                        variant={"ghost"}><PlusIcon /></Button>
+                                </InputGroup>
+                                <Button
+                                    onClick={() => removeSelection()}
+                                    variant={"outline"}>cancelar adição</Button>
+                                <Button
+                                    disabled={addProductToSaleIsPending}
+                                    onClick={() => confirmSelection()}
+                                >adicionar produto</Button>
+                            </>
                         )}
                     </div>
                 )}
