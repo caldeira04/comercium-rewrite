@@ -23,22 +23,20 @@ export function useSales() {
     })
 
     const createSaleMutation = useMutation({
-        mutationFn: async (clientId: number) => {
-            const { data, error } = await api.tenant.sales.new.post({
-                clientId
-            })
+        mutationFn: async () => {
+            const { data, error } = await api.tenant.sales.new.post()
             if (error) throw error
             return data
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["currentSale"] }),
-                queryClient.invalidateQueries({ queryKey: ["sales"] })
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
         }
     })
 
     const settleSaleMutation = useMutation({
-        mutationFn: async () => {
-            const { data, error } = await api.tenant.sales.settle.post({
+        mutationFn: async (saleId: string) => {
+            const { data, error } = await api.tenant.sales.settle({ saleId }).post({
                 fetch: {
                     credentials: "include"
                 }
@@ -47,24 +45,43 @@ export function useSales() {
             return data
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["currentSale"] }),
-                queryClient.invalidateQueries({ queryKey: ["sales"] })
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
+    const updateSaleClientMutation = useMutation({
+        mutationFn: async ({ saleId, clientId }: {
+            saleId: string,
+            clientId: number
+        }) => {
+            const { data, error } = await api.tenant.sales({ id: saleId }).client.patch({
+                clientId
+            }, {
+                fetch: { credentials: "include" }
+            })
+            if (error) throw error
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
         }
     })
 
     const addProductToSaleMutation = useMutation({
-        mutationFn: async ({ productId, quantity }: {
+        mutationFn: async ({ productId, quantity, discount }: {
             productId: number,
-            quantity: number
+            quantity: number,
+            discount: number
         }) => {
             const { data, error } = await api.tenant.sales.item({
                 productId
             }).post({
-                quantity
+                quantity,
+                discount
             }, {
-                fetch: {
-                    credentials: "include"
-                }
+                fetch: { credentials: "include" }
             })
 
             if (error) throw error
@@ -92,5 +109,8 @@ export function useSales() {
         addProductToSale: addProductToSaleMutation.mutateAsync,
         addProductToSaleIsPending: addProductToSaleMutation.isPending,
         addProductToSaleIsError: addProductToSaleMutation.isError,
+        updateSaleClient: updateSaleClientMutation.mutateAsync,
+        updateSaleClientIsPending: updateSaleClientMutation.isPending,
+        updateSaleClientIsError: updateSaleClientMutation.isError,
     }
 }

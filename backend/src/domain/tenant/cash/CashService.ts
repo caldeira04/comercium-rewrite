@@ -46,13 +46,24 @@ export async function createCash(tenantSlug: string, data: {
     const db = getTenantDb(tenantSlug)
     const { openingAmount, userId } = data
 
-    const [newCash] = await db.insert(cash).values({
-        openingAmount,
-        createdByUserId: userId,
-        updatedByUserId: userId
-    }).returning()
+    const transaction = await db.transaction(async (tx) => {
+        const [newCash] = await tx.insert(cash).values({
+            openingAmount,
+            createdByUserId: userId,
+            updatedByUserId: userId
+        }).returning()
 
-    return newCash
+        await tx.insert(cashMovement).values({
+            amount: openingAmount,
+            cashId: newCash.id,
+            nature: "in",
+            type: "open"
+        })
+
+        return newCash
+    })
+
+    return transaction
 }
 
 export async function closeCash(tenantSlug: string, data: {
@@ -88,10 +99,10 @@ export async function closeCash(tenantSlug: string, data: {
 export async function createCashMovement(tenantSlug: string, data: {
     cashId: string,
     nature: "in" | "out"
-    type: "sale" | "drop" | "topup" | "open" | "refund"
+    type: "payment" | "drop" | "topup" | "open" | "refund"
     amount: number
     description?: string
-    referenceType?: "sale" | "purchase" | "refund"
+    referenceType?: "payment" | "purchase" | "refund"
     referenceId?: string
     userId: string
 }) {

@@ -43,6 +43,34 @@
       "when": 1779750399443,
       "tag": "0005_add_cash_relation_on_sales",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1779760418585,
+      "tag": "0006_add_null_to_clientId_sales",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1779768412351,
+      "tag": "0007_add_discount_to_sale_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1779770282743,
+      "tag": "0008_add_payment_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1779771391912,
+      "tag": "0009_add_timestamps_payment",
+      "breakpoints": true
     }
   ]
 }

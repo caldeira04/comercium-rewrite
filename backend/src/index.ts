@@ -7,6 +7,7 @@ import { cors } from "@elysia/cors"
 import sales from "./routes/tenants/sales"
 import clients from "./routes/tenants/clients"
 import cash from "./routes/tenants/cash"
+import payment from "./routes/tenants/payments"
 
 const app = new Elysia()
     .use(cors({
@@ -25,6 +26,7 @@ const app = new Elysia()
             .use(sales)
             .use(clients)
             .use(cash)
+            .use(payment)
     )
     .get("/", () => "Hello Elysia")
     .listen(3000)

@@ -1,4 +1,5 @@
 import { Spinner } from '@/components/ui/spinner'
+import { formatTime } from "@/utils/time"
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import {
     Table,
@@ -10,6 +11,10 @@ import {
 } from "@/components/ui/table"
 import { useCash } from '@/hooks/use-cash'
 import { createFileRoute } from '@tanstack/react-router'
+import { formatCurrency } from '@/utils/finance'
+import { ClockIcon } from 'lucide-react'
+import NewCashDialog from '@/components/new-cash-dialog'
+import { formatCashMovementNature, formatCashMovementType } from '@/utils/formatters'
 
 export const Route = createFileRoute('/cash/current/')({
     component: RouteComponent,
@@ -19,11 +24,14 @@ function RouteComponent() {
     const { currentCash, currentCashIsPending } = useCash()
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
-            {/* barra de pesquisa e tabela de itens */}
             <div className='w-full flex flex-col'>
-                {!currentCashIsPending && (
-                    <CashTable cash={currentCash} />
-                )}
+                <h1 className='p-4 font-bold text-2xl uppercase'>caixa diário - {currentCash && formatTime(new Date(currentCash.createdAt)).ddMMyy}</h1>
+                {/* barra de pesquisa e tabela de itens */}
+                <div className='w-full flex flex-col'>
+                    {!currentCashIsPending && (
+                        <CashTable cash={currentCash} />
+                    )}
+                </div>
             </div>
             {/* barra lateral direita */}
             <div className='w-1/4 max-w-1/4'>
@@ -38,30 +46,27 @@ function RouteComponent() {
     )
 }
 
-function CashTable() {
+function CashTable({ cash }: {
+    cash: Cash
+}) {
     return (
         <Table className='min-h-full'>
             <TableHeader>
                 <TableRow>
                     <TableHead className="w-[100px]"><ClockIcon /></TableHead>
-                    <TableHead>produto</TableHead>
-                    <TableHead>preço unit.</TableHead>
-                    <TableHead>quantidade</TableHead>
-                    <TableHead>preço total</TableHead>
+                    <TableHead>natureza</TableHead>
+                    <TableHead>valor</TableHead>
+                    <TableHead>tipo</TableHead>
                     <TableHead className="text-right">ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sale.saleItem.map((item) => (
-                    <TableRow key={item.createdAt}>
-                        <TableCell className="font-medium">
-                            {formatTime(new Date(item.createdAt)).hhMM}
-                        </TableCell>
-                        <TableCell>{item.product.name}</TableCell>
-                        <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
-                        <TableCell className="text-right"></TableCell>
+                {cash.cashMovements.map((item) => (
+                    <TableRow key={item.id}>
+                        <TableCell>{formatTime(new Date(item.createdAt)).hhMM}</TableCell>
+                        <TableCell>{formatCashMovementNature({ nature: item.nature })}</TableCell>
+                        <TableCell>{formatCurrency(item.amount)}</TableCell>
+                        <TableCell>{formatCashMovementType({ type: item.type })}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -69,87 +74,56 @@ function CashTable() {
     )
 }
 
-function cashDetails() {
+interface Cash {
+    id: string
+    actualClosingAmount: number | null
+    expectedClosingAmount: number | null
+    closedAt: string | null
+    createdAt: string
+    updatedAt: string
+    openingAmount: number
+    cashMovements: CashMovement[]
+}
+
+interface CashMovement {
+    id: string
+    cashId: string
+    nature: "in" | "out"
+    type: "sale" | "drop" | "topup" | "open" | "refund"
+    amount: number
+    referenceType: "sale" | "purchase" | "refund" | "manual"
+    referenceId: string
+    createdAt: string
+}
+
+function CashDetails({ cash }: {
+    cash?: Cash | null
+}) {
+
+    const positiveAmount = cash?.cashMovements
+        .filter((item) => item.nature === "in")
+        .reduce((acc, item) => acc + item.amount, 0) ?? 0
+
+    const negativeAmount = cash?.cashMovements
+        .filter((item) => item.nature === "out")
+        .reduce((acc, item) => acc + item.amount, 0) ?? 0
+
+    const totalAmount = positiveAmount - negativeAmount
 
     return (
         <Card className='w-full flex items-center justify-start h-screen'>
-            <h2 className='font-bold text-xl text-center'>{
-                product
-                    ? "adicionar produto?"
-                    : sale ? "detalhes da venda"
-                        : "inicie uma venda para começar"
-            }</h2>
+            <h2 className='font-bold text-lg'>detalhes do caixa</h2>
+            {!cash && (
+                <NewCashDialog />
+            )}
             <CardContent className='w-full flex flex-col h-full justify-between'>
-                {!sale ? (
-                    <div className="flex flex-col gap-2">
-                        <Combobox
-                            items={clients as Client[]}
-                            itemToStringLabel={(client: Client) => client.name}
-                            itemToStringValue={(client: Client) => String(client.id)}
-                            onValueChange={(client: Client | null) => {
-                                if (client) setSelectedClient(client.id)
-                            }}
-                        >
-                            <ComboboxInput placeholder="digite o nome de um cliente" />
-                            <ComboboxContent>
-                                <ComboboxEmpty><NewClientDialog /></ComboboxEmpty>
-                                <ComboboxList>
-                                    {(item) => (
-                                        <ComboboxItem key={item.id} value={item}>
-                                            {item.name}
-                                        </ComboboxItem>
-                                    )}
-                                </ComboboxList>
-                            </ComboboxContent>
-                        </Combobox>
-                        <Button
-                            className="w-full"
-                            type="submit"
-                            form="new-sale-form"
-                            disabled={createSaleIsPending || selectedClient === null}
-                            onClick={() => createSale(selectedClient!)}
-                        >
-                            {createSaleIsPending ? "cadastrando..." : "iniciar venda"}
-                        </Button>
-                    </div>
-                ) : (
-                    <div className='flex flex-col gap-2'>
-                        {productId && !singleProductIsPending && (
-                            <>
-                                <Label>nome</Label>
-                                <Input value={product.name} disabled />
-                                <Label>código de barras</Label>
-                                <Input value={product.gtin} disabled />
-                                <Label>valor de venda</Label>
-                                <Input value={formatCurrency(product.sellPrice)} disabled />
-                                <Label>quantidade</Label>
-                                <InputGroup className="flex items-center justify-between">
-                                    <Button
-                                        onClick={() => setQuantity(val => val - 1)}
-                                        className="w-1/3" variant={"ghost"}><MinusIcon /></Button>
-                                    <Input
-                                        className="text-center"
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(Number(e.target.value))}
-                                    />
-                                    <Button className="w-1/3"
-                                        onClick={() => setQuantity(val => val + 1)}
-                                        variant={"ghost"}><PlusIcon /></Button>
-                                </InputGroup>
-                                <Button
-                                    onClick={() => removeSelection()}
-                                    variant={"outline"}>cancelar adição</Button>
-                                <Button
-                                    disabled={addProductToSaleIsPending}
-                                    onClick={() => confirmSelection()}
-                                >adicionar produto</Button>
-                            </>
-                        )}
-                    </div>
-                )}
-                <CardFooter className="flex flex-col gap-2">
-                    <span>valor total da venda: {formatCurrency(saleTotal)}</span>
-                    <Button disabled={settleSaleIsPending} onClick={() => settleSale()}>encerrar venda</Button>
+                <div className='flex flex-col text-lg'>
+                    <div className='flex text-green-600 font-bold items-center justify-between'><span>entradas:</span><span>{formatCurrency(positiveAmount)}</span></div>
+                    <div className='flex text-red-600 font-bold items-center justify-between'><span>saídas:</span><span>{formatCurrency(negativeAmount)}</span></div>
+                    <div className={`${totalAmount >= 0 ? "text-green-600" : "text-red-600"} flex font-bold items-center justify-between`}><span>saldo total:</span><span>{formatCurrency(totalAmount)}</span></div>
+                </div>
+                <CardFooter className="flex flex-col gap-2 mb-4">
+                    <span>saldo total no caixa: {formatCurrency(totalAmount)}</span>
                 </CardFooter>
             </CardContent>
         </Card>

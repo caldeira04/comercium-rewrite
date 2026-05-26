@@ -2,8 +2,7 @@ import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
 import { desc, eq, isNull, sql } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
-import { createCashMovement, currentCash } from "../cash/CashService";
-import { cash } from "@/db/schema/tenant";
+import { currentCash } from "../cash/CashService";
 
 export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
     const db = getTenantDb(tenantSlug)
@@ -29,6 +28,11 @@ export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
                 columns: {
                     id: true,
                     name: true
+                }
+            },
+            payment: {
+                columns: {
+                    amount: true
                 }
             },
             saleItem: {
@@ -65,7 +69,13 @@ export async function currentSale(tenantSlug: string) {
         with: {
             client: {
                 columns: {
+                    id: true,
                     name: true
+                }
+            },
+            payment: {
+                columns: {
+                    amount: true
                 }
             },
             saleItem: {
@@ -73,7 +83,8 @@ export async function currentSale(tenantSlug: string) {
                     quantity: true,
                     totalPrice: true,
                     unitPrice: true,
-                    createdAt: true
+                    createdAt: true,
+                    discount: true
                 },
                 orderBy: [desc(saleItem.createdAt)],
                 with: {
@@ -95,18 +106,16 @@ export async function currentSale(tenantSlug: string) {
 }
 
 export async function createSale(tenantSlug: string, data: {
-    clientId: number
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { clientId, userId } = data
+    const { userId } = data
 
     const cashId = await currentCash(tenantSlug)
 
     if (!cashId) throw new Error("o caixa deve estar aberto para iniciar uma nova venda")
 
     const [newSale] = await db.insert(sale).values({
-        clientId,
         cashId: cashId?.id,
         createdByUserId: userId,
     }).returning()
@@ -114,26 +123,52 @@ export async function createSale(tenantSlug: string, data: {
     return newSale
 }
 
+export async function updateSaleClient(tenantSlug: string, data: {
+    userId: string,
+    clientId: number,
+    saleId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+    const { userId, clientId, saleId } = data
+
+    const updated = await db.update(sale).set({
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedByUserId: userId,
+        clientId,
+    })
+        .where(eq(sale.id, saleId))
+        .returning()
+
+    return updated
+}
+
 export async function settleSale(tenantSlug: string, data: {
+    saleId: string
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { userId } = data
+    const { userId, saleId } = data
 
-    const saleId = await currentSale(tenantSlug)
+    const settlement = await db.transaction(async (tx) => {
 
-    if (!saleId) throw new Error("venda não encontrada")
-
-    const settlement = db.transaction(async (tx) => {
-        const currentSale = await tx.query.sale.findFirst({
-            where: (sale, { eq }) => eq(sale.id, saleId.id)
+        const selectedSale = await tx.query.sale.findFirst({
+            orderBy: [desc(sale.createdAt)],
+            where: (sale, { and, eq, isNull }) =>
+                and(
+                    isNull(sale.settledAt),
+                    eq(sale.id, saleId)
+                ),
+            columns: {
+                id: true,
+                cashId: true
+            }
         })
 
-        if (!currentSale) throw new Error("venda não encontrada no sistema")
+        if (!selectedSale) throw new Error("venda não encontrada")
 
         const saleItems = await tx.query.saleItem.findMany({
             where: (saleItem, { eq }) =>
-                eq(saleItem.saleId, currentSale.id)
+                eq(saleItem.saleId, selectedSale.id)
         })
 
         const totalAmount = saleItems.reduce((acc, value) => acc + (value.unitPrice * value.quantity), 0)
@@ -151,35 +186,13 @@ export async function settleSale(tenantSlug: string, data: {
             }))
         )
 
-        const currentCash = await tx.query.cash.findFirst({
-            orderBy: [desc(cash.createdAt)],
-            where: (cash, { isNull }) =>
-                isNull(cash.closedAt),
-            columns: {
-                id: true
-            }
-        })
-
-        if (!currentCash) throw new Error("o caixa deve ser aberto para a realização de vendas")
-
-        await createCashMovement(tenantSlug, {
-            cashId: currentCash.id,
-            amount: totalAmount,
-            nature: "in",
-            type: "sale",
-            userId,
-            description: "venda realizada",
-            referenceType: "sale",
-            referenceId: currentSale.id
-        })
-
         await tx.update(sale).set({
             totalAmount,
             settledAt: sql`(CURRENT_TIMESTAMP)`,
             updatedAt: sql`(CURRENT_TIMESTAMP)`,
             updatedByUserId: userId
         })
-            .where(eq(sale.id, saleId))
+            .where(eq(sale.id, selectedSale.id))
             .returning()
 
     })
@@ -190,11 +203,12 @@ export async function settleSale(tenantSlug: string, data: {
 export async function addProductToSale(tenantSlug: string, data: {
     productId: number,
     quantity: number,
+    discount: number,
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
 
-    const { productId, quantity, userId } = data
+    const { productId, quantity, userId, discount } = data
     const saleId = await currentSale(tenantSlug)
 
     if (!saleId) throw new Error("venda é obrigatória para adicionar produtos")
@@ -206,7 +220,6 @@ export async function addProductToSale(tenantSlug: string, data: {
         }
     })
 
-
     if (!saleProduct) throw new Error("produto não encontrado")
 
     const [newSaleItem] = await db.insert(saleItem).values({
@@ -215,6 +228,7 @@ export async function addProductToSale(tenantSlug: string, data: {
         quantity,
         unitPrice: saleProduct.sellPrice,
         totalPrice: quantity * saleProduct.sellPrice,
+        discount,
         createdByUserId: userId,
         updatedByUserId: userId
     })

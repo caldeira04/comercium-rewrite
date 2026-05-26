@@ -52,7 +52,8 @@ export function useCash(cashId?: number) {
             return data
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["cashs"] })
+            queryClient.invalidateQueries({ queryKey: ["currentCash"] })
+            queryClient.invalidateQueries({ queryKey: ["cash"] })
         }
     })
 

@@ -21,11 +21,11 @@ export const cashMovement = sqliteTable("cash_movement", {
 
     cashId: text("cash_id").notNull().references(() => cash.id, { onDelete: "restrict" }),
     nature: text("nature", { enum: ["in", "out"] }).notNull(),
-    type: text("type", { enum: ["sale", "drop", "topup", "open", "refund"] }).notNull(),
+    type: text("type", { enum: ["payment", "drop", "topup", "open", "refund"] }).notNull(),
     amount: integer("amount").notNull(),
     description: text("description"),
 
-    referenceType: text("reference_type", { enum: ["sale", "purchase", "refund", "manual"] }),
+    referenceType: text("reference_type", { enum: ["payment", "purchase", "refund", "manual"] }),
     referenceId: text("reference_id"),
 
     ...auditing(),
@@ -35,4 +35,11 @@ export const cashMovement = sqliteTable("cash_movement", {
 export const cashRelations = relations(cash, ({ many }) => ({
     cashMovements: many(cashMovement),
     sales: many(sale)
+}))
+
+export const cashMovementRelations = relations(cashMovement, ({ one }) => ({
+    cash: one(cash, {
+        fields: [cashMovement.cashId],
+        references: [cash.id]
+    })
 }))

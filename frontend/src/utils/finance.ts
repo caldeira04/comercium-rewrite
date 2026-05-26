@@ -13,3 +13,13 @@ export function formatCurrency(amount: number) {
     const formatted = `R$ ${(amount / 100).toFixed(2).replace(".", ",")}`
     return formatted
 }
+
+export function maskCurrency(input: string) {
+    const raw = input.replace(/\D/g, "")
+    const float = Number(raw) / 100
+
+    return float.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+    })
+}

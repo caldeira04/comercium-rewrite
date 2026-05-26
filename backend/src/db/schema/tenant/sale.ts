@@ -4,12 +4,13 @@ import { product } from "./product";
 import { timestamps, auditing } from "@/utils/drizzle";
 import { client } from "./client";
 import { cash } from "./cash";
+import { payment } from "./payment";
 
 export const sale = sqliteTable("sale", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
 
     totalAmount: integer("total_amount").notNull().default(0),
-    clientId: integer("client_id").notNull().references(() => client.id, { onDelete: "restrict" }),
+    clientId: integer("client_id").references(() => client.id, { onDelete: "restrict" }),
     settledAt: text("settled_at"),
     cancelledAt: text("cancelled_at"),
     cashId: text("cash_id").notNull().references(() => cash.id, { onDelete: "restrict" }),
@@ -27,7 +28,8 @@ export const saleRelations = relations(sale, ({ many, one }) => ({
     cash: one(cash, {
         fields: [sale.cashId],
         references: [cash.id]
-    })
+    }),
+    payment: many(payment)
 }))
 
 export const saleItem = sqliteTable("sale_items", {
@@ -37,6 +39,7 @@ export const saleItem = sqliteTable("sale_items", {
     quantity: integer("quantity").notNull(),
     unitPrice: integer("unit_price").notNull(),
     totalPrice: integer("total_price").notNull(),
+    discount: integer("discount"),
     deleteReason: text("delete_reason"),
 
     ...auditing(),

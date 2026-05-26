@@ -28,7 +28,7 @@ import {
     ComboboxList,
 } from "@/components/ui/combobox"
 import NewClientDialog from "@/components/new-client-dialog"
-import { formatCurrency } from '@/utils/finance'
+import { formatCurrency, maskCurrency } from '@/utils/finance'
 import { useState } from 'react'
 import { useSales } from '@/hooks/use-sales'
 import { Button } from '@/components/ui/button'
@@ -38,8 +38,8 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InputGroup } from "@/components/ui/input-group"
-import { ClockIcon, MinusIcon, PlusIcon } from "lucide-react"
-import { formatTime } from "@/utils/time"
+import { MinusIcon, PlusIcon } from "lucide-react"
+import NewPaymentDialog from "@/components/new-payment-dialog"
 
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
@@ -47,7 +47,7 @@ export const Route = createFileRoute('/sales/daily/')({
 })
 
 function RouteComponent() {
-    const { currentSale, currentSaleIsPending, currentSaleIsError } = useSales()
+    const { currentSale, currentSaleIsPending } = useSales()
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
     const { products, productsIsPending } = useProducts()
 
@@ -141,16 +141,22 @@ function SearchBar({
 }
 
 interface Sale {
+    id: string
     createdAt: string
     updatedAt: string
     client: {
+        id: number
         name: string
     }
+    payment: {
+        amount: number
+    }[]
     saleItem: {
         quantity: number
         totalPrice: number
         unitPrice: number
         createdAt: number
+        discount: number
         product: {
             name: string
             gtin?: string
@@ -170,32 +176,28 @@ function ProductsTable({ sale }: ProductsTableProps) {
         <Table className='min-h-full'>
             <TableHeader>
                 <TableRow>
-                    <TableHead className="w-[100px]"><ClockIcon /></TableHead>
                     <TableHead>produto</TableHead>
-                    <TableHead>preço unit.</TableHead>
-                    <TableHead>quantidade</TableHead>
-                    <TableHead>preço total</TableHead>
+                    <TableHead>preço un.</TableHead>
+                    <TableHead>qtd.</TableHead>
+                    <TableHead>subtotal</TableHead>
+                    <TableHead>desconto</TableHead>
+                    <TableHead>total</TableHead>
                     <TableHead className="text-right">ações</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {sale.saleItem ? sale.saleItem.map((item) => (
                     <TableRow key={item.createdAt}>
-                        <TableCell className="font-medium">
-                            {formatTime(new Date(item.createdAt)).hhMM}
-                        </TableCell>
                         <TableCell>{item.product.name}</TableCell>
                         <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
+                        <TableCell>{formatCurrency(item.discount)}</TableCell>
+                        <TableCell>{formatCurrency(item.totalPrice - item.discount)}</TableCell>
                         <TableCell className="text-right"></TableCell>
                     </TableRow>
                 )) : (
-                    <TableRow>
-                        <TableCell className="text-center">
-                            <span>nenhum produto foi registrado na venda</span>
-                        </TableCell>
-                    </TableRow>
+                    <></>
                 )}
             </TableBody>
         </Table>
@@ -214,26 +216,31 @@ function SaleDetails({
     productId,
     removeSelection
 }: SaleDetailsProps) {
-    const { createSale,
+    const {
+        createSale,
         createSaleIsPending,
         addProductToSale,
         addProductToSaleIsPending,
-        addProductToSaleIsError,
-        settleSale,
-        settleSaleIsPending,
+        updateSaleClient,
+        updateSaleClientIsPending
     } = useSales()
     const {
         singleProduct: product,
         singleProductIsPending,
     } = useProducts(Number(productId))
     const { clients } = useClients()
-    const [selectedClient, setSelectedClient] = useState<number | null>(null)
     const [quantity, setQuantity] = useState<number>(1)
+    const [discount, setDiscount] = useState<string>(maskCurrency("0"))
 
     async function confirmSelection() {
+        if (quantity < 1) {
+            toast.error("quantidade deve ser maior que 0")
+            return
+        }
         await addProductToSale({
             productId: Number(productId),
-            quantity
+            quantity,
+            discount: Number(discount.replace(/\D/g, ''))
         })
 
         removeSelection()
@@ -242,58 +249,29 @@ function SaleDetails({
     }
 
     const saleTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0) : 0
+    const discountTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.discount, 0) : 0
+    const paidTotal = sale.payment ? sale.payment.reduce((acc, value) => acc + value.amount, 0) : 0
+    const actualTotal = saleTotal - discountTotal - paidTotal
 
     return (
         <Card className='w-full flex items-center justify-start h-screen'>
-            <h2 className='font-bold text-xl text-center'>{
-                product
-                    ? "adicionar produto?"
-                    : sale ? "detalhes da venda"
-                        : "inicie uma venda para começar"
-            }</h2>
-            <CardContent className='w-full flex flex-col h-full justify-between'>
-                {!sale ? (
+            <CardContent className="flex flex-col gap-4 items-center h-full">
+                <h2 className="text-lg font-bold">{sale ? "detalhes da venda" : "inicie uma venda"}</h2>
+                {!sale && (
+                    <Button
+                        disabled={createSaleIsPending}
+                        onClick={() => createSale()}
+                    >iniciar venda</Button>
+                )}
+                <div className="flex flex-col gap-2">
+                    <h3 className="text-lg font-bold text-center">{productId && !singleProductIsPending && product ? 'produto encontrado' : "nenhum produto selecionado"}</h3>
                     <div className="flex flex-col gap-2">
-                        <Combobox
-                            items={clients as Client[]}
-                            itemToStringLabel={(client: Client) => client.name}
-                            itemToStringValue={(client: Client) => String(client.id)}
-                            onValueChange={(client: Client | null) => {
-                                if (client) setSelectedClient(client.id)
-                            }}
-                        >
-                            <ComboboxInput placeholder="digite o nome de um cliente" />
-                            <ComboboxContent>
-                                <ComboboxEmpty><NewClientDialog /></ComboboxEmpty>
-                                <ComboboxList>
-                                    {(item) => (
-                                        <ComboboxItem key={item.id} value={item}>
-                                            {item.name}
-                                        </ComboboxItem>
-                                    )}
-                                </ComboboxList>
-                            </ComboboxContent>
-                        </Combobox>
-                        <Button
-                            className="w-full"
-                            type="submit"
-                            form="new-sale-form"
-                            disabled={createSaleIsPending || selectedClient === null}
-                            onClick={() => createSale(selectedClient!)}
-                        >
-                            {createSaleIsPending ? "cadastrando..." : "iniciar venda"}
-                        </Button>
-                    </div>
-                ) : (
-                    <div className='flex flex-col gap-2'>
-                        {productId && !singleProductIsPending && (
+                        <Label>nome</Label>
+                        <Input value={product ? product.name : ""} disabled />
+                        <Label>valor de venda</Label>
+                        <Input value={formatCurrency(product ? product.sellPrice : 0)} disabled />
+                        {productId !== null && (
                             <>
-                                <Label>nome</Label>
-                                <Input value={product.name} disabled />
-                                <Label>código de barras</Label>
-                                <Input value={product.gtin} disabled />
-                                <Label>valor de venda</Label>
-                                <Input value={formatCurrency(product.sellPrice)} disabled />
                                 <Label>quantidade</Label>
                                 <InputGroup className="flex items-center justify-between">
                                     <Button
@@ -308,24 +286,67 @@ function SaleDetails({
                                         onClick={() => setQuantity(val => val + 1)}
                                         variant={"ghost"}><PlusIcon /></Button>
                                 </InputGroup>
+                                <Label htmlFor="discount">desconto</Label>
+                                <Input
+                                    id="discount"
+                                    value={discount}
+                                    onChange={(e) => {
+                                        setDiscount(maskCurrency(e.target.value))
+                                    }}
+                                />
                                 <Button
                                     onClick={() => removeSelection()}
                                     variant={"outline"}>cancelar adição</Button>
                                 <Button
-                                    disabled={addProductToSaleIsPending}
+                                    disabled={addProductToSaleIsPending || !product}
                                     onClick={() => confirmSelection()}
                                 >adicionar produto</Button>
                             </>
                         )}
                     </div>
-                )}
-                {sale.saleItem && (
-                    <CardFooter className="flex flex-col gap-2">
-                        <span>valor total da venda: {formatCurrency(saleTotal)}</span>
-                        <Button disabled={settleSaleIsPending} onClick={() => settleSale()}>encerrar venda</Button>
-                    </CardFooter>
-                )}
+                </div>
+                <div className="w-full flex flex-col gap-2">
+                    <h3 className="text-lg text-center font-bold">cliente da venda</h3>
+                    <Combobox
+                        disabled={updateSaleClientIsPending}
+                        items={clients as Client[]}
+                        itemToStringValue={() => String(sale.client.id ?? "")}
+                        itemToStringLabel={() => String(sale.client.name ?? "")}
+                        onValueChange={async (client: Client | null) => {
+                            if (client) {
+                                await updateSaleClient({
+                                    saleId: sale.id,
+                                    clientId: client.id
+                                })
+                            }
+                        }}
+                    >
+                        <ComboboxInput showClear placeholder="digite o nome de um cliente" />
+                        <ComboboxContent>
+                            <ComboboxEmpty><NewClientDialog /></ComboboxEmpty>
+                            <ComboboxList>
+                                {(item) => (
+                                    <ComboboxItem key={item.id} value={item}>
+                                        {item.name}
+                                    </ComboboxItem>
+                                )}
+                            </ComboboxList>
+                        </ComboboxContent>
+                    </Combobox>
+                </div>
             </CardContent>
+            <CardFooter className="mb-4 w-full flex-col items-start gap-2">
+                <h3 className="text-xl font-bold">finalizar venda</h3>
+                <div className="w-full flex items-center justify-between text-lg"><span>cliente:</span><span>{sale.client ? sale.client.name : "-"}</span></div>
+                <div className="w-full flex items-center justify-between text-lg"><span>subtotal:</span><span>{formatCurrency(saleTotal)}</span></div>
+                <div className="w-full flex items-center justify-between text-lg"><span>descontos:</span><span>{formatCurrency(discountTotal)}</span></div>
+                <div className="w-full flex items-center justify-between text-lg"><span>pago:</span><span>{formatCurrency(paidTotal)}</span></div>
+                <div className="w-full flex items-center justify-between text-lg"><span>total:</span><span>{formatCurrency(actualTotal)}</span></div>
+                <NewPaymentDialog
+                    totalAmount={actualTotal}
+                    saleId={sale.id}
+                />
+            </CardFooter>
         </Card>
     )
 
