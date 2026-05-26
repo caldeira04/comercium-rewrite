@@ -23,11 +23,6 @@ import {
 import { usePayments } from "@/hooks/use-payments"
 import { toast } from "sonner"
 
-interface Method {
-    value: "cash" | "debit" | "credit" | "pix" | "voucher"
-    label: "dinheiro" | "débito" | "crédito" | "PIX" | "cheque"
-}
-
 const paymentMethods = [
     {
         value: "cash",
@@ -49,7 +44,16 @@ const paymentMethods = [
         value: "voucher",
         label: "cheque"
     },
-]
+] as const
+
+type PaymentMethod = typeof paymentMethods[number]
+type PaymentMethodValue = PaymentMethod["value"]
+
+const defaultPaymentMethod = paymentMethods[0]
+
+function findPaymentMethod(value: string): PaymentMethod {
+    return paymentMethods.find((method) => method.value === value) ?? defaultPaymentMethod
+}
 
 export default function NewPaymentDialog({
     totalAmount, saleId
@@ -61,7 +65,7 @@ export default function NewPaymentDialog({
     const [open, setOpen] = useState(false)
     const [amount, setAmount] = useState<string>(maskCurrency(String(totalAmount)))
     const { createPayments, createPaymentsIsPending } = usePayments()
-    const [paymentMethod, setPaymentMethod] = useState<Method>({ label: "dinheiro", value: "cash" })
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultPaymentMethod)
 
     async function handleOpenCash() {
         const clearAmount = amount.replace(/\D/g, '')
@@ -108,7 +112,12 @@ export default function NewPaymentDialog({
                     </div>
                     <div className="flex flex-col gap-1">
                         <Label htmlFor="paymentMethod">forma de pagamento</Label>
-                        <Select>
+                        <Select
+                            value={paymentMethod.value}
+                            onValueChange={(value: PaymentMethodValue) => {
+                                setPaymentMethod(findPaymentMethod(value))
+                            }}
+                        >
                             <SelectTrigger className="w-full max-w-48">
                                 <SelectValue placeholder="forma de pagamento" />
                             </SelectTrigger>
@@ -116,7 +125,9 @@ export default function NewPaymentDialog({
                                 {paymentMethods.map((p) => (
                                     <SelectItem
                                         className="p-2"
-                                        onSelect={() => setPaymentMethod(p.value)} key={p.value} value={p.value}>{p.label}</SelectItem>
+                                        key={p.value}
+                                        value={p.value}
+                                    >{p.label}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

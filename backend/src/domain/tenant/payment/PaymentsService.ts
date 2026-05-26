@@ -1,6 +1,6 @@
 import { getTenantDb } from "@/db/db";
 import { settleSale } from "../sales/SalesService";
-import { cash, payment, sale } from "@/db/schema/tenant";
+import { payment, sale } from "@/db/schema/tenant";
 import { desc, sql } from "drizzle-orm";
 import { createCashMovement } from "../cash/CashService";
 

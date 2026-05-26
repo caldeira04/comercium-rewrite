@@ -1,32 +1,56 @@
-# Agent Notes
+# Repository Guidelines
 
-## Repo Shape
+## Project Structure & Module Organization
 
-- Bun workspace: root `package.json` has `workspaces: ["backend/", "frontend/"]`.
-- Frontend is TanStack Start + React + Vite in `frontend/`; routes live in `frontend/src/routes`, shadcn UI components in `frontend/src/components/ui`, generated route tree in `frontend/src/routeTree.gen.ts`.
-- Backend is Elysia on Bun in `backend/`; entrypoint is `backend/src/index.ts`, master routes are under `/master`, tenant routes are under `/tenant`.
-- Backend uses two Drizzle/SQLite schemas: master schema at `backend/src/db/schema/master`, tenant schema at `backend/src/db/schema/tenant`.
+This is a Bun workspace with separate frontend and backend packages.
 
-## Commands
+- `frontend/`: TanStack Start + React application. Source lives in
+  `frontend/src`, with routes under `src/routes`, shared UI in
+  `src/components/ui`, feature components in `src/components`, hooks in
+  `src/hooks`, and static files in `frontend/public`.
+- `backend/`: Bun + Elysia API. Entry point is `backend/src/index.ts`; domain
+  services are in `src/domain`, route modules in `src/routes`, database schema
+  in `src/db/schema`, and Drizzle migrations/config in `backend/drizzle`.
+- `bun.lock`: shared dependency lockfile. Use Bun commands.
 
-- Install from repo root with `bun install`.
-- Run both apps from root with `bun run dev`; this starts frontend and backend concurrently.
-- Frontend dev server: `bun run --cwd frontend dev` on port `5173`.
-- Backend dev server: `bun run --cwd backend dev` on port `3000`; CORS currently allows `http://localhost:5173`.
-- Frontend checks: `bun run --cwd frontend lint`, `bun run --cwd frontend typecheck`, `bun run --cwd frontend test`, `bun run --cwd frontend build`.
-- There is no usable backend test suite yet; `bun run --cwd backend test` intentionally exits with an error.
+## Build, Test, and Development Commands
 
-## Frontend Notes
+- `bun install`: install workspace dependencies.
+- `bun run dev`: start frontend on `http://localhost:5173` and backend on
+  `http://localhost:3000`.
+- `bun run --cwd frontend build`: build the frontend.
+- `bun run --cwd frontend typecheck`: run TypeScript checks for the frontend.
+- `bun run --cwd frontend lint`: run the TanStack ESLint config.
+- `bun run --cwd frontend test`: run Vitest tests.
+- `bun run --cwd backend dev`: run the API in watch mode.
+- `bun run --cwd backend db:master:migrate` and
+  `bun run --cwd backend db:tenant:migrate:all`: apply Drizzle migrations.
 
-- Use the `@/*` alias inside `frontend` for `frontend/src/*` imports.
-- Do not edit `frontend/src/routeTree.gen.ts`; TanStack Router regenerates it.
-- Frontend formatting is `frontend/.prettierrc`: 2 spaces, no semicolons, double quotes, ES5 trailing commas, 80-column width, Tailwind class sorting via `prettier-plugin-tailwindcss`.
-- shadcn is configured by `frontend/components.json` with style `radix-nova`; add/use UI primitives under `frontend/src/components/ui` and import as `@/components/ui/...`.
+## Coding Style & Naming Conventions
 
-## Backend And Data Notes
+Use TypeScript, ESM imports, and aliases such as `@/components/ui/button` where
+configured. Prettier in `frontend/.prettierrc` uses 2 spaces, double quotes, no
+semicolons, LF endings, ES5 trailing commas, and Tailwind class sorting. Prefer
+PascalCase for React components and service classes, camelCase for functions and
+variables, and kebab-case filenames when matching current frontend patterns.
 
-- Master DB path is `backend/data/master.sqlite`; tenant DBs are expected in `backend/data/tenants/<tenantSlug>.sqlite`.
-- `backend/src/db/db.ts` throws at startup if `backend/data/master.sqlite` is missing; run master migrations before starting a fresh backend.
-- Migration commands are split by DB: `bun run --cwd backend db:master:generate`, `bun run --cwd backend db:master:migrate`, `bun run --cwd backend db:tenant:generate`, `bun run --cwd backend db:tenant:migrate`.
-- `bun run --cwd backend db:tenant:migrate` targets `backend/data/tenant-template.sqlite`; `bun run --cwd backend db:tenant:migrate:all` applies tenant migrations to every SQLite file in `backend/data/tenants`.
-- `backend/data/*` and local env files are ignored; do not commit local SQLite databases or secrets.
+## Testing Guidelines
+
+Frontend tests use Vitest with Testing Library dependencies available. Place
+tests near covered code as `*.test.ts` or `*.test.tsx`, and run
+`bun run --cwd frontend test`. Backend automated tests are not configured yet;
+`bun run --cwd backend test` is a placeholder that exits with an error.
+
+## Commit & Pull Request Guidelines
+
+History mixes short informal commits with conventional `feat:` commits. Prefer
+clear imperative subjects using `feat:`, `fix:`, or `chore:` when applicable,
+for example `feat: add cash summary filters`. Pull requests should describe the
+change, list verification commands, link issues, mention migration impact, and
+include screenshots or recordings for visible UI changes.
+
+## Security & Configuration Tips
+
+Keep local secrets out of git; backend local environment files belong in
+`backend/.env.local`. Review migrations before applying them, especially tenant
+migrations that can affect multiple databases.

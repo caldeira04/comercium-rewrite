@@ -11,6 +11,8 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { Card, CardContent } from '@/components/ui/card'
+import { formatCurrency } from '@/utils/finance'
+import type { SaleListItem, Sales } from '@/lib/api-types'
 
 export const Route = createFileRoute('/sales/list/')({
     component: RouteComponent,
@@ -18,7 +20,7 @@ export const Route = createFileRoute('/sales/list/')({
 
 function RouteComponent() {
     const { sales, salesIsPending, salesIsError } = useSales()
-    const [selectedSale, setSelectedSale] = useState<typeof sales | null>(null)
+    const [selectedSale, setSelectedSale] = useState<SaleListItem | null>(null)
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
@@ -44,8 +46,8 @@ function RouteComponent() {
 }
 
 interface SalesTableProps {
-    sales: any[]
-    onSelect: (saleId: unknown) => void
+    sales: NonNullable<Sales>
+    onSelect: (sale: SaleListItem) => void
 }
 
 function SalesTable({ sales, onSelect }: SalesTableProps) {
@@ -55,20 +57,20 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
             <TableHeader>
                 <TableRow>
                     <TableHead className="w-[100px]">ID</TableHead>
-                    <TableHead>nome</TableHead>
-                    <TableHead>telefone</TableHead>
-                    <TableHead>documento</TableHead>
-                    <TableHead>e-mail</TableHead>
+                    <TableHead>cliente</TableHead>
+                    <TableHead>itens</TableHead>
+                    <TableHead>pago</TableHead>
+                    <TableHead className="text-right">total</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {sales.map((s) => (
                     <TableRow key={s.id} onClick={() => onSelect(s)} className='cursor-pointer'>
                         <TableCell className="font-medium">{s.id}</TableCell>
-                        <TableCell>{s.name}</TableCell>
-                        <TableCell>{s.phone ?? ""}</TableCell>
-                        <TableCell>{s.document ?? ""}</TableCell>
-                        <TableCell className="text-right">{s.email ?? ""}</TableCell>
+                        <TableCell>{s.client?.name ?? "-"}</TableCell>
+                        <TableCell>{s.saleItem.length}</TableCell>
+                        <TableCell>{formatCurrency(s.payment.reduce((total, payment) => total + payment.amount, 0))}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(s.totalAmount)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -76,7 +78,7 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
     )
 }
 
-function SaleDetails({ sale }: { sale?: any }) {
+function SaleDetails({ sale }: { sale?: SaleListItem | null }) {
 
     return (
         <Card className='w-full flex items-center justify-start h-screen'>

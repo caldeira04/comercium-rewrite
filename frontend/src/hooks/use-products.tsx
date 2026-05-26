@@ -4,21 +4,6 @@ import { queryClient } from "@/lib/queryClient"
 
 export function useProducts(productId?: number) {
 
-    const singleProductQuery = useQuery({
-        queryKey: ["singleProduct", productId],
-        enabled: !!productId,
-        queryFn: async ({ queryKey }) => {
-            const [, productId] = queryKey
-            const { data, error } = await api.tenant.products({ productId: Number(productId) }).get({
-                fetch: {
-                    credentials: "include"
-                }
-            })
-            if (error) throw error
-            return data
-        }
-    })
-
     const productsQuery = useQuery({
         queryKey: ["products"],
         queryFn: async () => {
@@ -27,6 +12,8 @@ export function useProducts(productId?: number) {
             return data
         }
     })
+
+    const singleProduct = productsQuery.data?.find((product) => product.id === productId)
 
     const createProductMutation = useMutation({
         mutationFn: async ({ buyPrice, name, sellPrice, gtin }: {
@@ -53,9 +40,9 @@ export function useProducts(productId?: number) {
         products: productsQuery.data,
         productsIsPending: productsQuery.isPending,
         productsIsError: productsQuery.isError,
-        singleProduct: singleProductQuery.data,
-        singleProductIsPending: singleProductQuery.isPending,
-        singleProductIsError: singleProductQuery.isError,
+        singleProduct,
+        singleProductIsPending: productsQuery.isPending,
+        singleProductIsError: productsQuery.isError,
         createProduct: createProductMutation.mutateAsync,
         createProductIsPending: createProductMutation.isPending,
         createProductIsError: createProductMutation.isError

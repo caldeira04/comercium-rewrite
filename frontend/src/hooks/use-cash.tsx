@@ -2,32 +2,8 @@ import { api } from "@/lib/api"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
 
-export function useCash(cashId?: number) {
+export function useCash() {
 
-    // const singleCashQuery = useQuery({
-    //     queryKey: ["singlecash", cashId],
-    //     enabled: !!cashId,
-    //     queryFn: async ({ queryKey }) => {
-    //         const [, cashId] = queryKey
-    //         const { data, error } = await api.tenant.cash({ cashId: Number(cashId) }).get({
-    //             fetch: {
-    //                 credentials: "include"
-    //             }
-    //         })
-    //         if (error) throw error
-    //         return data
-    //     }
-    // })
-
-    // const cashQuery = useQuery({
-    //     queryKey: ["cashs"],
-    //     queryFn: async () => {
-    //         const { data, error } = await api.tenant.cash.get()
-    //         if (error) throw error
-    //         return data
-    //     }
-    // })
-    //
     const currentCashQuery = useQuery({
         queryKey: ["currentCash"],
         queryFn: async () => {
@@ -58,12 +34,6 @@ export function useCash(cashId?: number) {
     })
 
     return {
-        // cashs: cashQuery.data,
-        // cashIsPending: cashQuery.isPending,
-        // cashIsError: cashQuery.isError,
-        // singleCash: singleCashQuery.data,
-        // singleCashIsPending: singleCashQuery.isPending,
-        // singleCashIsError: singleCashQuery.isError,
         currentCash: currentCashQuery.data,
         currentCashIsPending: currentCashQuery.isPending,
         currentCashIsError: currentCashQuery.isError,

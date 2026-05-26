@@ -15,6 +15,7 @@ import { formatCurrency } from '@/utils/finance'
 import { ClockIcon } from 'lucide-react'
 import NewCashDialog from '@/components/new-cash-dialog'
 import { formatCashMovementNature, formatCashMovementType } from '@/utils/formatters'
+import type { CurrentCash } from '@/lib/api-types'
 
 export const Route = createFileRoute('/cash/current/')({
     component: RouteComponent,
@@ -28,7 +29,7 @@ function RouteComponent() {
                 <h1 className='p-4 font-bold text-2xl uppercase'>caixa diário - {currentCash && formatTime(new Date(currentCash.createdAt)).ddMMyy}</h1>
                 {/* barra de pesquisa e tabela de itens */}
                 <div className='w-full flex flex-col'>
-                    {!currentCashIsPending && (
+                    {!currentCashIsPending && currentCash && (
                         <CashTable cash={currentCash} />
                     )}
                 </div>
@@ -47,7 +48,7 @@ function RouteComponent() {
 }
 
 function CashTable({ cash }: {
-    cash: Cash
+    cash: NonNullable<CurrentCash>
 }) {
     return (
         <Table className='min-h-full'>
@@ -74,30 +75,8 @@ function CashTable({ cash }: {
     )
 }
 
-interface Cash {
-    id: string
-    actualClosingAmount: number | null
-    expectedClosingAmount: number | null
-    closedAt: string | null
-    createdAt: string
-    updatedAt: string
-    openingAmount: number
-    cashMovements: CashMovement[]
-}
-
-interface CashMovement {
-    id: string
-    cashId: string
-    nature: "in" | "out"
-    type: "sale" | "drop" | "topup" | "open" | "refund"
-    amount: number
-    referenceType: "sale" | "purchase" | "refund" | "manual"
-    referenceId: string
-    createdAt: string
-}
-
 function CashDetails({ cash }: {
-    cash?: Cash | null
+    cash?: CurrentCash
 }) {
 
     const positiveAmount = cash?.cashMovements

@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label"
 import { InputGroup } from "@/components/ui/input-group"
 import { MinusIcon, PlusIcon } from "lucide-react"
 import NewPaymentDialog from "@/components/new-payment-dialog"
+import type { CurrentSale, Product } from "@/lib/api-types"
 
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
@@ -51,18 +52,20 @@ function RouteComponent() {
     const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
     const { products, productsIsPending } = useProducts()
 
-    const canAddProduct = currentSale !== null
+    const canAddProduct = !!currentSale
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
             {/* barra de pesquisa e tabela de itens */}
             <div className='w-full flex flex-col'>
-                <SearchBar
-                    disabled={!canAddProduct || productsIsPending}
-                    products={products}
-                    onSelectProduct={(productId) => setSelectedProduct(productId)}
-                />
-                {!currentSaleIsPending && (
+                {products && !productsIsPending && (
+                    <SearchBar
+                        disabled={!canAddProduct || productsIsPending}
+                        products={products}
+                        onSelectProduct={(productId) => setSelectedProduct(productId)}
+                    />
+                )}
+                {!currentSaleIsPending && currentSale && (
                     <ProductsTable sale={currentSale} />
                 )}
             </div>
@@ -79,18 +82,6 @@ function RouteComponent() {
             </div>
         </div>
     )
-}
-
-interface Product {
-    id: number
-    name: string
-    sellPrice: number
-    buyPrice: number
-    gtin: string
-    stockMovement: {
-        quantity: number
-        type: string
-    }[]
 }
 
 interface SearchBarProps {
@@ -131,7 +122,7 @@ function SearchBar({
                             setSearch("")
                         }}
                     >
-                        {p.name} - {p.gtin} - {formatCurrency(p.sellPrice)}
+                        {p.name} - {p.gtin ?? "sem GTIN"} - {formatCurrency(p.sellPrice)}
                         <CommandShortcut>↵</CommandShortcut>
                     </CommandItem>
                 ))}
@@ -140,34 +131,8 @@ function SearchBar({
     )
 }
 
-interface Sale {
-    id: string
-    createdAt: string
-    updatedAt: string
-    client: {
-        id: number
-        name: string
-    }
-    payment: {
-        amount: number
-    }[]
-    saleItem: {
-        quantity: number
-        totalPrice: number
-        unitPrice: number
-        createdAt: number
-        discount: number
-        product: {
-            name: string
-            gtin?: string
-            buyPrice?: number
-            sellPrice?: number
-        }
-    }[]
-}
-
 interface ProductsTableProps {
-    sale: Sale
+    sale: NonNullable<CurrentSale>
 }
 
 function ProductsTable({ sale }: ProductsTableProps) {
@@ -192,8 +157,8 @@ function ProductsTable({ sale }: ProductsTableProps) {
                         <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
-                        <TableCell>{formatCurrency(item.discount)}</TableCell>
-                        <TableCell>{formatCurrency(item.totalPrice - item.discount)}</TableCell>
+                        <TableCell>{formatCurrency(item.discount ?? 0)}</TableCell>
+                        <TableCell>{formatCurrency(item.totalPrice - (item.discount ?? 0))}</TableCell>
                         <TableCell className="text-right"></TableCell>
                     </TableRow>
                 )) : (
@@ -205,7 +170,7 @@ function ProductsTable({ sale }: ProductsTableProps) {
 }
 
 interface SaleDetailsProps {
-    sale: Sale
+    sale?: CurrentSale
     productId?: string | null
     removeSelection: () => void
 }
@@ -248,21 +213,29 @@ function SaleDetails({
         toast.success("item adicionado à venda com sucesso")
     }
 
+    if (!sale) {
+        return (
+            <Card className='w-full flex items-center justify-start h-screen'>
+                <CardContent className="flex flex-col gap-4 items-center h-full">
+                    <h2 className="text-lg font-bold">inicie uma venda</h2>
+                    <Button
+                        disabled={createSaleIsPending}
+                        onClick={() => createSale()}
+                    >iniciar venda</Button>
+                </CardContent>
+            </Card>
+        )
+    }
+
     const saleTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0) : 0
-    const discountTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.discount, 0) : 0
+    const discountTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + (value.discount ?? 0), 0) : 0
     const paidTotal = sale.payment ? sale.payment.reduce((acc, value) => acc + value.amount, 0) : 0
     const actualTotal = saleTotal - discountTotal - paidTotal
 
     return (
         <Card className='w-full flex items-center justify-start h-screen'>
             <CardContent className="flex flex-col gap-4 items-center h-full">
-                <h2 className="text-lg font-bold">{sale ? "detalhes da venda" : "inicie uma venda"}</h2>
-                {!sale && (
-                    <Button
-                        disabled={createSaleIsPending}
-                        onClick={() => createSale()}
-                    >iniciar venda</Button>
-                )}
+                <h2 className="text-lg font-bold">detalhes da venda</h2>
                 <div className="flex flex-col gap-2">
                     <h3 className="text-lg font-bold text-center">{productId && !singleProductIsPending && product ? 'produto encontrado' : "nenhum produto selecionado"}</h3>
                     <div className="flex flex-col gap-2">
@@ -270,7 +243,7 @@ function SaleDetails({
                         <Input value={product ? product.name : ""} disabled />
                         <Label>valor de venda</Label>
                         <Input value={formatCurrency(product ? product.sellPrice : 0)} disabled />
-                        {productId !== null && (
+                        {productId != null && (
                             <>
                                 <Label>quantidade</Label>
                                 <InputGroup className="flex items-center justify-between">
@@ -310,8 +283,8 @@ function SaleDetails({
                     <Combobox
                         disabled={updateSaleClientIsPending}
                         items={clients as Client[]}
-                        itemToStringValue={() => String(sale.client.id ?? "")}
-                        itemToStringLabel={() => String(sale.client.name ?? "")}
+                        itemToStringValue={(client) => String(client?.id ?? "")}
+                        itemToStringLabel={(client) => String(client?.name ?? "")}
                         onValueChange={async (client: Client | null) => {
                             if (client) {
                                 await updateSaleClient({
