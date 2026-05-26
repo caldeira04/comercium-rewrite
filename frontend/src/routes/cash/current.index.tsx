@@ -62,7 +62,7 @@ function CashTable({ cash }: {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {cash.cashMovements.map((item) => (
+                {cash.cashMovements && cash.cashMovements.map((item) => (
                     <TableRow key={item.id}>
                         <TableCell>{formatTime(new Date(item.createdAt)).hhMM}</TableCell>
                         <TableCell>{formatCashMovementNature({ nature: item.nature })}</TableCell>
@@ -79,13 +79,13 @@ function CashDetails({ cash }: {
     cash?: CurrentCash
 }) {
 
-    const positiveAmount = cash?.cashMovements
+    const positiveAmount = cash ? cash?.cashMovements
         .filter((item) => item.nature === "in")
-        .reduce((acc, item) => acc + item.amount, 0) ?? 0
+        .reduce((acc, item) => acc + item.amount, 0) ?? 0 : 0
 
-    const negativeAmount = cash?.cashMovements
+    const negativeAmount = cash ? cash?.cashMovements
         .filter((item) => item.nature === "out")
-        .reduce((acc, item) => acc + item.amount, 0) ?? 0
+        .reduce((acc, item) => acc + item.amount, 0) ?? 0 : 0
 
     const totalAmount = positiveAmount - negativeAmount
 
