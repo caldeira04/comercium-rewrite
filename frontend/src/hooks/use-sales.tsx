@@ -93,6 +93,28 @@ export function useSales() {
         }
     })
 
+    const updateSaleItemMutation = useMutation({
+        mutationFn: async ({ saleItemId, quantity, discount }: {
+            saleItemId: string,
+            quantity: number,
+            discount: number
+        }) => {
+            const { data, error } = await api.tenant.sales["sale-item"]({ saleItemId }).patch({
+                quantity,
+                discount
+            }, {
+                fetch: { credentials: "include" }
+            })
+
+            if (error) throw error
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
     return {
         sales: salesQuery.data,
         salesIsPending: salesQuery.isPending,
@@ -109,6 +131,9 @@ export function useSales() {
         addProductToSale: addProductToSaleMutation.mutateAsync,
         addProductToSaleIsPending: addProductToSaleMutation.isPending,
         addProductToSaleIsError: addProductToSaleMutation.isError,
+        updateSaleItem: updateSaleItemMutation.mutateAsync,
+        updateSaleItemIsPending: updateSaleItemMutation.isPending,
+        updateSaleItemIsError: updateSaleItemMutation.isError,
         updateSaleClient: updateSaleClientMutation.mutateAsync,
         updateSaleClientIsPending: updateSaleClientMutation.isPending,
         updateSaleClientIsError: updateSaleClientMutation.isError,

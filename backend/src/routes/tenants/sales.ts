@@ -1,4 +1,4 @@
-import { addProductToSale, createSale, currentSale, getSales, settleSale, updateSaleClient } from "@/domain/tenant/sales/SalesService";
+import { addProductToSale, createSale, currentSale, getSales, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
 import Elysia, { t } from "elysia";
 
@@ -45,6 +45,25 @@ const sales = new Elysia({ prefix: "/sales" })
     }, {
         params: t.Object({
             productId: t.Number(),
+        }),
+        body: t.Object({
+            quantity: t.Number(),
+            discount: t.Number(),
+        })
+    })
+
+    .patch("/sale-item/:saleItemId", async ({ params, body, auth }) => {
+        const updated = await updateSaleItem(auth.tenantSlug, {
+            saleItemId: params.saleItemId,
+            userId: auth.userId,
+            quantity: body.quantity,
+            discount: body.discount
+        })
+
+        return updated
+    }, {
+        params: t.Object({
+            saleItemId: t.String(),
         }),
         body: t.Object({
             quantity: t.Number(),

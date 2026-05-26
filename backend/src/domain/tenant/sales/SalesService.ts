@@ -1,6 +1,6 @@
 import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
-import { desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
 import { currentCash } from "../cash/CashService";
 
@@ -80,6 +80,9 @@ export async function currentSale(tenantSlug: string) {
             },
             saleItem: {
                 columns: {
+                    id: true,
+                    saleId: true,
+                    productId: true,
                     quantity: true,
                     totalPrice: true,
                     unitPrice: true,
@@ -90,6 +93,7 @@ export async function currentSale(tenantSlug: string) {
                 with: {
                     product: {
                         columns: {
+                            id: true,
                             name: true
                         }
                     }
@@ -235,6 +239,52 @@ export async function addProductToSale(tenantSlug: string, data: {
         .returning()
 
     return newSaleItem
+}
+
+export async function updateSaleItem(tenantSlug: string, data: {
+    saleItemId: string,
+    quantity: number,
+    discount: number,
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+    const { saleItemId, quantity, discount, userId } = data
+
+    if (quantity < 1) throw new Error("quantidade deve ser maior que 0")
+
+    const activeSale = await currentSale(tenantSlug)
+    if (!activeSale) throw new Error("venda é obrigatória para editar produtos")
+
+    const selectedSaleItem = await db.query.saleItem.findFirst({
+        where: (saleItem, { and, eq, isNull }) =>
+            and(
+                eq(saleItem.id, saleItemId),
+                eq(saleItem.saleId, activeSale.id),
+                isNull(saleItem.deletedAt)
+            ),
+        columns: {
+            id: true,
+            unitPrice: true
+        }
+    })
+
+    if (!selectedSaleItem) throw new Error("item da venda não encontrado")
+
+    const [updatedSaleItem] = await db.update(saleItem).set({
+        quantity,
+        discount,
+        totalPrice: selectedSaleItem.unitPrice * quantity,
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedByUserId: userId
+    })
+        .where(and(
+            eq(saleItem.id, selectedSaleItem.id),
+            eq(saleItem.saleId, activeSale.id),
+            isNull(saleItem.deletedAt)
+        ))
+        .returning()
+
+    return updatedSaleItem
 }
 
 export async function removeProductFromSale(tenantSlug: string, data: {

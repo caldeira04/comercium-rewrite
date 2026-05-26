@@ -29,7 +29,8 @@ import {
 } from "@/components/ui/combobox"
 import NewClientDialog from "@/components/new-client-dialog"
 import { formatCurrency, maskCurrency } from '@/utils/finance'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { useSales } from '@/hooks/use-sales'
 import { Button } from '@/components/ui/button'
 import { Spinner } from "@/components/ui/spinner"
@@ -38,9 +39,15 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InputGroup } from "@/components/ui/input-group"
-import { MinusIcon, PlusIcon } from "lucide-react"
+import { MinusIcon, PencilIcon, PlusIcon } from "lucide-react"
 import NewPaymentDialog from "@/components/new-payment-dialog"
-import type { CurrentSale, Product } from "@/lib/api-types"
+import type { CurrentSale, CurrentSaleItem, Product } from "@/lib/api-types"
+
+type SaleItemSelection =
+    | { mode: "add", productId: string }
+    | { mode: "edit", saleItem: CurrentSaleItem }
+
+type ClientOption = Pick<Client, "id" | "name">
 
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
@@ -48,11 +55,135 @@ export const Route = createFileRoute('/sales/daily/')({
 })
 
 function RouteComponent() {
-    const { currentSale, currentSaleIsPending } = useSales()
-    const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
+    const {
+        currentSale,
+        currentSaleIsPending,
+        createSale,
+        createSaleIsPending
+    } = useSales()
+    const [selectedItem, setSelectedItem] = useState<SaleItemSelection | null>(null)
+    const [productSearch, setProductSearch] = useState("")
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
     const { products, productsIsPending } = useProducts()
+    const productSearchRef = useRef<HTMLInputElement>(null)
+    const clientSearchRef = useRef<HTMLInputElement>(null)
 
     const canAddProduct = !!currentSale
+    const actualTotal = currentSale ? getSaleRemainingTotal(currentSale) : 0
+
+    useEffect(() => {
+        function handleKeyDown(event: KeyboardEvent) {
+            if (paymentDialogOpen) return
+
+            if (event.key === "F1") {
+                event.preventDefault()
+
+                if (currentSaleIsPending || createSaleIsPending) return
+
+                if (currentSale) {
+                    toast.error("já existe uma venda em andamento")
+                    return
+                }
+
+                createSale()
+                return
+            }
+
+            if (event.key === "F2") {
+                event.preventDefault()
+                productSearchRef.current?.focus()
+                return
+            }
+
+            if (event.key === "F3") {
+                event.preventDefault()
+                const latestSaleItem = currentSale?.saleItem[0]
+                if (latestSaleItem) setSelectedItem({ mode: "edit", saleItem: latestSaleItem })
+                return
+            }
+
+            if (event.key === "F4") {
+                event.preventDefault()
+                clientSearchRef.current?.focus()
+                return
+            }
+
+            if (event.key === "F8" || event.key === "F10") {
+                event.preventDefault()
+                if (!currentSale) {
+                    toast.error("inicie uma venda para adicionar pagamentos")
+                    return
+                }
+
+                if (actualTotal <= 0) {
+                    toast.error("não há valor pendente para pagamento")
+                    return
+                }
+
+                setPaymentDialogOpen(true)
+                return
+            }
+
+            if (
+                isEditableTarget(event.target) &&
+                event.key !== "Escape" &&
+                !(event.key === "Backspace" && event.ctrlKey)
+            ) {
+                return
+            }
+
+            const productSearchInput = productSearchRef.current
+
+            if (
+                event.key === "Escape" &&
+                productSearchInput &&
+                document.activeElement === productSearchInput
+            ) {
+                event.preventDefault()
+                productSearchInput.blur()
+                return
+            }
+
+            if (event.key === "Escape" && selectedItem) {
+                event.preventDefault()
+                setSelectedItem(null)
+                return
+            }
+
+            if (event.key === "Backspace" && event.ctrlKey) {
+                const activeElement = document.activeElement
+                if (activeElement === productSearchRef.current) {
+                    event.preventDefault()
+                    setProductSearch("")
+                }
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [actualTotal, createSale, createSaleIsPending, currentSale, currentSaleIsPending, paymentDialogOpen, selectedItem])
+
+    useEffect(() => {
+        if (
+            selectedItem ||
+            paymentDialogOpen ||
+            currentSaleIsPending ||
+            productsIsPending ||
+            !currentSale
+        ) {
+            return
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            if (isClientComboboxTarget(document.activeElement, clientSearchRef.current)) {
+                return
+            }
+
+            productSearchRef.current?.focus()
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [currentSale, currentSaleIsPending, paymentDialogOpen, productsIsPending, selectedItem])
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
@@ -60,13 +191,19 @@ function RouteComponent() {
             <div className='w-full flex flex-col'>
                 {products && !productsIsPending && (
                     <SearchBar
+                        inputRef={productSearchRef}
                         disabled={!canAddProduct || productsIsPending}
                         products={products}
-                        onSelectProduct={(productId) => setSelectedProduct(productId)}
+                        search={productSearch}
+                        onSearchChange={setProductSearch}
+                        onSelectProduct={(productId) => setSelectedItem({ mode: "add", productId })}
                     />
                 )}
                 {!currentSaleIsPending && currentSale && (
-                    <ProductsTable sale={currentSale} />
+                    <ProductsTable
+                        sale={currentSale}
+                        onEditSaleItem={(saleItem) => setSelectedItem({ mode: "edit", saleItem })}
+                    />
                 )}
             </div>
             {/* barra lateral direita */}
@@ -76,27 +213,71 @@ function RouteComponent() {
                 ) : (
                     <SaleDetails
                         sale={currentSale}
-                        productId={selectedProduct}
-                        removeSelection={() => setSelectedProduct(null)}
+                        selection={selectedItem}
+                        clientSearchRef={clientSearchRef}
+                        paymentDialogOpen={paymentDialogOpen}
+                        onPaymentDialogOpenChange={setPaymentDialogOpen}
+                        removeSelection={() => setSelectedItem(null)}
                     />)}
             </div>
         </div>
     )
 }
 
+function getSaleRemainingTotal(sale: NonNullable<CurrentSale>) {
+    const saleTotal = sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0)
+    const discountTotal = sale.saleItem.reduce((acc, value) => acc + (value.discount ?? 0), 0)
+    const paidTotal = sale.payment.reduce((acc, value) => acc + value.amount, 0)
+
+    return saleTotal - discountTotal - paidTotal
+}
+
+function isCommandInputTarget(target: EventTarget | null) {
+    return target instanceof HTMLElement && target.dataset.slot === "command-input"
+}
+
+function isEditableTarget(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) return false
+
+    return (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.isContentEditable
+    )
+}
+
+function isClientComboboxTarget(
+    target: Element | null,
+    clientSearchInput: HTMLInputElement | null
+) {
+    if (!target || !clientSearchInput) return false
+
+    const clientInputGroup = clientSearchInput.closest("[data-slot='input-group']")
+
+    return (
+        target === clientSearchInput ||
+        !!clientInputGroup?.contains(target) ||
+        !!target.closest("[data-slot='combobox-content']")
+    )
+}
+
 interface SearchBarProps {
+    inputRef: RefObject<HTMLInputElement | null>
     disabled: boolean
     products: Product[]
+    search: string
+    onSearchChange: (search: string) => void
     onSelectProduct: (productId: string) => void
 }
 
 function SearchBar({
+    inputRef,
     disabled,
     products,
+    search,
+    onSearchChange,
     onSelectProduct
 }: SearchBarProps) {
-    const [search, setSearch] = useState<string>("")
-
     return (
         <Command className="rounded-lg w-full h-1/3 border"
             filter={(value, search) => {
@@ -105,8 +286,9 @@ function SearchBar({
             }}
         >
             <CommandInput placeholder="busque por um produto ou escaneie o código de barras"
+                ref={inputRef}
                 value={search}
-                onValueChange={(e) => setSearch(e)}
+                onValueChange={(e) => onSearchChange(e)}
                 disabled={disabled}
             />
             <CommandList>
@@ -119,7 +301,7 @@ function SearchBar({
                         value={`${p.id}|${p.name} ${p.gtin}`}
                         onSelect={(val) => {
                             onSelectProduct(val.split("|")[0])
-                            setSearch("")
+                            onSearchChange("")
                         }}
                     >
                         {p.name} - {p.gtin ?? "sem GTIN"} - {formatCurrency(p.sellPrice)}
@@ -133,9 +315,10 @@ function SearchBar({
 
 interface ProductsTableProps {
     sale: NonNullable<CurrentSale>
+    onEditSaleItem: (saleItem: CurrentSaleItem) => void
 }
 
-function ProductsTable({ sale }: ProductsTableProps) {
+function ProductsTable({ sale, onEditSaleItem }: ProductsTableProps) {
 
     return (
         <Table className='min-h-full'>
@@ -159,7 +342,12 @@ function ProductsTable({ sale }: ProductsTableProps) {
                         <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
                         <TableCell>{formatCurrency(item.discount ?? 0)}</TableCell>
                         <TableCell>{formatCurrency(item.totalPrice - (item.discount ?? 0))}</TableCell>
-                        <TableCell className="text-right"></TableCell>
+                        <TableCell className="text-right">
+                            <Button
+                                variant="outline"
+                                onClick={() => onEditSaleItem(item)}
+                            ><PencilIcon /></Button>
+                        </TableCell>
                     </TableRow>
                 )) : (
                     <></>
@@ -171,14 +359,20 @@ function ProductsTable({ sale }: ProductsTableProps) {
 
 interface SaleDetailsProps {
     sale?: CurrentSale
-    productId?: string | null
+    selection?: SaleItemSelection | null
+    clientSearchRef: RefObject<HTMLInputElement | null>
+    paymentDialogOpen: boolean
+    onPaymentDialogOpenChange: (open: boolean) => void
     removeSelection: () => void
 }
 
 
 function SaleDetails({
     sale,
-    productId,
+    selection,
+    clientSearchRef,
+    paymentDialogOpen,
+    onPaymentDialogOpenChange,
     removeSelection
 }: SaleDetailsProps) {
     const {
@@ -186,9 +380,13 @@ function SaleDetails({
         createSaleIsPending,
         addProductToSale,
         addProductToSaleIsPending,
+        updateSaleItem,
+        updateSaleItemIsPending,
         updateSaleClient,
         updateSaleClientIsPending
     } = useSales()
+    const productId = selection?.mode === "add" ? selection.productId : null
+    const selectedSaleItem = selection?.mode === "edit" ? selection.saleItem : null
     const {
         singleProduct: product,
         singleProductIsPending,
@@ -196,22 +394,104 @@ function SaleDetails({
     const { clients } = useClients()
     const [quantity, setQuantity] = useState<number>(1)
     const [discount, setDiscount] = useState<string>(maskCurrency("0"))
+    const quantityInputRef = useRef<HTMLInputElement>(null)
+    const submitButtonRef = useRef<HTMLButtonElement>(null)
 
-    async function confirmSelection() {
+    useEffect(() => {
+        if (selection?.mode === "edit") {
+            setQuantity(selection.saleItem.quantity)
+            setDiscount(maskCurrency(String(selection.saleItem.discount ?? 0)))
+            return
+        }
+
+        setQuantity(1)
+        setDiscount(maskCurrency("0"))
+    }, [selection])
+
+    const selectedItemName = selectedSaleItem?.product.name ?? product?.name ?? ""
+    const selectedItemPrice = selectedSaleItem?.unitPrice ?? product?.sellPrice ?? 0
+    const hasSelection = !!selection
+    const isEditMode = selection?.mode === "edit"
+    const submitIsPending = isEditMode ? updateSaleItemIsPending : addProductToSaleIsPending
+    const canSubmitSelection = hasSelection && !submitIsPending && (isEditMode || !!product)
+    const selectionFocusKey =
+        selection?.mode === "edit" ? `edit-${selection.saleItem.id}` :
+            selection?.mode === "add" ? `add-${selection.productId}` :
+                null
+
+    const confirmSelection = useCallback(async () => {
         if (quantity < 1) {
             toast.error("quantidade deve ser maior que 0")
             return
         }
+
+        const parsedDiscount = Number(discount.replace(/\D/g, ''))
+
+        if (selection?.mode === "edit") {
+            await updateSaleItem({
+                saleItemId: selection.saleItem.id,
+                quantity,
+                discount: parsedDiscount
+            })
+
+            removeSelection()
+            toast.success("item da venda alterado com sucesso")
+            return
+        }
+
+        if (selection?.mode !== "add") {
+            toast.error("selecione um produto para continuar")
+            return
+        }
+
         await addProductToSale({
-            productId: Number(productId),
+            productId: Number(selection.productId),
             quantity,
-            discount: Number(discount.replace(/\D/g, ''))
+            discount: parsedDiscount
         })
 
         removeSelection()
         setQuantity(1)
         toast.success("item adicionado à venda com sucesso")
-    }
+    }, [addProductToSale, discount, quantity, removeSelection, selection, updateSaleItem])
+
+    useEffect(() => {
+        if (!canSubmitSelection || !selectionFocusKey) return
+
+        const timeoutId = window.setTimeout(() => {
+            submitButtonRef.current?.focus()
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [canSubmitSelection, selectionFocusKey])
+
+    useEffect(() => {
+        function handleKeyDown(event: KeyboardEvent) {
+            if (!selection || paymentDialogOpen || submitIsPending) return
+
+            if (event.key === "Enter") {
+                if (isCommandInputTarget(event.target)) return
+
+                event.preventDefault()
+                confirmSelection()
+                return
+            }
+
+            if (event.key === "+") {
+                event.preventDefault()
+                setQuantity((value) => value + 1)
+                return
+            }
+
+            if (event.key === "-") {
+                event.preventDefault()
+                setQuantity((value) => Math.max(1, value - 1))
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [confirmSelection, paymentDialogOpen, selection, submitIsPending])
 
     if (!sale) {
         return (
@@ -237,13 +517,13 @@ function SaleDetails({
             <CardContent className="flex flex-col gap-4 items-center h-full">
                 <h2 className="text-lg font-bold">detalhes da venda</h2>
                 <div className="flex flex-col gap-2">
-                    <h3 className="text-lg font-bold text-center">{productId && !singleProductIsPending && product ? 'produto encontrado' : "nenhum produto selecionado"}</h3>
+                    <h3 className="text-lg font-bold text-center">{hasSelection && (isEditMode || (!singleProductIsPending && product)) ? 'produto encontrado' : "nenhum produto selecionado"}</h3>
                     <div className="flex flex-col gap-2">
                         <Label>nome</Label>
-                        <Input value={product ? product.name : ""} disabled />
+                        <Input value={selectedItemName} disabled />
                         <Label>valor de venda</Label>
-                        <Input value={formatCurrency(product ? product.sellPrice : 0)} disabled />
-                        {productId != null && (
+                        <Input value={formatCurrency(selectedItemPrice)} disabled />
+                        {hasSelection && (
                             <>
                                 <Label>quantidade</Label>
                                 <InputGroup className="flex items-center justify-between">
@@ -251,6 +531,7 @@ function SaleDetails({
                                         onClick={() => setQuantity(val => val - 1)}
                                         className="w-1/3" variant={"ghost"}><MinusIcon /></Button>
                                     <Input
+                                        ref={quantityInputRef}
                                         className="text-center"
                                         value={quantity}
                                         onChange={(e) => setQuantity(Number(e.target.value))}
@@ -269,11 +550,12 @@ function SaleDetails({
                                 />
                                 <Button
                                     onClick={() => removeSelection()}
-                                    variant={"outline"}>cancelar adição</Button>
+                                    variant={"outline"}>cancelar {isEditMode ? "edição" : "adição"}</Button>
                                 <Button
-                                    disabled={addProductToSaleIsPending || !product}
+                                    ref={submitButtonRef}
+                                    disabled={submitIsPending || (!isEditMode && !product)}
                                     onClick={() => confirmSelection()}
-                                >adicionar produto</Button>
+                                >{isEditMode ? "salvar alterações" : "adicionar produto"}</Button>
                             </>
                         )}
                     </div>
@@ -281,20 +563,31 @@ function SaleDetails({
                 <div className="w-full flex flex-col gap-2">
                     <h3 className="text-lg text-center font-bold">cliente da venda</h3>
                     <Combobox
+                        key={sale.client?.id ?? "no-client"}
                         disabled={updateSaleClientIsPending}
-                        items={clients as Client[]}
+                        defaultValue={sale.client ?? null}
+                        items={clients as ClientOption[]}
+                        isItemEqualToValue={(item, value) => item?.id === value?.id}
                         itemToStringValue={(client) => String(client?.id ?? "")}
                         itemToStringLabel={(client) => String(client?.name ?? "")}
-                        onValueChange={async (client: Client | null) => {
+                        onValueChange={async (client: ClientOption | null) => {
                             if (client) {
                                 await updateSaleClient({
                                     saleId: sale.id,
                                     clientId: client.id
                                 })
+
+                                window.setTimeout(() => {
+                                    clientSearchRef.current?.blur()
+                                }, 0)
                             }
                         }}
                     >
-                        <ComboboxInput showClear placeholder="digite o nome de um cliente" />
+                        <ComboboxInput
+                            ref={clientSearchRef}
+                            showClear
+                            placeholder="digite o nome de um cliente"
+                        />
                         <ComboboxContent>
                             <ComboboxEmpty><NewClientDialog /></ComboboxEmpty>
                             <ComboboxList>
@@ -316,6 +609,8 @@ function SaleDetails({
                 <div className="w-full flex items-center justify-between text-lg"><span>pago:</span><span>{formatCurrency(paidTotal)}</span></div>
                 <div className="w-full flex items-center justify-between text-lg"><span>total:</span><span>{formatCurrency(actualTotal)}</span></div>
                 <NewPaymentDialog
+                    open={paymentDialogOpen}
+                    onOpenChange={onPaymentDialogOpenChange}
                     totalAmount={actualTotal}
                     saleId={sale.id}
                 />

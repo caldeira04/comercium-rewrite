@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -56,18 +56,26 @@ function findPaymentMethod(value: string): PaymentMethod {
 }
 
 export default function NewPaymentDialog({
-    totalAmount, saleId
+    totalAmount, saleId, open: controlledOpen, onOpenChange
 
 }: {
     totalAmount: number,
     saleId: string
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
 }) {
-    const [open, setOpen] = useState(false)
+    const [internalOpen, setInternalOpen] = useState(false)
+    const open = controlledOpen ?? internalOpen
+    const setOpen = onOpenChange ?? setInternalOpen
     const [amount, setAmount] = useState<string>(maskCurrency(String(totalAmount)))
     const { createPayments, createPaymentsIsPending } = usePayments()
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(defaultPaymentMethod)
 
-    async function handleOpenCash() {
+    useEffect(() => {
+        if (!open) setAmount(maskCurrency(String(totalAmount)))
+    }, [open, totalAmount])
+
+    const handleOpenCash = useCallback(async () => {
         const clearAmount = amount.replace(/\D/g, '')
 
         if (!saleId) {
@@ -83,7 +91,27 @@ export default function NewPaymentDialog({
         })
         toast.success("pagamento lançado com sucesso")
         setOpen(false)
-    }
+    }, [amount, createPayments, paymentMethod.value, saleId, setOpen, totalAmount])
+
+    useEffect(() => {
+        function handleKeyDown(event: KeyboardEvent) {
+            if (!open || createPaymentsIsPending || event.key !== "Enter") return
+
+            const target = event.target
+            if (
+                target instanceof HTMLElement &&
+                target.closest("[data-slot='select-content']")
+            ) {
+                return
+            }
+
+            event.preventDefault()
+            handleOpenCash()
+        }
+
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [createPaymentsIsPending, handleOpenCash, open])
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
