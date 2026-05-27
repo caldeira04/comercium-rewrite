@@ -35,18 +35,24 @@ export async function currentCash(tenantSlug: string) {
                     createdAt: true,
                     createdByUserId: true,
                     description: true,
+                    referenceId: true,
+                    referenceType: true,
                     type: true,
                 },
                 orderBy: [desc(cashMovement.createdAt)],
             },
             sales: {
-                columns: {},
+                columns: {
+                    id: true,
+                },
                 with: {
                     payment: {
                         columns: {
                             id: true,
                             amount: true,
                             paymentMethod: true,
+                            createdAt: true,
+                            saleId: true
                         },
                         where: (payment, { eq }) => eq(payment.status, "paid")
                     }
@@ -130,31 +136,88 @@ export async function currentCash(tenantSlug: string) {
         salesCount: data.salesCount,
     }))
 
-    const { sales, ...cashWithoutSales } = currentCash
+    const inflow = currentCash.cashMovements
+        .filter((m) => m.nature === "in")
+        .reduce((sum, m) => sum + m.amount, 0)
+
+    const outflow = currentCash.cashMovements
+        .filter((m) => m.nature === "out")
+        .reduce((sum, m) => sum + m.amount, 0)
+
+    const expectedClosingAmount =
+        currentCash.expectedClosingAmount ?? inflow - outflow
+
+    const difference =
+        currentCash.actualClosingAmount !== null
+            ? currentCash.actualClosingAmount - expectedClosingAmount
+            : null
+
+    const movements = currentCash.cashMovements.map((movement) => ({
+        id: movement.id,
+        type: movement.type,
+        nature: movement.nature,
+        amount: movement.amount,
+        signedAmount:
+            movement.nature === "in"
+                ? movement.amount
+                : -movement.amount,
+        description: movement.description,
+        reference: movement.referenceId
+            ? {
+                type: movement.referenceType,
+                id: movement.referenceId,
+            }
+            : null,
+        createdAt: movement.createdAt,
+        createdByUser: movement.createdByUserId
+            ? usersById.get(movement.createdByUserId) ?? null
+            : null,
+    }))
+
+    const { sales, cashMovements, ...cashData } = currentCash
 
     return {
-        ...cashWithoutSales,
+        id: cashData.id,
+
+        status: cashData.closedAt ? "closed" : "open",
+
+        openedAt: cashData.createdAt,
+        closedAt: cashData.closedAt,
+
+        amounts: {
+            opening: cashData.openingAmount,
+            inflow,
+            outflow,
+            expectedClosing: expectedClosingAmount,
+            actualClosing: cashData.actualClosingAmount,
+            difference,
+        },
+
+        users: {
+            createdBy: cashData.createdByUserId
+                ? usersById.get(cashData.createdByUserId) ?? null
+                : null,
+
+            updatedBy: cashData.updatedByUserId
+                ? usersById.get(cashData.updatedByUserId) ?? null
+                : null,
+
+            closedBy: cashData.closedByUserId
+                ? usersById.get(cashData.closedByUserId) ?? null
+                : null,
+        },
+
         paymentSummary,
 
-        createdByUser: currentCash.createdByUserId
-            ? usersById.get(currentCash.createdByUserId)
-            : null,
+        movementSummary: {
+            totalCount: movements.length,
+            inCount: movements.filter((m) => m.nature === "in").length,
+            outCount: movements.filter((m) => m.nature === "out").length,
+        },
 
-        updatedByUser: currentCash.updatedByUserId
-            ? usersById.get(currentCash.updatedByUserId)
-            : null,
-
-        closedByUser: currentCash.closedByUserId
-            ? usersById.get(currentCash.closedByUserId)
-            : null,
-
-        cashMovements: currentCash.cashMovements.map((movement) => ({
-            ...movement,
-            createdByUser: movement.createdByUserId
-                ? usersById.get(movement.createdByUserId)
-                : null,
-        })),
+        movements,
     }
+
 }
 
 export async function createCash(tenantSlug: string, data: {

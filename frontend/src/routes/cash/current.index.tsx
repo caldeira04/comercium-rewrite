@@ -12,13 +12,15 @@ import {
 import { useCash } from '@/hooks/use-cash'
 import { createFileRoute } from '@tanstack/react-router'
 import { formatCurrency } from '@/utils/finance'
-import { ArrowDown, ArrowUp, Banknote, ClockIcon, CreditCard, Wallet, WalletCards } from 'lucide-react'
+import { ArrowDown, ArrowUp, Banknote, ClockIcon, CreditCard, EllipsisIcon, Wallet, WalletCards } from 'lucide-react'
 import NewCashDialog from '@/components/new-cash-dialog'
-import { formatCashMovementNature, formatCashMovementType } from '@/utils/formatters'
+import { formatCashMovementType } from '@/utils/formatters'
 import type { CurrentCash } from '@/lib/api-types'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SiPix } from "@icons-pack/react-simple-icons"
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/cash/current/')({
     component: RouteComponent,
@@ -27,23 +29,7 @@ export const Route = createFileRoute('/cash/current/')({
 function RouteComponent() {
     const { currentCash, currentCashIsPending } = useCash()
 
-    const positiveEntries = currentCash ? currentCash?.cashMovements
-        .filter((item) => item.nature === "in") : []
-
-    const positiveAmount = positiveEntries
-        .reduce((acc, item) => acc + item.amount, 0) ?? 0
-
-    const negativeEntries = currentCash ? currentCash?.cashMovements
-        .filter((item) => item.nature === "out") : []
-
-    const negativeAmount = negativeEntries
-        .reduce((acc, item) => acc + item.amount, 0) ?? 0
-
-    const totalAmount = positiveAmount - negativeAmount
-
-    const isOpen = currentCash && currentCash.closedAt === null
-
-    const diff = (currentCash ? currentCash.actualClosingAmount ?? 0 : 0) - (currentCash ? currentCash.expectedClosingAmount ?? 0 : 0)
+    const isOpen = currentCash && currentCash.status === "open"
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
@@ -61,14 +47,14 @@ function RouteComponent() {
                     <div>
                         {!currentCashIsPending && currentCash && (
                             <div className='text-green-600 flex gap-2 items-center'>
-                                <span>aberto em <span className='font-bold'>{formatTime(new Date(currentCash.createdAt)).ddMMyy} - {formatTime(new Date(currentCash.createdAt)).hhMM}</span></span>
-                                <span>por <span className='font-bold'>{currentCash.createdByUser?.login}</span></span>
+                                <span>aberto em <span className='font-bold'>{formatTime(new Date(currentCash.openedAt)).ddMMyy} - {formatTime(new Date(currentCash.openedAt)).hhMM}</span></span>
+                                <span>por <span className='font-bold'>{currentCash.users.createdBy?.login}</span></span>
                             </div>
                         )}
                         {!currentCashIsPending && currentCash && currentCash.closedAt && (
                             <div className='text-red-600 flex gap-2 items-center'>
                                 <span>fechado em <span className='font-bold'>{formatTime(new Date(currentCash.closedAt)).ddMMyy} - {formatTime(new Date(currentCash.closedAt)).hhMM}</span></span>
-                                <span>por <span className='font-bold'>{currentCash.closedByUser?.login}</span></span>
+                                <span>por <span className='font-bold'>{currentCash.users.closedBy?.login}</span></span>
                             </div>
                         )}
                     </div>
@@ -83,8 +69,8 @@ function RouteComponent() {
                                         <div className='bg-green-600/10 w-12 h-12 rounded-full flex items-center justify-center text-green-800'><ArrowDown /> </div>
                                         <div className='flex flex-col gap-2 items-start'>
                                             <h3 className='font-bold'>entradas</h3>
-                                            <span className='font-bold text-lg text-green-600 text-nowrap'>{formatCurrency(positiveAmount)}</span>
-                                            <span className='text-muted-foreground text-xs'>{positiveEntries.length} movimentações</span>
+                                            <span className='font-bold text-lg text-green-600 text-nowrap'>{formatCurrency(currentCash.amounts.inflow)}</span>
+                                            <span className='text-muted-foreground text-xs'>{currentCash.movementSummary.inCount} movimentações</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -93,8 +79,8 @@ function RouteComponent() {
                                         <div className='bg-red-600/10 w-12 h-12 rounded-full flex items-center justify-center text-red-800'><ArrowUp /> </div>
                                         <div className='flex flex-col gap-2 items-start'>
                                             <h3 className='font-bold'>saídas</h3>
-                                            <span className='font-bold text-lg text-red-600 text-nowrap'>{formatCurrency(negativeAmount)}</span>
-                                            <span className='text-muted-foreground text-xs'>{negativeEntries.length} movimentações</span>
+                                            <span className='font-bold text-lg text-red-600 text-nowrap'>{formatCurrency(currentCash.amounts.outflow)}</span>
+                                            <span className='text-muted-foreground text-xs'>{currentCash.movementSummary.outCount} movimentações</span>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -103,7 +89,7 @@ function RouteComponent() {
                                         <div className='bg-black/10 w-12 h-12 rounded-full flex items-center justify-center'><Wallet /> </div>
                                         <div className='flex flex-col gap-2 items-start'>
                                             <h3 className='font-bold'>{isOpen ? "saldo do dia" : "saldo esperado"}</h3>
-                                            <span className='font-bold text-lg'>{formatCurrency(totalAmount)}</span>
+                                            <span className='font-bold text-lg'>{formatCurrency(currentCash.amounts.inflow)}</span>
                                             <span className='text-muted-foreground text-xs'>abertura + entradas - saídas</span>
                                         </div>
                                     </CardContent>
@@ -113,17 +99,17 @@ function RouteComponent() {
                                         <div className='bg-black/10 w-12 h-12 rounded-full flex items-center justify-center'><Banknote /> </div>
                                         <div className='flex flex-col gap-2 items-start'>
                                             <h3 className='font-bold'>{isOpen ? "dinheiro em caixa" : "saldo contado"}</h3>
-                                            <span className='font-bold text-lg'>{formatCurrency(currentCash.actualClosingAmount ?? 0)}</span>
+                                            <span className='font-bold text-lg'>{formatCurrency(currentCash.amounts.actualClosing ?? 0)}</span>
                                             <span className='text-muted-foreground text-xs'>informado no fechamento</span>
                                         </div>
                                     </CardContent>
                                 </Card>
                                 {!isOpen && (
-                                    <Card className={diff >= 0 ? "bg-green-600/10" : "bg-red-600/10"}>
+                                    <Card className={currentCash.amounts.difference ?? 0 >= 0 ? "bg-green-600/10" : "bg-red-600/10"}>
                                         <CardContent className='flex items-center gap-4'>
                                             <div className='flex flex-col gap-2 items-start'>
                                                 <h3 className='font-bold'>diferença</h3>
-                                                <span className={`${diff >= 0 ? "text-green-600" : "text-red-600"} font-bold text-lg`}>{formatCurrency(diff)}</span>
+                                                <span className={`${currentCash.amounts.difference ?? 0 >= 0 ? "text-green-600" : "text-red-600"} font-bold text-lg`}>{formatCurrency(currentCash.amounts.difference ?? 0)}</span>
                                                 <span className='text-muted-foreground text-xs'>total - contado</span>
                                             </div>
                                         </CardContent>
@@ -197,7 +183,7 @@ function RouteComponent() {
                             </Card>
                         </div>
                         <Card>
-                            <CardContent>
+                            <CardContent className='flex flex-col gap-4'>
                                 <h2 className='font-bold'>movimentações do caixa</h2>
                                 <CashTable cash={currentCash} />
                             </CardContent>
@@ -210,12 +196,6 @@ function RouteComponent() {
                 {currentCashIsPending && (
                     <Spinner />
                 )}
-                <CashDetails
-                    cash={currentCash}
-                    positiveAmount={positiveAmount}
-                    negativeAmount={negativeAmount}
-                    totalAmount={totalAmount}
-                />
             </div>
         </div>
     )
@@ -225,30 +205,139 @@ function CashTable({ cash }: {
     cash: NonNullable<CurrentCash>
 }) {
     return (
-        <Table className='min-h-full'>
-            <TableHeader>
-                <TableRow>
-                    <TableHead className="w-[100px]"><ClockIcon /></TableHead>
-                    <TableHead>natureza</TableHead>
-                    <TableHead>valor</TableHead>
-                    <TableHead>tipo</TableHead>
-                    <TableHead className="text-right">ações</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {cash.cashMovements && cash.cashMovements.map((item) => (
-                    <TableRow key={item.id}>
-                        <TableCell>{formatTime(new Date(item.createdAt)).hhMM}</TableCell>
-                        <TableCell>{formatCashMovementNature({ nature: item.nature })}</TableCell>
-                        <TableCell>{formatCurrency(item.amount)}</TableCell>
-                        <TableCell>{formatCashMovementType({ type: item.type })}</TableCell>
+        <div className="rounded-xl border bg-white">
+            <Table>
+                <TableHeader>
+                    <TableRow className="bg-zinc-50">
+                        <TableHead className="w-[90px]">
+                            <div className="flex items-center gap-2">
+                                <ClockIcon size={14} />
+                                Hora
+                            </div>
+                        </TableHead>
+
+                        <TableHead>Descrição</TableHead>
+
+                        <TableHead className="w-[140px]">
+                            Método
+                        </TableHead>
+
+                        <TableHead className="w-[140px]">
+                            Operador
+                        </TableHead>
+
+                        <TableHead className="text-right w-[140px]">
+                            Valor
+                        </TableHead>
+
+                        <TableHead className="text-right w-[80px]">
+                            Ações
+                        </TableHead>
                     </TableRow>
-                ))}
-            </TableBody>
-        </Table>
+                </TableHeader>
+
+                <TableBody>
+                    {cash.movements.length > 0 ? (
+                        cash.movements.map((item) => (
+                            <TableRow
+                                key={item.id}
+                                className="hover:bg-zinc-50 transition-colors"
+                            >
+                                <TableCell className="font-medium text-zinc-500">
+                                    {formatTime(new Date(item.createdAt)).hhMM}
+                                </TableCell>
+
+                                <TableCell>
+                                    <div className="flex flex-col">
+                                        <span className="font-medium">
+                                            {formatCashMovementType({
+                                                type: item.type,
+                                            })}
+                                        </span>
+
+                                        <span className="text-xs text-zinc-500">
+                                            {item.description ??
+                                                "Sem descrição"}
+                                        </span>
+                                    </div>
+                                </TableCell>
+
+                                <TableCell>
+                                    {item.reference?.type === "payment" ? (
+                                        <Badge
+                                            variant="outline"
+                                            className="capitalize"
+                                        >
+                                            pagamento
+                                        </Badge>
+                                    ) : (
+                                        <Badge
+                                            variant="secondary"
+                                            className="capitalize"
+                                        >
+                                            manual
+                                        </Badge>
+                                    )}
+                                </TableCell>
+
+                                <TableCell>
+                                    {item.createdByUser ? (
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">
+                                                {item.createdByUser.login}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-zinc-400">
+                                            sistema
+                                        </span>
+                                    )}
+                                </TableCell>
+
+                                <TableCell
+                                    className={cn(
+                                        "text-right font-semibold",
+                                        item.nature === "in"
+                                            ? "text-emerald-600"
+                                            : "text-red-500"
+                                    )}
+                                >
+                                    {item.nature === "in"
+                                        ? "+"
+                                        : "-"}
+
+                                    {formatCurrency(
+                                        Math.abs(item.amount)
+                                    )}
+                                </TableCell>
+
+                                <TableCell>
+                                    <div className="flex justify-end">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                        >
+                                            <EllipsisIcon size={16} />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell
+                                colSpan={6}
+                                className="h-32 text-center text-zinc-500"
+                            >
+                                Nenhuma movimentação encontrada
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
     )
 }
-
 function CashDetails({ cash, positiveAmount, negativeAmount, totalAmount }: {
     cash?: CurrentCash
     positiveAmount: number
