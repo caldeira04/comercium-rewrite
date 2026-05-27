@@ -1,6 +1,13 @@
-import { getTenantDb } from "@/db/db"
+import { db as masterDb, getTenantDb } from "@/db/db"
 import { cash, cashMovement } from "@/db/schema/tenant"
 import { desc, sql } from "drizzle-orm"
+
+type PaymentMethod =
+    | "cash"
+    | "pix"
+    | "debit"
+    | "credit"
+    | "voucher"
 
 export async function currentCash(tenantSlug: string) {
     const db = getTenantDb(tenantSlug)
@@ -17,7 +24,7 @@ export async function currentCash(tenantSlug: string) {
             updatedAt: true,
             updatedByUserId: true,
             openingAmount: true,
-            expectedClosingAmount: true
+            expectedClosingAmount: true,
         },
         with: {
             cashMovements: {
@@ -28,7 +35,21 @@ export async function currentCash(tenantSlug: string) {
                     createdAt: true,
                     createdByUserId: true,
                     description: true,
-                    type: true
+                    type: true,
+                },
+                orderBy: [desc(cashMovement.createdAt)],
+            },
+            sales: {
+                columns: {},
+                with: {
+                    payment: {
+                        columns: {
+                            id: true,
+                            amount: true,
+                            paymentMethod: true,
+                        },
+                        where: (payment, { eq }) => eq(payment.status, "paid")
+                    }
                 }
             }
         },
@@ -36,7 +57,104 @@ export async function currentCash(tenantSlug: string) {
 
     if (!currentCash) return null
 
-    return currentCash
+    const userIds = [
+        currentCash.createdByUserId,
+        currentCash.updatedByUserId,
+        currentCash.closedByUserId,
+        ...currentCash.cashMovements.map((m) => m.createdByUserId),
+    ].filter(Boolean) as string[]
+
+    const uniqueUserIds = [...new Set(userIds)]
+
+    const users = uniqueUserIds.length
+        ? await masterDb.query.tenantUser.findMany({
+            columns: {
+                id: true,
+                login: true,
+            },
+            where: (tenantUser, { inArray }) =>
+                inArray(tenantUser.id, uniqueUserIds),
+        })
+        : []
+
+    const usersById = new Map(users.map((user) => [user.id, user]))
+
+    const paymentSummary = Object.entries(
+        currentCash.sales
+            .flatMap((sale) => sale.payment)
+            .reduce<
+                Record<
+                    PaymentMethod,
+                    {
+                        amount: number
+                        salesCount: number
+                    }
+                >
+            >(
+                (acc, payment) => {
+                    acc[payment.paymentMethod].amount += payment.amount
+                    acc[payment.paymentMethod].salesCount += 1
+
+                    return acc
+                },
+                {
+                    cash: {
+                        amount: 0,
+                        salesCount: 0,
+                    },
+
+                    pix: {
+                        amount: 0,
+                        salesCount: 0,
+                    },
+
+                    debit: {
+                        amount: 0,
+                        salesCount: 0,
+                    },
+
+                    credit: {
+                        amount: 0,
+                        salesCount: 0,
+                    },
+
+                    voucher: {
+                        amount: 0,
+                        salesCount: 0,
+                    },
+                }
+            )
+    ).map(([method, data]) => ({
+        method,
+        amount: data.amount,
+        salesCount: data.salesCount,
+    }))
+
+    const { sales, ...cashWithoutSales } = currentCash
+
+    return {
+        ...cashWithoutSales,
+        paymentSummary,
+
+        createdByUser: currentCash.createdByUserId
+            ? usersById.get(currentCash.createdByUserId)
+            : null,
+
+        updatedByUser: currentCash.updatedByUserId
+            ? usersById.get(currentCash.updatedByUserId)
+            : null,
+
+        closedByUser: currentCash.closedByUserId
+            ? usersById.get(currentCash.closedByUserId)
+            : null,
+
+        cashMovements: currentCash.cashMovements.map((movement) => ({
+            ...movement,
+            createdByUser: movement.createdByUserId
+                ? usersById.get(movement.createdByUserId)
+                : null,
+        })),
+    }
 }
 
 export async function createCash(tenantSlug: string, data: {

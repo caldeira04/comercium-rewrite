@@ -34,7 +34,7 @@ export const cashMovement = sqliteTable("cash_movement", {
 
 export const cashRelations = relations(cash, ({ many }) => ({
     cashMovements: many(cashMovement),
-    sales: many(sale)
+    sales: many(sale),
 }))
 
 export const cashMovementRelations = relations(cashMovement, ({ one }) => ({
