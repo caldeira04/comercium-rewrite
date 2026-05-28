@@ -26,6 +26,7 @@
     "paths": {
       "@/db/*": ["../backend/src/db/*"],
       "@/domain/*": ["../backend/src/domain/*"],
+      "@/config/*": ["../backend/src/config/*"],
       "@/routes/*": ["../backend/src/routes/*"],
       "@/utils/drizzle": ["../backend/src/utils/drizzle.ts"],
       "@/utils/elysia": ["../backend/src/utils/elysia.ts"],

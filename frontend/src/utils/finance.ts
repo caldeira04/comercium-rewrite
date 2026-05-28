@@ -1,10 +1,11 @@
 
-export function translatePaymentMethod(method: "cash" | "debit" | "credit" | "pix") {
+export function translatePaymentMethod(method: "cash" | "debit" | "credit" | "pix" | "voucher") {
     switch (method) {
         case ("cash"): return "dinheiro"
         case ("debit"): return "débito"
         case ("credit"): return "crédito"
         case ("pix"): return "PIX"
+        case ("voucher"): return "cheque"
         default: null
     }
 }

@@ -12,9 +12,10 @@ import NewClientDialog from '@/components/new-client-dialog'
 import { useClients } from '@/hooks/use-clients'
 import { Spinner } from '@/components/ui/spinner'
 import { type Client } from "@/lib/types"
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import NewClientForm from '@/components/new-client-form'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export const Route = createFileRoute('/clients/')({
     component: RouteComponent,
@@ -22,27 +23,58 @@ export const Route = createFileRoute('/clients/')({
 
 function RouteComponent() {
     const { clients, clientsIsPending, clientsIsError } = useClients()
-    const [selectedClient, setSelectedClient] = useState<Client | null>()
+    const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+    const [search, setSearch] = useState("")
+    const [isEditing, setIsEditing] = useState(false)
+
+    const filteredClients = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase()
+        if (!clients || !normalizedSearch) return clients ?? []
+
+        return clients.filter((client) =>
+            client.name.toLowerCase().includes(normalizedSearch) ||
+            client.document?.toLowerCase().includes(normalizedSearch) ||
+            client.phone?.toLowerCase().includes(normalizedSearch) ||
+            client.email?.toLowerCase().includes(normalizedSearch)
+        )
+    }, [clients, search])
 
     return (
-        <div className='p-2 gap-2 w-full flex self-start h-screen'>
-            <div className='w-full flex flex-col'>
+        <div className='p-4 gap-4 w-full flex self-start h-screen'>
+            <div className='w-full flex flex-col gap-4'>
                 <div className='flex items-center justify-between w-full'>
-                    <h1 className='p-4 font-bold text-2xl uppercase'>clientes</h1>
+                    <div>
+                        <h1 className='font-bold text-2xl uppercase'>clientes</h1>
+                        <p className='text-muted-foreground'>cadastro e dados de contato dos clientes</p>
+                    </div>
                     <NewClientDialog />
                 </div>
+                <Input
+                    className='max-w-lg'
+                    placeholder='buscar por nome, documento, telefone ou e-mail'
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                />
                 {clientsIsPending && (
                     <Spinner />
                 )}
                 {clientsIsError && (
                     <span>ocorreu um erro ao buscar os dados</span>
                 )}
-                {clients && (
-                    <ClientsTable clients={clients} onSelect={(client) => setSelectedClient(client)} />
+                {clients && filteredClients.length === 0 && (
+                    <Card><CardContent className='text-center text-muted-foreground'>nenhum cliente encontrado</CardContent></Card>
+                )}
+                {filteredClients.length > 0 && (
+                    <ClientsTable clients={filteredClients} onSelect={(client) => { setSelectedClient(client); setIsEditing(false) }} />
                 )}
             </div>
-            <div className='w-1/4'>
-                <ClientDetails client={selectedClient} />
+            <div className='w-[380px] shrink-0'>
+                <ClientDetails
+                    client={selectedClient}
+                    isEditing={isEditing}
+                    onCancelEdit={() => setIsEditing(false)}
+                    onEdit={() => setIsEditing(true)}
+                />
             </div>
         </div>
     )
@@ -81,7 +113,12 @@ function ClientsTable({ clients, onSelect }: ClientsTableProps) {
     )
 }
 
-function ClientDetails({ client }: { client?: Client | null }) {
+function ClientDetails({ client, isEditing, onEdit, onCancelEdit }: {
+    client?: Client | null,
+    isEditing: boolean,
+    onEdit: () => void,
+    onCancelEdit: () => void
+}) {
 
     const { editClientIsPending } = useClients()
 
@@ -91,9 +128,19 @@ function ClientDetails({ client }: { client?: Client | null }) {
                 client ? "detalhes do cliente" : "clique sobre um cliente para ver detalhes"
             }</h2>
             <CardContent className='w-full'>
-                {client && (
+                {client && !isEditing && (
+                    <div className='flex flex-col gap-3'>
+                        <Info label='nome' value={client.name} />
+                        <Info label='telefone' value={client.phone ?? "-"} />
+                        <Info label='documento' value={client.document ?? "-"} />
+                        <Info label='e-mail' value={client.email ?? "-"} />
+                        <Button onClick={onEdit}>editar cliente</Button>
+                    </div>
+                )}
+                {client && isEditing && (
                     <div className='flex flex-col gap-4'>
                         <NewClientForm client={client} />
+                        <Button variant="outline" onClick={onCancelEdit}>cancelar edição</Button>
                         <Button
                             type="submit"
                             form="new-client-form"
@@ -106,4 +153,8 @@ function ClientDetails({ client }: { client?: Client | null }) {
             </CardContent>
         </Card>
     )
+}
+
+function Info({ label, value }: { label: string, value: string }) {
+    return <div className='rounded-lg border p-3'><p className='text-xs uppercase text-muted-foreground'>{label}</p><p className='font-bold'>{value}</p></div>
 }

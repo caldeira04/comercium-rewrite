@@ -79,4 +79,9 @@ auth.get("/me", async ({ cookie, set }) => {
     return auth
 })
 
+auth.post("/logout", async ({ cookie }) => {
+    cookie.session.remove()
+    return { ok: true }
+})
+
 export default auth

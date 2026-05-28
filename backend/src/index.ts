@@ -1,38 +1,11 @@
-import { Elysia } from "elysia"
-import auth from "./routes/master/auth"
-import tenants from "./routes/master/tenants"
-import products from "./routes/tenants/products"
-import { authPlugin } from "./utils/elysia"
-import { cors } from "@elysia/cors"
-import sales from "./routes/tenants/sales"
-import clients from "./routes/tenants/clients"
-import cash from "./routes/tenants/cash"
-import payment from "./routes/tenants/payments"
+import { createApp } from "./app"
 
-const app = new Elysia()
-    .use(cors({
-        origin: "http://localhost:5173",
-        credentials: true,
-    }))
-    .group('/master', (master) =>
-        master
-            .use(auth)
-            .use(tenants)
-    )
-    .group('/tenant', (tenant) =>
-        tenant
-            .use(authPlugin)
-            .use(products)
-            .use(sales)
-            .use(clients)
-            .use(cash)
-            .use(payment)
-    )
-    .get("/", () => "Hello Elysia")
-    .listen(3000)
+export type { App } from "./app"
+
+const port = Number(process.env.PORT ?? 3000)
+const corsOrigin = process.env.CORS_ORIGIN ?? "http://localhost:5173"
+const app = createApp({ corsOrigin }).listen(port)
 
 console.log(
     `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 )
-
-export type App = typeof app

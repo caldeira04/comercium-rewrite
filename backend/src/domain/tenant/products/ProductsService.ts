@@ -85,6 +85,31 @@ export async function getSingleProduct(tenantSlug: string, productId: number) {
     return product
 }
 
+export async function updateProduct(tenantSlug: string, data: {
+    productId: number
+    name?: string
+    buyPrice?: number
+    sellPrice?: number
+    gtin?: string | null
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+    const { productId, name, buyPrice, sellPrice, gtin, userId } = data
+
+    const [updatedProduct] = await db.update(product).set({
+        ...(name !== undefined ? { name } : {}),
+        ...(buyPrice !== undefined ? { buyPrice } : {}),
+        ...(sellPrice !== undefined ? { sellPrice } : {}),
+        ...(gtin !== undefined ? { gtin } : {}),
+        updatedAt: sql`(CURRENT_TIMESTAMP)`,
+        updatedByUserId: userId,
+    })
+        .where(eq(product.id, productId))
+        .returning()
+
+    return updatedProduct
+}
+
 
 export async function deleteProduct(tenantSlug: string, productId: number, userId: string) {
     const db = getTenantDb(tenantSlug)

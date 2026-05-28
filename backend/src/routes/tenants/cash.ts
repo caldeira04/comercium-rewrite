@@ -1,13 +1,32 @@
-import { createCash, createCashMovement, currentCash } from "@/domain/tenant/cash/CashService"
+import { closeCash, createCash, createCashMovement, currentCash, getCashes } from "@/domain/tenant/cash/CashService"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
 const cash = new Elysia({ prefix: "/cash" })
     .use(authPlugin)
 
+    .get("/", async ({ auth }) => {
+        return await getCashes(auth.tenantSlug)
+    })
+
     .get("/current", async ({ auth }) => {
         const cash = await currentCash(auth.tenantSlug)
         return cash
+    })
+
+    .patch("/:cashId/close", async ({ body, params, auth }) => {
+        return await closeCash(auth.tenantSlug, {
+            cashId: params.cashId,
+            actualClosingAmount: body.actualClosingAmount,
+            userId: auth.userId,
+        })
+    }, {
+        body: t.Object({
+            actualClosingAmount: t.Number()
+        }),
+        params: t.Object({
+            cashId: t.String()
+        })
     })
 
     .post("/", async ({ body, auth }) => {

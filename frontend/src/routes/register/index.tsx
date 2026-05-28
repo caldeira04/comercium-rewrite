@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { getApiUrl } from '@/lib/api-config'
 
 const formSchema = z.object({
     tenantSlug: z
@@ -52,7 +53,7 @@ function RouteComponent() {
         },
         onSubmit: async ({ value }) => {
             try {
-                const response = await fetch("http://localhost:3000/master/auth/signup", {
+                const response = await fetch(getApiUrl("/master/auth/signup"), {
                     method: "POST",
                     credentials: "include",
                     headers: {

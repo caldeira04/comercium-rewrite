@@ -10,17 +10,27 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarRail,
 } from "./ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
 import { items } from "./items"
 import { Button } from "./ui/button"
 import { Link } from "@tanstack/react-router"
 import { type ResponseUser } from "@/utils/auth"
+import { getApiUrl } from "@/lib/api-config"
 
 export default function AppSidebar({ login, tenantName, tenantSlug }: ResponseUser) {
+    async function handleLogout() {
+        await fetch(getApiUrl("/master/auth/logout"), {
+            method: "POST",
+            credentials: "include",
+        })
+
+        window.location.href = "/login"
+    }
 
     return (
-        <Sidebar>
+        <Sidebar collapsible="offcanvas">
             <SidebarHeader className="mt-2 flex items-center justify-center">
                 <Link to="/">
                     <h1 className="text-3xl font-bold uppercase">Comercium</h1>
@@ -87,17 +97,16 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: ResponseUs
                                         </Link>
                                     </DropdownMenuItem>
                                 </Button>
-                                <Button asChild variant={"destructive"}>
-                                    <DropdownMenuItem className="w-full justify-start">
-                                        <LogOutIcon />
-                                        <span>sair</span>
-                                    </DropdownMenuItem>
-                                </Button>
+                                <DropdownMenuItem className="w-full justify-start text-destructive" onSelect={handleLogout}>
+                                    <LogOutIcon />
+                                    <span>sair</span>
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
+            <SidebarRail />
         </Sidebar>
     )
 }

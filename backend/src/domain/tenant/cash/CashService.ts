@@ -1,6 +1,6 @@
 import { db as masterDb, getTenantDb } from "@/db/db"
 import { cash, cashMovement } from "@/db/schema/tenant"
-import { desc, sql } from "drizzle-orm"
+import { desc, eq, sql } from "drizzle-orm"
 
 type PaymentMethod =
     | "cash"
@@ -86,7 +86,7 @@ export async function currentCash(tenantSlug: string) {
     const usersById = new Map(users.map((user) => [user.id, user]))
 
     const paymentSummary = Object.entries(
-        currentCash.sales
+        (currentCash.sales ?? [])
             .flatMap((sale) => sale.payment)
             .reduce<
                 Record<
@@ -220,6 +220,121 @@ export async function currentCash(tenantSlug: string) {
 
 }
 
+export async function getCashes(tenantSlug: string) {
+    const db = getTenantDb(tenantSlug)
+
+    const cashes = await db.query.cash.findMany({
+        orderBy: [desc(cash.createdAt)],
+        columns: {
+            actualClosingAmount: true,
+            id: true,
+            closedAt: true,
+            closedByUserId: true,
+            createdAt: true,
+            createdByUserId: true,
+            openingAmount: true,
+            expectedClosingAmount: true,
+        },
+        with: {
+            cashMovements: {
+                columns: {
+                    amount: true,
+                    nature: true,
+                    type: true,
+                },
+            },
+            sales: {
+                columns: {
+                    id: true,
+                },
+                with: {
+                    payment: {
+                        columns: {
+                            amount: true,
+                            paymentMethod: true,
+                        },
+                        where: (payment, { eq }) => eq(payment.status, "paid")
+                    }
+                }
+            }
+        },
+    })
+
+    const userIds = cashes
+        .flatMap((cash) => [cash.createdByUserId, cash.closedByUserId])
+        .filter(Boolean) as string[]
+    const uniqueUserIds = [...new Set(userIds)]
+
+    const users = uniqueUserIds.length
+        ? await masterDb.query.tenantUser.findMany({
+            columns: {
+                id: true,
+                login: true,
+            },
+            where: (tenantUser, { inArray }) =>
+                inArray(tenantUser.id, uniqueUserIds),
+        })
+        : []
+
+    const usersById = new Map(users.map((user) => [user.id, user]))
+
+    return cashes.map((cashData) => {
+        const inflow = cashData.cashMovements
+            .filter((movement) => movement.nature === "in")
+            .reduce((sum, movement) => sum + movement.amount, 0)
+        const outflow = cashData.cashMovements
+            .filter((movement) => movement.nature === "out")
+            .reduce((sum, movement) => sum + movement.amount, 0)
+        const expectedClosing = cashData.expectedClosingAmount ?? inflow - outflow
+        const difference = cashData.actualClosingAmount !== null
+            ? cashData.actualClosingAmount - expectedClosing
+            : null
+
+        return {
+            id: cashData.id,
+            status: cashData.closedAt ? "closed" : "open",
+            openedAt: cashData.createdAt,
+            closedAt: cashData.closedAt,
+            amounts: {
+                opening: cashData.openingAmount,
+                inflow,
+                outflow,
+                expectedClosing,
+                actualClosing: cashData.actualClosingAmount,
+                difference,
+            },
+            users: {
+                createdBy: cashData.createdByUserId
+                    ? usersById.get(cashData.createdByUserId) ?? null
+                    : null,
+                closedBy: cashData.closedByUserId
+                    ? usersById.get(cashData.closedByUserId) ?? null
+                    : null,
+            },
+            paymentSummary: Object.entries(
+                (cashData.sales ?? [])
+                    .flatMap((sale) => sale.payment)
+                    .reduce<Record<PaymentMethod, { amount: number, salesCount: number }>>((acc, payment) => {
+                        acc[payment.paymentMethod].amount += payment.amount
+                        acc[payment.paymentMethod].salesCount += 1
+                        return acc
+                    }, {
+                        cash: { amount: 0, salesCount: 0 },
+                        pix: { amount: 0, salesCount: 0 },
+                        debit: { amount: 0, salesCount: 0 },
+                        credit: { amount: 0, salesCount: 0 },
+                        voucher: { amount: 0, salesCount: 0 },
+                    })
+            ).map(([method, data]) => ({ method, ...data })),
+            movementSummary: {
+                totalCount: cashData.cashMovements.length,
+                inCount: cashData.cashMovements.filter((movement) => movement.nature === "in").length,
+                outCount: cashData.cashMovements.filter((movement) => movement.nature === "out").length,
+            },
+        }
+    })
+}
+
 export async function createCash(tenantSlug: string, data: {
     openingAmount: number,
     userId: string
@@ -257,10 +372,12 @@ export async function closeCash(tenantSlug: string, data: {
 
     const closing = await db.transaction(async (tx) => {
         const cashMoves = await tx.query.cashMovement.findMany({
-            where: (cashMoves, { eq }) => eq(cashMoves.id, cashId)
+            where: (cashMoves, { eq }) => eq(cashMoves.cashId, cashId)
         })
 
-        const expectedClosingAmount = cashMoves.reduce((acc, value) => acc + value.amount, 0)
+        const expectedClosingAmount = cashMoves.reduce((acc, value) => (
+            value.nature === "in" ? acc + value.amount : acc - value.amount
+        ), 0)
 
         const close = await tx.update(cash).set({
             expectedClosingAmount,
@@ -270,6 +387,7 @@ export async function closeCash(tenantSlug: string, data: {
             updatedAt: sql`(CURRENT_TIMESTAMP)`,
             updatedByUserId: userId
         })
+            .where(eq(cash.id, cashId))
 
         return close
     })

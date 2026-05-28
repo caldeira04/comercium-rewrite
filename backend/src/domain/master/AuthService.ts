@@ -3,11 +3,12 @@ import { session, tenantUser } from "@/db/schema/master/auth"
 import { tenant } from "@/db/schema/master/tenant"
 import { generateSessionToken, hashPassword, hashToken, verifyPassword } from "../../utils/auth"
 import { and, eq, isNull } from "drizzle-orm"
-import path from "node:path"
-import { existsSync, mkdirSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { Database } from "bun:sqlite"
+import { getMasterDbPath, getTenantDbPath, getTenantMigrationsDir } from "@/config/paths"
+import { ensureDataDirectories } from "@/db/bootstrap"
 
 export async function signUp(
     tenantSlug: string,
@@ -17,15 +18,11 @@ export async function signUp(
     phone: string,
     password: string,
 ) {
-    const masterDir = path.join(process.cwd(), "data")
-    const masterDbPath = path.join(masterDir, "master.sqlite")
-    const tenantsDir = path.join(process.cwd(), "data", "tenants")
-    const dbPath = path.join(tenantsDir, `${tenantSlug}.sqlite`)
-    const migrationsFolder = path.join(process.cwd(), "drizzle", "migrations", "tenant")
+    const masterDbPath = getMasterDbPath()
+    const dbPath = getTenantDbPath(tenantSlug)
+    const migrationsFolder = getTenantMigrationsDir()
 
-    if (!existsSync(tenantsDir)) {
-        mkdirSync(tenantsDir, { recursive: true })
-    }
+    ensureDataDirectories()
 
     if (existsSync(dbPath)) {
         throw new Error(`DB do tenant já existe: ${dbPath}`)

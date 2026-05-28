@@ -1,4 +1,4 @@
-import { createProduct, deleteProduct, getProducts, getSingleProduct } from "@/domain/tenant/products/ProductsService"
+import { createProduct, deleteProduct, getProducts, getSingleProduct, updateProduct } from "@/domain/tenant/products/ProductsService"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
@@ -45,6 +45,27 @@ const products = new Elysia({ prefix: "/products" })
                 sellPrice: t.Numeric(),
                 gtin: t.Optional(t.String()),
             }),
+    })
+
+    .patch("/:productId", async ({ body, params, auth }) => {
+        return await updateProduct(auth.tenantSlug, {
+            productId: Number(params.productId),
+            name: body.name,
+            buyPrice: body.buyPrice,
+            sellPrice: body.sellPrice,
+            gtin: body.gtin ?? undefined,
+            userId: auth.userId,
+        })
+    }, {
+        params: t.Object({
+            productId: t.String()
+        }),
+        body: t.Partial(t.Object({
+            name: t.String(),
+            buyPrice: t.Number(),
+            sellPrice: t.Number(),
+            gtin: t.Nullable(t.String()),
+        }))
     })
 
     .delete("/:productId", async ({ params, auth }) => {

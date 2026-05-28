@@ -36,6 +36,28 @@ export function useProducts(productId?: number) {
         }
     })
 
+    const updateProductMutation = useMutation({
+        mutationFn: async ({ productId, buyPrice, name, sellPrice, gtin }: {
+            productId: number
+            buyPrice: number
+            sellPrice: number
+            name: string
+            gtin: string | null
+        }) => {
+            const { data, error } = await api.tenant.products({ productId: String(productId) }).patch({
+                buyPrice,
+                name,
+                sellPrice,
+                gtin
+            })
+            if (error) throw error
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["products"] })
+        }
+    })
+
     return {
         products: productsQuery.data,
         productsIsPending: productsQuery.isPending,
@@ -45,6 +67,9 @@ export function useProducts(productId?: number) {
         singleProductIsError: productsQuery.isError,
         createProduct: createProductMutation.mutateAsync,
         createProductIsPending: createProductMutation.isPending,
-        createProductIsError: createProductMutation.isError
+        createProductIsError: createProductMutation.isError,
+        updateProduct: updateProductMutation.mutateAsync,
+        updateProductIsPending: updateProductMutation.isPending,
+        updateProductIsError: updateProductMutation.isError
     }
 }

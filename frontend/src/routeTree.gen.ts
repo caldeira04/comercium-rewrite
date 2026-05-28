@@ -11,14 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
-import { Route as SalesIndexRouteImport } from './routes/sales/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
-import { Route as ProductsIndexRouteImport } from './routes/products/index'
+import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ClientsIndexRouteImport } from './routes/clients/index'
+import { Route as SalesReportIndexRouteImport } from './routes/sales/report.index'
 import { Route as SalesListIndexRouteImport } from './routes/sales/list.index'
 import { Route as SalesDailyIndexRouteImport } from './routes/sales/daily.index'
+import { Route as ProductsReportIndexRouteImport } from './routes/products/report.index'
+import { Route as ProductsListIndexRouteImport } from './routes/products/list.index'
+import { Route as CashReportIndexRouteImport } from './routes/cash/report.index'
+import { Route as CashListIndexRouteImport } from './routes/cash/list.index'
 import { Route as CashCurrentIndexRouteImport } from './routes/cash/current.index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -31,19 +35,14 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SalesIndexRoute = SalesIndexRouteImport.update({
-  id: '/sales/',
-  path: '/sales/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const RegisterIndexRoute = RegisterIndexRouteImport.update({
   id: '/register/',
   path: '/register/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductsIndexRoute = ProductsIndexRouteImport.update({
-  id: '/products/',
-  path: '/products/',
+const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
+  id: '/onboarding/',
+  path: '/onboarding/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginIndexRoute = LoginIndexRouteImport.update({
@@ -61,6 +60,11 @@ const ClientsIndexRoute = ClientsIndexRouteImport.update({
   path: '/clients/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SalesReportIndexRoute = SalesReportIndexRouteImport.update({
+  id: '/sales/report/',
+  path: '/sales/report/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SalesListIndexRoute = SalesListIndexRouteImport.update({
   id: '/sales/list/',
   path: '/sales/list/',
@@ -69,6 +73,26 @@ const SalesListIndexRoute = SalesListIndexRouteImport.update({
 const SalesDailyIndexRoute = SalesDailyIndexRouteImport.update({
   id: '/sales/daily/',
   path: '/sales/daily/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsReportIndexRoute = ProductsReportIndexRouteImport.update({
+  id: '/products/report/',
+  path: '/products/report/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsListIndexRoute = ProductsListIndexRouteImport.update({
+  id: '/products/list/',
+  path: '/products/list/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashReportIndexRoute = CashReportIndexRouteImport.update({
+  id: '/cash/report/',
+  path: '/cash/report/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashListIndexRoute = CashListIndexRouteImport.update({
+  id: '/cash/list/',
+  path: '/cash/list/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CashCurrentIndexRoute = CashCurrentIndexRouteImport.update({
@@ -82,26 +106,34 @@ export interface FileRoutesByFullPath {
   '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/products/': typeof ProductsIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/register/': typeof RegisterIndexRoute
-  '/sales/': typeof SalesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/cash/current/': typeof CashCurrentIndexRoute
+  '/cash/list/': typeof CashListIndexRoute
+  '/cash/report/': typeof CashReportIndexRoute
+  '/products/list/': typeof ProductsListIndexRoute
+  '/products/report/': typeof ProductsReportIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
   '/sales/list/': typeof SalesListIndexRoute
+  '/sales/report/': typeof SalesReportIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clients': typeof ClientsIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
-  '/products': typeof ProductsIndexRoute
+  '/onboarding': typeof OnboardingIndexRoute
   '/register': typeof RegisterIndexRoute
-  '/sales': typeof SalesIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/cash/current': typeof CashCurrentIndexRoute
+  '/cash/list': typeof CashListIndexRoute
+  '/cash/report': typeof CashReportIndexRoute
+  '/products/list': typeof ProductsListIndexRoute
+  '/products/report': typeof ProductsReportIndexRoute
   '/sales/daily': typeof SalesDailyIndexRoute
   '/sales/list': typeof SalesListIndexRoute
+  '/sales/report': typeof SalesReportIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -109,13 +141,17 @@ export interface FileRoutesById {
   '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/products/': typeof ProductsIndexRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/register/': typeof RegisterIndexRoute
-  '/sales/': typeof SalesIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/cash/current/': typeof CashCurrentIndexRoute
+  '/cash/list/': typeof CashListIndexRoute
+  '/cash/report/': typeof CashReportIndexRoute
+  '/products/list/': typeof ProductsListIndexRoute
+  '/products/report/': typeof ProductsReportIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
   '/sales/list/': typeof SalesListIndexRoute
+  '/sales/report/': typeof SalesReportIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -124,39 +160,51 @@ export interface FileRouteTypes {
     | '/clients/'
     | '/dashboard/'
     | '/login/'
-    | '/products/'
+    | '/onboarding/'
     | '/register/'
-    | '/sales/'
     | '/settings/'
     | '/cash/current/'
+    | '/cash/list/'
+    | '/cash/report/'
+    | '/products/list/'
+    | '/products/report/'
     | '/sales/daily/'
     | '/sales/list/'
+    | '/sales/report/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/clients'
     | '/dashboard'
     | '/login'
-    | '/products'
+    | '/onboarding'
     | '/register'
-    | '/sales'
     | '/settings'
     | '/cash/current'
+    | '/cash/list'
+    | '/cash/report'
+    | '/products/list'
+    | '/products/report'
     | '/sales/daily'
     | '/sales/list'
+    | '/sales/report'
   id:
     | '__root__'
     | '/'
     | '/clients/'
     | '/dashboard/'
     | '/login/'
-    | '/products/'
+    | '/onboarding/'
     | '/register/'
-    | '/sales/'
     | '/settings/'
     | '/cash/current/'
+    | '/cash/list/'
+    | '/cash/report/'
+    | '/products/list/'
+    | '/products/report/'
     | '/sales/daily/'
     | '/sales/list/'
+    | '/sales/report/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -164,13 +212,17 @@ export interface RootRouteChildren {
   ClientsIndexRoute: typeof ClientsIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
-  ProductsIndexRoute: typeof ProductsIndexRoute
+  OnboardingIndexRoute: typeof OnboardingIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
-  SalesIndexRoute: typeof SalesIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   CashCurrentIndexRoute: typeof CashCurrentIndexRoute
+  CashListIndexRoute: typeof CashListIndexRoute
+  CashReportIndexRoute: typeof CashReportIndexRoute
+  ProductsListIndexRoute: typeof ProductsListIndexRoute
+  ProductsReportIndexRoute: typeof ProductsReportIndexRoute
   SalesDailyIndexRoute: typeof SalesDailyIndexRoute
   SalesListIndexRoute: typeof SalesListIndexRoute
+  SalesReportIndexRoute: typeof SalesReportIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -189,13 +241,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sales/': {
-      id: '/sales/'
-      path: '/sales'
-      fullPath: '/sales/'
-      preLoaderRoute: typeof SalesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/register/': {
       id: '/register/'
       path: '/register'
@@ -203,11 +248,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/products/': {
-      id: '/products/'
-      path: '/products'
-      fullPath: '/products/'
-      preLoaderRoute: typeof ProductsIndexRouteImport
+    '/onboarding/': {
+      id: '/onboarding/'
+      path: '/onboarding'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof OnboardingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login/': {
@@ -231,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClientsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sales/report/': {
+      id: '/sales/report/'
+      path: '/sales/report'
+      fullPath: '/sales/report/'
+      preLoaderRoute: typeof SalesReportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sales/list/': {
       id: '/sales/list/'
       path: '/sales/list'
@@ -243,6 +295,34 @@ declare module '@tanstack/react-router' {
       path: '/sales/daily'
       fullPath: '/sales/daily/'
       preLoaderRoute: typeof SalesDailyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products/report/': {
+      id: '/products/report/'
+      path: '/products/report'
+      fullPath: '/products/report/'
+      preLoaderRoute: typeof ProductsReportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products/list/': {
+      id: '/products/list/'
+      path: '/products/list'
+      fullPath: '/products/list/'
+      preLoaderRoute: typeof ProductsListIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash/report/': {
+      id: '/cash/report/'
+      path: '/cash/report'
+      fullPath: '/cash/report/'
+      preLoaderRoute: typeof CashReportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash/list/': {
+      id: '/cash/list/'
+      path: '/cash/list'
+      fullPath: '/cash/list/'
+      preLoaderRoute: typeof CashListIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cash/current/': {
@@ -260,13 +340,17 @@ const rootRouteChildren: RootRouteChildren = {
   ClientsIndexRoute: ClientsIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   LoginIndexRoute: LoginIndexRoute,
-  ProductsIndexRoute: ProductsIndexRoute,
+  OnboardingIndexRoute: OnboardingIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
-  SalesIndexRoute: SalesIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   CashCurrentIndexRoute: CashCurrentIndexRoute,
+  CashListIndexRoute: CashListIndexRoute,
+  CashReportIndexRoute: CashReportIndexRoute,
+  ProductsListIndexRoute: ProductsListIndexRoute,
+  ProductsReportIndexRoute: ProductsReportIndexRoute,
   SalesDailyIndexRoute: SalesDailyIndexRoute,
   SalesListIndexRoute: SalesListIndexRoute,
+  SalesReportIndexRoute: SalesReportIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

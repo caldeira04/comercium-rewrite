@@ -1,6 +1,6 @@
 import { Spinner } from '@/components/ui/spinner'
 import { formatTime } from "@/utils/time"
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
     Table,
     TableBody,
@@ -22,6 +22,7 @@ import { SiPix } from "@icons-pack/react-simple-icons"
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import NewCashMovementDialog from '@/components/new-cash-movement-dialog'
+import CloseCashDialog from '@/components/close-cash-dialog'
 
 export const Route = createFileRoute('/cash/current/')({
     component: RouteComponent,
@@ -30,7 +31,8 @@ export const Route = createFileRoute('/cash/current/')({
 function RouteComponent() {
     const { currentCash, currentCashIsPending } = useCash()
 
-    const isOpen = currentCash && currentCash.status === "open"
+    const isOpen = currentCash?.status === "open"
+    const paymentSummary = new Map(currentCash?.paymentSummary.map((item) => [item.method, item]) ?? [])
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
@@ -61,6 +63,17 @@ function RouteComponent() {
                     </div>
                 </div>
                 {/* detalhes e tabela de itens */}
+                {!currentCashIsPending && !currentCash && (
+                    <Card>
+                        <CardContent className="flex items-center justify-between">
+                            <div>
+                                <h2 className="font-bold">nenhum caixa encontrado</h2>
+                                <p className="text-muted-foreground">abra um caixa para iniciar as vendas do dia</p>
+                            </div>
+                            <NewCashDialog />
+                        </CardContent>
+                    </Card>
+                )}
                 {!currentCashIsPending && currentCash && (
                     <div className='w-full flex flex-col gap-4'>
                         <div className='flex flex-col gap-4'>
@@ -90,7 +103,7 @@ function RouteComponent() {
                                         <div className='bg-black/10 w-12 h-12 rounded-full flex items-center justify-center'><Wallet /> </div>
                                         <div className='flex flex-col gap-2 items-start'>
                                             <h3 className='font-bold'>{isOpen ? "saldo do dia" : "saldo esperado"}</h3>
-                                            <span className='font-bold text-lg'>{formatCurrency(currentCash.amounts.inflow)}</span>
+                                            <span className='font-bold text-lg'>{formatCurrency(currentCash.amounts.expectedClosing)}</span>
                                             <span className='text-muted-foreground text-xs'>abertura + entradas - saídas</span>
                                         </div>
                                     </CardContent>
@@ -127,8 +140,8 @@ function RouteComponent() {
                                                 <h3>dinheiro</h3>
                                             </div>
                                             <div className='flex flex-col gap-2 items-start'>
-                                                <span className='font-bold text-lg'>{formatCurrency(currentCash.paymentSummary[0].amount ?? 0)}</span>
-                                                <span className='text-muted-foreground text-xs'>{currentCash.paymentSummary[0].salesCount ?? 0} pagamentos</span>
+                                                <span className='font-bold text-lg'>{formatCurrency(paymentSummary.get("cash")?.amount ?? 0)}</span>
+                                                <span className='text-muted-foreground text-xs'>{paymentSummary.get("cash")?.salesCount ?? 0} pagamentos</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -139,8 +152,8 @@ function RouteComponent() {
                                                 <h3>pix</h3>
                                             </div>
                                             <div className='flex flex-col gap-2 items-start'>
-                                                <span className='font-bold text-lg'>{formatCurrency(currentCash.paymentSummary[1].amount ?? 0)}</span>
-                                                <span className='text-muted-foreground text-xs'>{currentCash.paymentSummary[1].salesCount ?? 0} pagamentos</span>
+                                                <span className='font-bold text-lg'>{formatCurrency(paymentSummary.get("pix")?.amount ?? 0)}</span>
+                                                <span className='text-muted-foreground text-xs'>{paymentSummary.get("pix")?.salesCount ?? 0} pagamentos</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -151,8 +164,8 @@ function RouteComponent() {
                                                 <h3>débito</h3>
                                             </div>
                                             <div className='flex flex-col gap-2 items-start'>
-                                                <span className='font-bold text-lg'>{formatCurrency(currentCash.paymentSummary[2].amount ?? 0)}</span>
-                                                <span className='text-muted-foreground text-xs'>{currentCash.paymentSummary[2].salesCount ?? 0} pagamentos</span>
+                                                <span className='font-bold text-lg'>{formatCurrency(paymentSummary.get("debit")?.amount ?? 0)}</span>
+                                                <span className='text-muted-foreground text-xs'>{paymentSummary.get("debit")?.salesCount ?? 0} pagamentos</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -163,8 +176,8 @@ function RouteComponent() {
                                                 <h3>crédito</h3>
                                             </div>
                                             <div className='flex flex-col gap-2 items-start'>
-                                                <span className='font-bold text-lg'>{formatCurrency(currentCash.paymentSummary[3].amount ?? 0)}</span>
-                                                <span className='text-muted-foreground text-xs'>{currentCash.paymentSummary[3].salesCount ?? 0} pagamentos</span>
+                                                <span className='font-bold text-lg'>{formatCurrency(paymentSummary.get("credit")?.amount ?? 0)}</span>
+                                                <span className='text-muted-foreground text-xs'>{paymentSummary.get("credit")?.salesCount ?? 0} pagamentos</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -175,8 +188,8 @@ function RouteComponent() {
                                                 <h3>cheque</h3>
                                             </div>
                                             <div className='flex flex-col gap-2 items-start'>
-                                                <span className='font-bold text-lg'>{formatCurrency(currentCash.paymentSummary[4].amount ?? 0)}</span>
-                                                <span className='text-muted-foreground text-xs'>{currentCash.paymentSummary[4].salesCount ?? 0} pagamentos</span>
+                                                <span className='font-bold text-lg'>{formatCurrency(paymentSummary.get("voucher")?.amount ?? 0)}</span>
+                                                <span className='text-muted-foreground text-xs'>{paymentSummary.get("voucher")?.salesCount ?? 0} pagamentos</span>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -209,10 +222,10 @@ function CashTable({ cash }: {
     cash: NonNullable<CurrentCash>
 }) {
     return (
-        <div className="rounded-xl border bg-white">
+        <div className="rounded-xl border bg-card text-card-foreground">
             <Table>
                 <TableHeader>
-                    <TableRow className="bg-zinc-50">
+                    <TableRow className="bg-muted/50">
                         <TableHead className="w-[90px]">
                             <div className="flex items-center gap-2">
                                 <ClockIcon size={14} />
@@ -245,9 +258,9 @@ function CashTable({ cash }: {
                         cash.movements.map((item) => (
                             <TableRow
                                 key={item.id}
-                                className="hover:bg-zinc-50 transition-colors"
+                                className="transition-colors hover:bg-muted/50"
                             >
-                                <TableCell className="font-medium text-zinc-500">
+                                <TableCell className="font-medium text-muted-foreground">
                                     {formatTime(new Date(item.createdAt)).hhMM}
                                 </TableCell>
 
@@ -259,7 +272,7 @@ function CashTable({ cash }: {
                                             })}
                                         </span>
 
-                                        <span className="text-xs text-zinc-500">
+                                        <span className="text-xs text-muted-foreground">
                                             {item.description ??
                                                 "Sem descrição"}
                                         </span>
@@ -292,7 +305,7 @@ function CashTable({ cash }: {
                                             </span>
                                         </div>
                                     ) : (
-                                        <span className="text-zinc-400">
+                                        <span className="text-muted-foreground">
                                             sistema
                                         </span>
                                     )}
@@ -331,7 +344,7 @@ function CashTable({ cash }: {
                         <TableRow>
                             <TableCell
                                 colSpan={6}
-                                className="h-32 text-center text-zinc-500"
+                                className="h-32 text-center text-muted-foreground"
                             >
                                 Nenhuma movimentação encontrada
                             </TableCell>
@@ -370,7 +383,7 @@ function CashDetails({ cash, isOpen }: {
                 <h2 className='font-bold text-lg'>ações rápidas</h2>
                 <div className='text-sm flex flex-col gap-2'>
                     {cash?.id && isOpen && (
-                        <div>
+                        <div className="flex flex-col gap-2">
                             <NewCashMovementDialog
                                 cashId={cash.id}
                                 type='topup'
@@ -379,9 +392,10 @@ function CashDetails({ cash, isOpen }: {
                                 cashId={cash.id}
                                 type='drop'
                             />
+                            <CloseCashDialog cashId={cash.id} />
                         </div>
                     )}
-                    <NewCashDialog />
+                    {!isOpen && <NewCashDialog />}
                 </div>
             </div>
         </div >

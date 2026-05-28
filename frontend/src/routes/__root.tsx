@@ -43,7 +43,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     const { pathname } = useLocation()
-    const isSidebarVisible = pathname !== "/" && pathname !== "/login" && pathname !== "/register"
+    const isSidebarVisible = pathname !== "/" && pathname !== "/login" && pathname !== "/register" && pathname !== "/onboarding"
 
     const { user } = Route.useLoaderData()
 
