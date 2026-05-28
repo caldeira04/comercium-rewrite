@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SiPix } from "@icons-pack/react-simple-icons"
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import NewCashMovementDialog from '@/components/new-cash-movement-dialog'
 
 export const Route = createFileRoute('/cash/current/')({
     component: RouteComponent,
@@ -105,11 +106,11 @@ function RouteComponent() {
                                     </CardContent>
                                 </Card>
                                 {!isOpen && (
-                                    <Card className={currentCash.amounts.difference ?? 0 >= 0 ? "bg-green-600/10" : "bg-red-600/10"}>
+                                    <Card className={currentCash.amounts.difference && currentCash.amounts.difference >= 0 ? "bg-green-600/10" : "bg-red-600/10"}>
                                         <CardContent className='flex items-center gap-4'>
                                             <div className='flex flex-col gap-2 items-start'>
                                                 <h3 className='font-bold'>diferença</h3>
-                                                <span className={`${currentCash.amounts.difference ?? 0 >= 0 ? "text-green-600" : "text-red-600"} font-bold text-lg`}>{formatCurrency(currentCash.amounts.difference ?? 0)}</span>
+                                                <span className={`${currentCash.amounts.difference && currentCash.amounts.difference >= 0 ? "text-green-600" : "text-red-600"} font-bold text-lg`}>{formatCurrency(currentCash.amounts.difference ?? 0)}</span>
                                                 <span className='text-muted-foreground text-xs'>total - contado</span>
                                             </div>
                                         </CardContent>
@@ -195,6 +196,9 @@ function RouteComponent() {
             <div className='w-1/4 max-w-1/4'>
                 {currentCashIsPending && (
                     <Spinner />
+                )}
+                {currentCash && (
+                    <CashDetails cash={currentCash} isOpen={isOpen} />
                 )}
             </div>
         </div>
@@ -338,29 +342,48 @@ function CashTable({ cash }: {
         </div>
     )
 }
-function CashDetails({ cash, positiveAmount, negativeAmount, totalAmount }: {
-    cash?: CurrentCash
-    positiveAmount: number
-    negativeAmount: number
-    totalAmount: number
+function CashDetails({ cash, isOpen }: {
+    cash: CurrentCash
+    isOpen: boolean
 }) {
-
     return (
-        <Card className='w-full flex items-center justify-start h-screen'>
-            <h2 className='font-bold text-lg'>detalhes do caixa</h2>
-            {!cash && (
-                <NewCashDialog />
-            )}
-            <CardContent className='w-full flex flex-col h-full justify-between'>
-                <div className='flex flex-col text-lg'>
-                    <div className='flex text-green-600 font-bold items-center justify-between'><span>entradas:</span><span>{formatCurrency(positiveAmount)}</span></div>
-                    <div className='flex text-red-600 font-bold items-center justify-between'><span>saídas:</span><span>{formatCurrency(negativeAmount)}</span></div>
-                    <div className={`${totalAmount >= 0 ? "text-green-600" : "text-red-600"} flex font-bold items-center justify-between`}><span>saldo total:</span><span>{formatCurrency(totalAmount)}</span></div>
+        <div className='p-4 border-muted border rounded-xl w-full flex items-center justify-start h-screen'>
+            <div className='w-full flex flex-col h-full gap-4 justify-start'>
+                <h2 className='font-bold text-lg'>detalhes do {isOpen ? "caixa" : "fechamento"}</h2>
+                <div className='text-sm flex flex-col gap-2'>
+                    <div className='flex items-center justify-between'><span>status</span><Badge className={isOpen ? "bg-green-500" : "bg-red-500"}>{isOpen ? "aberto" : "fechado"}</Badge></div>
+                    <div className='flex items-center justify-between'><span>abertura</span>
+                        {cash?.openedAt ? (
+                            <span>{formatTime(new Date(cash.openedAt)).ddMMyy} às {formatTime(new Date(cash.openedAt)).hhMM}</span>
+                        ) : (
+                            <span>-</span>
+                        )}
+                    </div>
+                    <div className='flex items-center justify-between'><span>{isOpen ? "operador" : "fechador"}</span>
+                        {isOpen ? (
+                            <span>{cash?.users?.createdBy?.login ? cash.users.createdBy.login : ""}</span>
+                        ) : (
+                            <span>{cash?.users?.closedBy?.login ? cash.users.closedBy.login : ""}</span>
+                        )}
+                    </div>
                 </div>
-                <CardFooter className="flex flex-col gap-2 mb-4">
-                    <span>saldo total no caixa: {formatCurrency(totalAmount)}</span>
-                </CardFooter>
-            </CardContent>
-        </Card>
+                <h2 className='font-bold text-lg'>ações rápidas</h2>
+                <div className='text-sm flex flex-col gap-2'>
+                    {cash?.id && isOpen && (
+                        <div>
+                            <NewCashMovementDialog
+                                cashId={cash.id}
+                                type='topup'
+                            />
+                            <NewCashMovementDialog
+                                cashId={cash.id}
+                                type='drop'
+                            />
+                        </div>
+                    )}
+                    <NewCashDialog />
+                </div>
+            </div>
+        </div >
     )
 }

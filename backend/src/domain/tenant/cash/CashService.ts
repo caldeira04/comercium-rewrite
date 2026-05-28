@@ -283,7 +283,7 @@ export async function createCashMovement(tenantSlug: string, data: {
     type: "payment" | "drop" | "topup" | "open" | "refund"
     amount: number
     description?: string
-    referenceType?: "payment" | "purchase" | "refund"
+    referenceType?: "payment" | "purchase" | "refund" | "manual"
     referenceId?: string
     userId: string
 }) {
