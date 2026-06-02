@@ -96,6 +96,10 @@ export async function updateProduct(tenantSlug: string, data: {
     const db = getTenantDb(tenantSlug)
     const { productId, name, buyPrice, sellPrice, gtin, userId } = data
 
+    if (productId === 0) {
+        throw new Error("não é possível editar o produto genérico")
+    }
+
     const [updatedProduct] = await db.update(product).set({
         ...(name !== undefined ? { name } : {}),
         ...(buyPrice !== undefined ? { buyPrice } : {}),
@@ -113,6 +117,10 @@ export async function updateProduct(tenantSlug: string, data: {
 
 export async function deleteProduct(tenantSlug: string, productId: number, userId: string) {
     const db = getTenantDb(tenantSlug)
+
+    if (productId === 0) {
+        throw new Error("não é possível editar o produto genérico")
+    }
 
     const deleted = await db.update(product).set({
         deletedAt: sql`(CURRENT_TIMESTAMP)`,

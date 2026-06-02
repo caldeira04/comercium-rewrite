@@ -188,24 +188,24 @@ function ProductDetails({ product }: { product: Product | null }) {
                     <div className="flex flex-col gap-3">
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="product-name">nome</Label>
-                            <Input id="product-name" value={name} onChange={(event) => setName(event.target.value)} />
+                            <Input disabled={product.id === 0} id="product-name" value={name} onChange={(event) => setName(event.target.value)} />
                         </div>
                         <div className="flex flex-col gap-2">
                             <Label htmlFor="product-gtin">GTIN</Label>
-                            <Input id="product-gtin" value={gtin} onChange={(event) => setGtin(event.target.value)} />
+                            <Input disabled={product.id === 0} id="product-gtin" value={gtin} onChange={(event) => setGtin(event.target.value)} />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="product-buy-price">custo</Label>
-                                <Input id="product-buy-price" value={buyPrice} onChange={(event) => setBuyPrice(maskCurrency(event.target.value))} />
+                                <Input disabled={product.id === 0} id="product-buy-price" value={buyPrice} onChange={(event) => setBuyPrice(maskCurrency(event.target.value))} />
                             </div>
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="product-sell-price">venda</Label>
-                                <Input id="product-sell-price" value={sellPrice} onChange={(event) => setSellPrice(maskCurrency(event.target.value))} />
+                                <Input disabled={product.id === 0} id="product-sell-price" value={sellPrice} onChange={(event) => setSellPrice(maskCurrency(event.target.value))} />
                             </div>
                         </div>
                         <Button variant="outline" onClick={cancelEdit}>cancelar edição</Button>
-                        <Button disabled={updateProductIsPending} onClick={handleSave}>salvar alterações</Button>
+                        <Button disabled={updateProductIsPending || product.id === 0} onClick={handleSave}>salvar alterações</Button>
                     </div>
                 ) : (
                     <>
@@ -217,7 +217,7 @@ function ProductDetails({ product }: { product: Product | null }) {
                             <Metric label="margem" value={formatCurrency(margin)} />
                             <Metric label="markup" value={`${product.buyPrice > 0 ? ((margin / product.buyPrice) * 100).toFixed(1) : "0"}%`} />
                         </div>
-                        <Button variant="outline" onClick={() => setIsEditing(true)}>editar produto</Button>
+                        <Button variant="outline" disabled={product.id === 0} onClick={() => setIsEditing(true)}>editar produto</Button>
                         <StockMovementDialog productId={product.id} />
                     </>
                 )}

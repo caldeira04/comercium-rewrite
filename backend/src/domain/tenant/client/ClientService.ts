@@ -35,7 +35,7 @@ export async function editClient(tenantSlug: string, data: {
     const db = getTenantDb(tenantSlug)
     const { clientId, name, document, email, phone, userId } = data
 
-    if (!clientId) throw new Error("não é possível editar o cliente \"Consumidor Final\"")
+    if (clientId === 0) throw new Error("não é possível editar o cliente \"Consumidor Final\"")
 
     const [updatedClient] = await db.update(client).set({
         name,

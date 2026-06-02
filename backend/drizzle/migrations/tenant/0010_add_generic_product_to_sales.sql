@@ -1,0 +1,2 @@
+-- Custom SQL migration file, put your code below! --
+INSERT INTO product VALUES(0, "PRODUTO GENÉRICO", NULL, 1, 0, NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL);
