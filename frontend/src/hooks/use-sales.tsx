@@ -70,16 +70,18 @@ export function useSales() {
     })
 
     const addProductToSaleMutation = useMutation({
-        mutationFn: async ({ productId, quantity, discount }: {
+        mutationFn: async ({ productId, quantity, discount, unitPrice }: {
             productId: number,
             quantity: number,
             discount: number
+            unitPrice?: number
         }) => {
             const { data, error } = await api.tenant.sales.item({
                 productId
             }).post({
                 quantity,
-                discount
+                discount,
+                unitPrice
             }, {
                 fetch: { credentials: "include" }
             })
@@ -94,14 +96,16 @@ export function useSales() {
     })
 
     const updateSaleItemMutation = useMutation({
-        mutationFn: async ({ saleItemId, quantity, discount }: {
+        mutationFn: async ({ saleItemId, quantity, discount, unitPrice }: {
             saleItemId: string,
             quantity: number,
             discount: number
+            unitPrice?: number
         }) => {
             const { data, error } = await api.tenant.sales["sale-item"]({ saleItemId }).patch({
                 quantity,
-                discount
+                discount,
+                unitPrice
             }, {
                 fetch: { credentials: "include" }
             })

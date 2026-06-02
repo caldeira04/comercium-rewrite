@@ -38,7 +38,8 @@ const sales = new Elysia({ prefix: "/sales" })
             productId: Number(params.productId),
             userId: auth.userId,
             quantity: body.quantity,
-            discount: body.discount
+            discount: body.discount,
+            unitPrice: body.unitPrice
         })
 
         return added
@@ -49,6 +50,7 @@ const sales = new Elysia({ prefix: "/sales" })
         body: t.Object({
             quantity: t.Number(),
             discount: t.Number(),
+            unitPrice: t.Optional(t.Number()),
         })
     })
 
@@ -57,7 +59,8 @@ const sales = new Elysia({ prefix: "/sales" })
             saleItemId: params.saleItemId,
             userId: auth.userId,
             quantity: body.quantity,
-            discount: body.discount
+            discount: body.discount,
+            unitPrice: body.unitPrice
         })
 
         return updated
@@ -68,6 +71,7 @@ const sales = new Elysia({ prefix: "/sales" })
         body: t.Object({
             quantity: t.Number(),
             discount: t.Number(),
+            unitPrice: t.Optional(t.Number()),
         })
     })
 

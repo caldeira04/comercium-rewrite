@@ -4,6 +4,8 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
 import { currentCash } from "../cash/CashService";
 
+const GENERIC_PRODUCT_ID = 0
+
 export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
     const db = getTenantDb(tenantSlug)
     const conditions = []
@@ -175,20 +177,23 @@ export async function settleSale(tenantSlug: string, data: {
                 eq(saleItem.saleId, selectedSale.id)
         })
 
-        const totalAmount = saleItems.reduce((acc, value) => acc + (value.unitPrice * value.quantity), 0)
+        const totalAmount = saleItems.reduce((acc, item) => acc + item.totalPrice - (item.discount ?? 0), 0)
+        const stockSaleItems = saleItems.filter((item) => item.productId !== GENERIC_PRODUCT_ID)
 
-        await createBulkStockMovements(
-            tenantSlug,
-            saleItems.map((s) => ({
-                productId: s.productId,
-                quantity: s.quantity,
-                type: "out",
-                reason: "venda realizada",
-                userId,
-                referenceType: "sale",
-                referenceId: s.saleId
-            }))
-        )
+        if (stockSaleItems.length > 0) {
+            await createBulkStockMovements(
+                tenantSlug,
+                stockSaleItems.map((s) => ({
+                    productId: s.productId,
+                    quantity: s.quantity,
+                    type: "out",
+                    reason: "venda realizada",
+                    userId,
+                    referenceType: "sale",
+                    referenceId: s.saleId
+                }))
+            )
+        }
 
         await tx.update(sale).set({
             totalAmount,
@@ -208,14 +213,16 @@ export async function addProductToSale(tenantSlug: string, data: {
     productId: number,
     quantity: number,
     discount: number,
+    unitPrice?: number,
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
 
-    const { productId, quantity, userId, discount } = data
+    const { productId, quantity, userId, discount, unitPrice } = data
     const saleId = await currentSale(tenantSlug)
 
     if (!saleId) throw new Error("venda é obrigatória para adicionar produtos")
+    if (quantity < 1) throw new Error("quantidade deve ser maior que 0")
 
     const saleProduct = await db.query.product.findFirst({
         where: (product, { eq }) => eq(product.id, productId),
@@ -226,12 +233,18 @@ export async function addProductToSale(tenantSlug: string, data: {
 
     if (!saleProduct) throw new Error("produto não encontrado")
 
+    if (productId === GENERIC_PRODUCT_ID && (!unitPrice || unitPrice < 1)) {
+        throw new Error("valor de venda deve ser maior que 0")
+    }
+
+    const itemUnitPrice = productId === GENERIC_PRODUCT_ID ? unitPrice ?? 0 : saleProduct.sellPrice
+
     const [newSaleItem] = await db.insert(saleItem).values({
         saleId: saleId.id,
         productId,
         quantity,
-        unitPrice: saleProduct.sellPrice,
-        totalPrice: quantity * saleProduct.sellPrice,
+        unitPrice: itemUnitPrice,
+        totalPrice: quantity * itemUnitPrice,
         discount,
         createdByUserId: userId,
         updatedByUserId: userId
@@ -245,10 +258,11 @@ export async function updateSaleItem(tenantSlug: string, data: {
     saleItemId: string,
     quantity: number,
     discount: number,
+    unitPrice?: number,
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { saleItemId, quantity, discount, userId } = data
+    const { saleItemId, quantity, discount, unitPrice, userId } = data
 
     if (quantity < 1) throw new Error("quantidade deve ser maior que 0")
 
@@ -264,16 +278,26 @@ export async function updateSaleItem(tenantSlug: string, data: {
             ),
         columns: {
             id: true,
+            productId: true,
             unitPrice: true
         }
     })
 
     if (!selectedSaleItem) throw new Error("item da venda não encontrado")
 
+    if (selectedSaleItem.productId === GENERIC_PRODUCT_ID && unitPrice !== undefined && unitPrice < 1) {
+        throw new Error("valor de venda deve ser maior que 0")
+    }
+
+    const itemUnitPrice = selectedSaleItem.productId === GENERIC_PRODUCT_ID && unitPrice !== undefined
+        ? unitPrice
+        : selectedSaleItem.unitPrice
+
     const [updatedSaleItem] = await db.update(saleItem).set({
         quantity,
         discount,
-        totalPrice: selectedSaleItem.unitPrice * quantity,
+        unitPrice: itemUnitPrice,
+        totalPrice: itemUnitPrice * quantity,
         updatedAt: sql`(CURRENT_TIMESTAMP)`,
         updatedByUserId: userId
     })

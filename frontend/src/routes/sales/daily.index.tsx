@@ -49,6 +49,8 @@ type SaleItemSelection =
 
 type ClientOption = Pick<Client, "id" | "name">
 
+const GENERIC_PRODUCT_ID = "0"
+
 export const Route = createFileRoute('/sales/daily/')({
     loader: loaderCredentials,
     component: RouteComponent,
@@ -197,6 +199,7 @@ function RouteComponent() {
                         search={productSearch}
                         onSearchChange={setProductSearch}
                         onSelectProduct={(productId) => setSelectedItem({ mode: "add", productId })}
+                        onSelectGenericProduct={() => setSelectedItem({ mode: "add", productId: GENERIC_PRODUCT_ID })}
                     />
                 )}
                 {!currentSaleIsPending && currentSale && (
@@ -268,6 +271,7 @@ interface SearchBarProps {
     search: string
     onSearchChange: (search: string) => void
     onSelectProduct: (productId: string) => void
+    onSelectGenericProduct: () => void
 }
 
 function SearchBar({
@@ -276,40 +280,48 @@ function SearchBar({
     products,
     search,
     onSearchChange,
-    onSelectProduct
+    onSelectProduct,
+    onSelectGenericProduct
 }: SearchBarProps) {
+    const searchableProducts = products.filter((product) => String(product.id) !== GENERIC_PRODUCT_ID)
+
     return (
-        <Command className="rounded-lg w-full h-1/3 border"
-            filter={(value, search) => {
-                if (value.toLowerCase().match(search.toLowerCase())) return 1
-                return 0
-            }}
-        >
-            <CommandInput placeholder="busque por um produto ou escaneie o código de barras"
-                ref={inputRef}
-                value={search}
-                onValueChange={(e) => onSearchChange(e)}
-                disabled={disabled}
-            />
-            <CommandList>
-                {search && (
-                    <CommandEmpty>nenhum produto encontrado</CommandEmpty>
-                )}
-                {search && products.map((p) => (
-                    <CommandItem
-                        key={p.id}
-                        value={`${p.id}|${p.name} ${p.gtin}`}
-                        onSelect={(val) => {
-                            onSelectProduct(val.split("|")[0])
-                            onSearchChange("")
-                        }}
-                    >
-                        {p.name} - {p.gtin ?? "sem GTIN"} - {formatCurrency(p.sellPrice)}
-                        <CommandShortcut>↵</CommandShortcut>
-                    </CommandItem>
-                ))}
-            </CommandList>
-        </Command>
+        <div className="flex h-1/3 flex-col gap-2">
+            <Button disabled={disabled} variant="outline" onClick={onSelectGenericProduct}>
+                adicionar produto genérico
+            </Button>
+            <Command className="h-full w-full rounded-lg border"
+                filter={(value, search) => {
+                    if (value.toLowerCase().match(search.toLowerCase())) return 1
+                    return 0
+                }}
+            >
+                <CommandInput placeholder="busque por um produto ou escaneie o código de barras"
+                    ref={inputRef}
+                    value={search}
+                    onValueChange={(e) => onSearchChange(e)}
+                    disabled={disabled}
+                />
+                <CommandList>
+                    {search && (
+                        <CommandEmpty>nenhum produto encontrado</CommandEmpty>
+                    )}
+                    {search && searchableProducts.map((p) => (
+                        <CommandItem
+                            key={p.id}
+                            value={`${p.id}|${p.name} ${p.gtin}`}
+                            onSelect={(val) => {
+                                onSelectProduct(val.split("|")[0])
+                                onSearchChange("")
+                            }}
+                        >
+                            {p.name} - {p.gtin ?? "sem GTIN"} - {formatCurrency(p.sellPrice)}
+                            <CommandShortcut>↵</CommandShortcut>
+                        </CommandItem>
+                    ))}
+                </CommandList>
+            </Command>
+        </div>
     )
 }
 
@@ -394,22 +406,28 @@ function SaleDetails({
     const { clients } = useClients()
     const [quantity, setQuantity] = useState<number>(1)
     const [discount, setDiscount] = useState<string>(maskCurrency("0"))
+    const [unitPrice, setUnitPrice] = useState<string>(maskCurrency("0"))
     const quantityInputRef = useRef<HTMLInputElement>(null)
     const submitButtonRef = useRef<HTMLButtonElement>(null)
+    const isGenericProduct = selection?.mode === "add"
+        ? selection.productId === GENERIC_PRODUCT_ID
+        : selection?.saleItem.productId === Number(GENERIC_PRODUCT_ID)
 
     useEffect(() => {
         if (selection?.mode === "edit") {
             setQuantity(selection.saleItem.quantity)
             setDiscount(maskCurrency(String(selection.saleItem.discount ?? 0)))
+            setUnitPrice(maskCurrency(String(selection.saleItem.unitPrice)))
             return
         }
 
         setQuantity(1)
         setDiscount(maskCurrency("0"))
+        setUnitPrice(maskCurrency("0"))
     }, [selection])
 
     const selectedItemName = selectedSaleItem?.product.name ?? product?.name ?? ""
-    const selectedItemPrice = selectedSaleItem?.unitPrice ?? product?.sellPrice ?? 0
+    const selectedItemPrice = isGenericProduct ? Number(unitPrice.replace(/\D/g, "")) : selectedSaleItem?.unitPrice ?? product?.sellPrice ?? 0
     const hasSelection = !!selection
     const isEditMode = selection?.mode === "edit"
     const submitIsPending = isEditMode ? updateSaleItemIsPending : addProductToSaleIsPending
@@ -426,12 +444,19 @@ function SaleDetails({
         }
 
         const parsedDiscount = Number(discount.replace(/\D/g, ''))
+        const parsedUnitPrice = Number(unitPrice.replace(/\D/g, ''))
 
         if (selection?.mode === "edit") {
+            if (isGenericProduct && parsedUnitPrice < 1) {
+                toast.error("informe o valor de venda do produto genérico")
+                return
+            }
+
             await updateSaleItem({
                 saleItemId: selection.saleItem.id,
                 quantity,
-                discount: parsedDiscount
+                discount: parsedDiscount,
+                unitPrice: isGenericProduct ? parsedUnitPrice : undefined
             })
 
             removeSelection()
@@ -444,16 +469,23 @@ function SaleDetails({
             return
         }
 
+        if (selection.productId === GENERIC_PRODUCT_ID && parsedUnitPrice < 1) {
+            toast.error("informe o valor de venda do produto genérico")
+            return
+        }
+
         await addProductToSale({
             productId: Number(selection.productId),
             quantity,
-            discount: parsedDiscount
+            discount: parsedDiscount,
+            unitPrice: selection.productId === GENERIC_PRODUCT_ID ? parsedUnitPrice : undefined
         })
 
         removeSelection()
         setQuantity(1)
+        setUnitPrice(maskCurrency("0"))
         toast.success("item adicionado à venda com sucesso")
-    }, [addProductToSale, discount, quantity, removeSelection, selection, updateSaleItem])
+    }, [addProductToSale, discount, isGenericProduct, quantity, removeSelection, selection, unitPrice, updateSaleItem])
 
     useEffect(() => {
         if (!canSubmitSelection || !selectionFocusKey) return
@@ -522,7 +554,11 @@ function SaleDetails({
                         <Label>nome</Label>
                         <Input value={selectedItemName} disabled />
                         <Label>valor de venda</Label>
-                        <Input value={formatCurrency(selectedItemPrice)} disabled />
+                        <Input
+                            value={isGenericProduct ? unitPrice : formatCurrency(selectedItemPrice)}
+                            disabled={!isGenericProduct}
+                            onChange={(event) => setUnitPrice(maskCurrency(event.target.value))}
+                        />
                         {hasSelection && (
                             <>
                                 <Label>quantidade</Label>

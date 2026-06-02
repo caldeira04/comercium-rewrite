@@ -30,10 +30,11 @@ function RouteComponent() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
     const filteredProducts = useMemo(() => {
+        const catalogProducts = products?.filter((product) => product.id !== 0) ?? []
         const normalizedSearch = search.trim().toLowerCase()
-        if (!products || !normalizedSearch) return products ?? []
+        if (!normalizedSearch) return catalogProducts
 
-        return products.filter((product) =>
+        return catalogProducts.filter((product) =>
             product.name.toLowerCase().includes(normalizedSearch) ||
             product.gtin?.toLowerCase().includes(normalizedSearch)
         )
