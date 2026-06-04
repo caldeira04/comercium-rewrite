@@ -7,8 +7,19 @@ export default {
         version: "0.1.0",
     },
     build: {
-        bun: {
-            entrypoint: "src/main.ts",
+        copy: {
+            "dist/backend": "backend",
+            "../backend/drizzle/migrations": "backend/drizzle/migrations",
+            "../frontend/.output": "frontend",
         },
+        linux: {
+            defaultRenderer: "native",
+        },
+        bun: {
+            entrypoint: "src/index.ts",
+        },
+    },
+    scripts: {
+        postBuild: "scripts/wrap-linux-launcher.ts",
     },
 } satisfies ElectrobunConfig

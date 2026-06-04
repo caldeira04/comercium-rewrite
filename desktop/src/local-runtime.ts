@@ -1,11 +1,23 @@
 import { homedir } from "node:os"
+import { existsSync } from "node:fs"
 import path from "node:path"
 
 export const desktopBackendPort = Number(process.env.COMERCIUM_DESKTOP_BACKEND_PORT ?? 3100)
 export const desktopFrontendPort = Number(process.env.COMERCIUM_DESKTOP_FRONTEND_PORT ?? 5174)
 export const desktopApiBaseUrl = `http://127.0.0.1:${desktopBackendPort}`
 export const desktopFrontendUrl = process.env.COMERCIUM_FRONTEND_URL ?? `http://localhost:${desktopFrontendPort}`
-export const isDevelopment = process.env.NODE_ENV === "development" || !process.env.COMERCIUM_PACKAGED
+type RuntimeProcess = Bun.Subprocess | ReturnType<typeof Bun.serve> | null
+
+const packagedAppRoot = path.resolve(import.meta.dir, "..")
+const packagedBackendEntrypoint = path.join(packagedAppRoot, "backend", "index.js")
+const packagedFrontendEntrypoint = path.join(packagedAppRoot, "frontend", "server", "index.mjs")
+const packagedMigrationsDir = path.join(packagedAppRoot, "backend", "drizzle", "migrations")
+const workspaceRoot = findWorkspaceRoot()
+const sourceBackendDir = workspaceRoot ? path.join(workspaceRoot, "backend") : null
+const sourceBackendEntrypoint = sourceBackendDir ? path.join(sourceBackendDir, "src", "index.ts") : null
+const sourceMigrationsDir = sourceBackendDir ? path.join(sourceBackendDir, "drizzle", "migrations") : null
+const useExternalFrontend = Boolean(process.env.COMERCIUM_FRONTEND_URL)
+const isPackagedRuntime = existsSync(packagedBackendEntrypoint) && existsSync(packagedFrontendEntrypoint)
 
 export function getDesktopDataDir() {
     if (process.env.COMERCIUM_DATA_DIR) return path.resolve(process.env.COMERCIUM_DATA_DIR)
@@ -21,18 +33,35 @@ export function getDesktopDataDir() {
 }
 
 export function getDesktopBackendEnv() {
+    const migrationsDir = isPackagedRuntime ? packagedMigrationsDir : sourceMigrationsDir
+
     return {
         ...process.env,
         COMERCIUM_DATA_DIR: getDesktopDataDir(),
         PORT: String(desktopBackendPort),
         CORS_ORIGIN: desktopFrontendUrl,
+        ...(migrationsDir ? {
+            COMERCIUM_MASTER_MIGRATIONS_DIR: path.join(migrationsDir, "master"),
+            COMERCIUM_TENANT_MIGRATIONS_DIR: path.join(migrationsDir, "tenant"),
+        } : {}),
     }
 }
 
 export function startLocalBackend() {
+    const command = isPackagedRuntime
+        ? [process.execPath, packagedBackendEntrypoint]
+        : ["bun", "run", "src/index.ts"]
+    const cwd = isPackagedRuntime ? path.dirname(packagedBackendEntrypoint) : sourceBackendDir
+
+    if (!cwd || (!isPackagedRuntime && !sourceBackendEntrypoint) || (!isPackagedRuntime && !existsSync(sourceBackendEntrypoint!))) {
+        throw new Error("Could not locate backend entrypoint for desktop runtime")
+    }
+
+    console.log(`Comercium backend cwd: ${cwd}`)
+
     return Bun.spawn({
-        cmd: ["bun", "run", "src/index.ts"],
-        cwd: path.resolve(import.meta.dir, "..", "..", "backend"),
+        cmd: command,
+        cwd,
         env: getDesktopBackendEnv(),
         stdout: "inherit",
         stderr: "inherit",
@@ -40,15 +69,28 @@ export function startLocalBackend() {
 }
 
 export function getFrontendAssetsDir() {
-    // In development, we don't need this; we use Vite dev server
-    // In production, this would be the built frontend assets
-    return path.join(import.meta.dir, "..", "..", "frontend", ".output", "public")
+    return path.join(packagedAppRoot, "frontend", "public")
 }
 
 export function startFrontendServer() {
-    if (isDevelopment) {
-        // In development, we rely on Vite dev server running separately
+    if (useExternalFrontend) {
         return null
+    }
+
+    if (existsSync(packagedFrontendEntrypoint)) {
+        console.log(`Comercium frontend server entrypoint: ${packagedFrontendEntrypoint}`)
+
+        return Bun.spawn({
+            cmd: [process.execPath, packagedFrontendEntrypoint],
+            cwd: path.dirname(packagedFrontendEntrypoint),
+            env: {
+                ...process.env,
+                HOST: "127.0.0.1",
+                PORT: String(desktopFrontendPort),
+            },
+            stdout: "inherit",
+            stderr: "inherit",
+        })
     }
 
     const assetsDir = getFrontendAssetsDir()
@@ -87,6 +129,33 @@ export function startFrontendServer() {
 
     console.log(`Frontend server listening on http://localhost:${desktopFrontendPort}`)
     return frontendServer
+}
+
+export function stopRuntimeProcess(process: RuntimeProcess) {
+    if (!process) return
+    if ("kill" in process) {
+        process.kill()
+        return
+    }
+    process.stop()
+}
+
+function findWorkspaceRoot() {
+    const candidates = [import.meta.dir, process.cwd()]
+
+    for (const candidate of candidates) {
+        let current = path.resolve(candidate)
+
+        while (current !== path.dirname(current)) {
+            if (existsSync(path.join(current, "backend", "src", "index.ts"))) {
+                return current
+            }
+
+            current = path.dirname(current)
+        }
+    }
+
+    return null
 }
 
 function getMimeType(filePath: string): string {

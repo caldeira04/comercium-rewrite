@@ -8,7 +8,8 @@
     "dev:native": "COMERCIUM_DATA_DIR=./data COMERCIUM_FRONTEND_URL=http://localhost:5173 COMERCIUM_DESKTOP_BACKEND_PORT=3100 electrobun dev",
     "dev": "bun run dev:native",
     "build:frontend": "bun run --cwd ../frontend build",
-    "build:native": "bun run build:frontend && electrobun build",
+    "build:backend": "bun build ../backend/src/index.ts --outdir dist/backend --target bun",
+    "build:native": "bun run build:frontend && bun run build:backend && electrobun build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
