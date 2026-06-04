@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes"
 import AppSidebar from "@/components/sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { loaderCredentials } from "@/utils/auth"
+import { useQuery } from "@tanstack/react-query"
 
 export const Route = createRootRoute({
     head: () => ({
@@ -43,9 +44,17 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
     const { pathname } = useLocation()
-    const isSidebarVisible = pathname !== "/" && pathname !== "/login" && pathname !== "/register" && pathname !== "/onboarding"
+    const normalizedPathname = pathname.replace(/\/$/, "") || "/"
+    const isSidebarVisible = !["/", "/login", "/register", "/onboarding"].includes(normalizedPathname)
 
-    const { user } = Route.useLoaderData()
+    const loaderData = Route.useLoaderData()
+    const { data: authData } = useQuery({
+        queryKey: ["auth", "me"],
+        queryFn: loaderCredentials,
+        initialData: loaderData,
+        enabled: typeof window !== "undefined",
+    })
+    const user = authData.user
 
     return (
         <html lang="en">

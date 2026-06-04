@@ -32,7 +32,7 @@ function RouteComponent() {
     const { currentCash, currentCashIsPending } = useCash()
 
     const isOpen = currentCash?.status === "open"
-    const paymentSummary = new Map(currentCash?.paymentSummary.map((item) => [item.method, item]) ?? [])
+    const paymentSummary = new Map(currentCash ? currentCash.paymentSummary.map((item) => [item.method, item]) : [])
 
     return (
         <div className='p-2 gap-2 w-full flex self-start h-screen'>
@@ -42,9 +42,9 @@ function RouteComponent() {
                         {!currentCashIsPending && (
                             <Badge className={currentCash?.closedAt ? "text-red-600 bg-red-600" : "text-green-600 bg-green-600"} />
                         )}
-                        <h1 className='p-4 font-bold text-2xl uppercase'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : "aberto"}</h1>
-                        {!currentCashIsPending && (
-                            <Badge variant={"secondary"}>ID: #{currentCash ? currentCash.id.split("-")[0] : <Skeleton />}</Badge>
+                        <h1 className='p-4 font-bold text-2xl uppercase'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : currentCash?.openedAt ? "aberto" : ""}</h1>
+                        {!currentCashIsPending && currentCash && (
+                            <Badge variant={"secondary"}>ID: #{currentCash.id.split("-")[0]}</Badge>
                         )}
                     </div>
                     <div>
