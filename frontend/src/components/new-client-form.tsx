@@ -4,6 +4,7 @@ import { useForm } from "@tanstack/react-form"
 import * as z from "zod"
 import { toast } from "sonner"
 import { useClients } from "@/hooks/use-clients"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 const formSchema = z.object({
     name: z
@@ -70,7 +71,7 @@ export default function NewClientForm({ onClose, client }: FormProps) {
                 }
 
             } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Erro ao cadastrar cliente")
+                toast.error(getApiErrorMessage(e, "Erro ao cadastrar cliente"))
             }
         },
     })

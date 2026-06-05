@@ -8,6 +8,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { getApiUrl } from '@/lib/api-config'
+import { getApiErrorMessage, getResponseErrorMessage } from '@/lib/api-error'
 
 const formSchema = z.object({
     tenantSlug: z
@@ -80,15 +81,14 @@ function RouteComponent() {
                 })
 
                 if (!response.ok) {
-                    const error = await response.json()
-                    toast.error(error.error || "Configuração inicial falhou")
+                    toast.error(await getResponseErrorMessage(response, "Configuração inicial falhou"))
                     return
                 }
 
                 toast.success("Loja configurada com sucesso!")
                 navigate({ to: "/" })
             } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Erro ao configurar loja")
+                toast.error(getApiErrorMessage(e, "Erro ao configurar loja"))
             }
         }
     })

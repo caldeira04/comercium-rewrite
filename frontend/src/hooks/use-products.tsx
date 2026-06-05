@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
+import { throwApiError } from "@/lib/api-error"
 
 export function useProducts(productId?: number) {
 
@@ -8,7 +9,7 @@ export function useProducts(productId?: number) {
         queryKey: ["products"],
         queryFn: async () => {
             const { data, error } = await api.tenant.products.get()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         }
     })
@@ -28,7 +29,7 @@ export function useProducts(productId?: number) {
                 sellPrice,
                 gtin
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -50,7 +51,7 @@ export function useProducts(productId?: number) {
                 sellPrice,
                 gtin
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {

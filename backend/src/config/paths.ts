@@ -1,4 +1,5 @@
 import path from "node:path"
+import { AppError } from "../utils/errors"
 
 export function getDataDir() {
     return path.resolve(process.env.COMERCIUM_DATA_DIR ?? path.join(process.cwd(), "data"))
@@ -14,7 +15,7 @@ export function getMasterDbPath() {
 
 export function getTenantDbPath(tenantSlug: string) {
     if (!/^[a-zA-Z0-9_-]+$/.test(tenantSlug)) {
-        throw new Error("Invalid tenant id")
+        throw new AppError("identificador do tenant inválido", 400, "INVALID_TENANT_ID")
     }
 
     return path.join(getTenantsDir(), `${tenantSlug}.sqlite`)

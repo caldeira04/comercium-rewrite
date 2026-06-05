@@ -5,6 +5,7 @@ import * as masterSchema from "@/db/schema/master"
 import * as tenantSchema from "@/db/schema/tenant"
 import { getTenantDbPath } from "@/config/paths"
 import { ensureMasterDatabase } from "@/db/bootstrap"
+import { AppError } from "../utils/errors"
 
 const connections = new Map<string, ReturnType<typeof drizzle<typeof tenantSchema>>>()
 
@@ -15,7 +16,7 @@ export function getTenantDb(tenantSlug: string) {
     const dbPath = getTenantDbPath(tenantSlug)
 
     if (!existsSync(dbPath)) {
-        throw new Error(`Tenant database not found for tenant "${tenantSlug}"`)
+        throw new AppError(`banco de dados do tenant "${tenantSlug}" não encontrado`, 404, "TENANT_DATABASE_NOT_FOUND")
     }
 
     const sqlite = new Database(dbPath)

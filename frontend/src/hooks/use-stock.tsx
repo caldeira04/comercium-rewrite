@@ -1,13 +1,14 @@
 import { api } from "@/lib/api"
 import { queryClient } from "@/lib/queryClient"
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { throwApiError } from "@/lib/api-error"
 
 export function useStock() {
     const stockMovementsQuery = useQuery({
         queryKey: ["stockMovements"],
         queryFn: async () => {
             const { data, error } = await api.tenant.stock.movements.get()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
     })
@@ -25,7 +26,7 @@ export function useStock() {
                 quantity,
                 reason,
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/hooks/use-products"
 import { maskCurrency } from "@/utils/finance"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export default function NewProductDialog() {
     const [open, setOpen] = useState(false)
@@ -30,19 +31,23 @@ export default function NewProductDialog() {
             return
         }
 
-        await createProduct({
-            name: name.trim(),
-            gtin: gtin.trim(),
-            buyPrice: Number(buyPrice.replace(/\D/g, "")),
-            sellPrice: Number(sellPrice.replace(/\D/g, "")),
-        })
+        try {
+            await createProduct({
+                name: name.trim(),
+                gtin: gtin.trim(),
+                buyPrice: Number(buyPrice.replace(/\D/g, "")),
+                sellPrice: Number(sellPrice.replace(/\D/g, "")),
+            })
 
-        toast.success("produto cadastrado com sucesso")
-        setName("")
-        setGtin("")
-        setBuyPrice("R$ 0,00")
-        setSellPrice("R$ 0,00")
-        setOpen(false)
+            toast.success("produto cadastrado com sucesso")
+            setName("")
+            setGtin("")
+            setBuyPrice("R$ 0,00")
+            setSellPrice("R$ 0,00")
+            setOpen(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao cadastrar produto"))
+        }
     }
 
     return (

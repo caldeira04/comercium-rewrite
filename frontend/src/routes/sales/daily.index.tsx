@@ -39,9 +39,10 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InputGroup } from "@/components/ui/input-group"
-import { MinusIcon, PencilIcon, PlusIcon } from "lucide-react"
+import { MinusIcon, PencilIcon, PlusIcon, RotateCcwIcon, TrashIcon } from "lucide-react"
 import NewPaymentDialog from "@/components/new-payment-dialog"
 import type { CurrentSale, CurrentSaleItem, Product } from "@/lib/api-types"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 type SaleItemSelection =
     | { mode: "add", productId: string }
@@ -57,12 +58,17 @@ export const Route = createFileRoute('/sales/daily/')({
 })
 
 function RouteComponent() {
+    const [showDeletedItems, setShowDeletedItems] = useState(false)
     const {
         currentSale,
         currentSaleIsPending,
         createSale,
-        createSaleIsPending
-    } = useSales()
+        createSaleIsPending,
+        removeProductFromSale,
+        removeProductFromSaleIsPending,
+        reactivateProductFromSale,
+        reactivateProductFromSaleIsPending
+    } = useSales({ includeDeleted: showDeletedItems })
     const [selectedItem, setSelectedItem] = useState<SaleItemSelection | null>(null)
     const [productSearch, setProductSearch] = useState("")
     const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
@@ -72,6 +78,32 @@ function RouteComponent() {
 
     const canAddProduct = !!currentSale
     const actualTotal = currentSale ? getSaleRemainingTotal(currentSale) : 0
+
+    const removeSaleItem = useCallback(async (saleItem: CurrentSaleItem) => {
+        try {
+            await removeProductFromSale({
+                saleItemId: saleItem.id,
+                deleteReason: "remoção manual"
+            })
+
+            if (selectedItem?.mode === "edit" && selectedItem.saleItem.id === saleItem.id) {
+                setSelectedItem(null)
+            }
+
+            toast.success("item removido da venda")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao remover item da venda"))
+        }
+    }, [removeProductFromSale, selectedItem])
+
+    const reactivateSaleItem = useCallback(async (saleItem: CurrentSaleItem) => {
+        try {
+            await reactivateProductFromSale(saleItem.id)
+            toast.success("item reativado na venda")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao reativar item da venda"))
+        }
+    }, [reactivateProductFromSale])
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
@@ -206,6 +238,10 @@ function RouteComponent() {
                     <ProductsTable
                         sale={currentSale}
                         onEditSaleItem={(saleItem) => setSelectedItem({ mode: "edit", saleItem })}
+                        onRemoveSaleItem={removeSaleItem}
+                        onReactivateSaleItem={reactivateSaleItem}
+                        removeSaleItemIsPending={removeProductFromSaleIsPending}
+                        reactivateSaleItemIsPending={reactivateProductFromSaleIsPending}
                     />
                 )}
             </div>
@@ -219,7 +255,9 @@ function RouteComponent() {
                         selection={selectedItem}
                         clientSearchRef={clientSearchRef}
                         paymentDialogOpen={paymentDialogOpen}
+                        showDeletedItems={showDeletedItems}
                         onPaymentDialogOpenChange={setPaymentDialogOpen}
+                        onShowDeletedItemsChange={setShowDeletedItems}
                         removeSelection={() => setSelectedItem(null)}
                     />)}
             </div>
@@ -228,8 +266,9 @@ function RouteComponent() {
 }
 
 function getSaleRemainingTotal(sale: NonNullable<CurrentSale>) {
-    const saleTotal = sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0)
-    const discountTotal = sale.saleItem.reduce((acc, value) => acc + (value.discount ?? 0), 0)
+    const activeItems = sale.saleItem.filter((item) => !item.deletedAt)
+    const saleTotal = activeItems.reduce((acc, value) => acc + value.totalPrice, 0)
+    const discountTotal = activeItems.reduce((acc, value) => acc + (value.discount ?? 0), 0)
     const paidTotal = sale.payment.reduce((acc, value) => acc + value.amount, 0)
 
     return saleTotal - discountTotal - paidTotal
@@ -328,9 +367,15 @@ function SearchBar({
 interface ProductsTableProps {
     sale: NonNullable<CurrentSale>
     onEditSaleItem: (saleItem: CurrentSaleItem) => void
+    onRemoveSaleItem: (saleItem: CurrentSaleItem) => void
+    onReactivateSaleItem: (saleItem: CurrentSaleItem) => void
+    removeSaleItemIsPending: boolean
+    reactivateSaleItemIsPending: boolean
 }
 
-function ProductsTable({ sale, onEditSaleItem }: ProductsTableProps) {
+function ProductsTable({ sale, onEditSaleItem, onRemoveSaleItem, onReactivateSaleItem, removeSaleItemIsPending, reactivateSaleItemIsPending }: ProductsTableProps) {
+    const activeItems = sale.saleItem.filter((item) => !item.deletedAt)
+    const deletedItems = sale.saleItem.filter((item) => item.deletedAt)
 
     return (
         <Table className='min-h-full'>
@@ -346,26 +391,87 @@ function ProductsTable({ sale, onEditSaleItem }: ProductsTableProps) {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {sale.saleItem ? sale.saleItem.map((item) => (
-                    <TableRow key={item.createdAt}>
-                        <TableCell>{item.product.name}</TableCell>
-                        <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
-                        <TableCell>{formatCurrency(item.discount ?? 0)}</TableCell>
-                        <TableCell>{formatCurrency(item.totalPrice - (item.discount ?? 0))}</TableCell>
-                        <TableCell className="text-right">
-                            <Button
-                                variant="outline"
-                                onClick={() => onEditSaleItem(item)}
-                            ><PencilIcon /></Button>
+                {activeItems.map((item) => (
+                    <SaleItemRow
+                        key={item.id}
+                        item={item}
+                        onEditSaleItem={onEditSaleItem}
+                        onRemoveSaleItem={onRemoveSaleItem}
+                        onReactivateSaleItem={onReactivateSaleItem}
+                        removeSaleItemIsPending={removeSaleItemIsPending}
+                        reactivateSaleItemIsPending={reactivateSaleItemIsPending}
+                    />
+                ))}
+                {deletedItems.length > 0 && (
+                    <TableRow>
+                        <TableCell colSpan={7} className="bg-muted/60 py-2 text-xs font-bold uppercase text-muted-foreground">
+                            itens excluídos
                         </TableCell>
                     </TableRow>
-                )) : (
-                    <></>
                 )}
+                {deletedItems.map((item) => (
+                    <SaleItemRow
+                        key={item.id}
+                        item={item}
+                        onEditSaleItem={onEditSaleItem}
+                        onRemoveSaleItem={onRemoveSaleItem}
+                        onReactivateSaleItem={onReactivateSaleItem}
+                        removeSaleItemIsPending={removeSaleItemIsPending}
+                        reactivateSaleItemIsPending={reactivateSaleItemIsPending}
+                    />
+                ))}
             </TableBody>
         </Table>
+    )
+}
+
+function SaleItemRow({
+    item,
+    onEditSaleItem,
+    onRemoveSaleItem,
+    onReactivateSaleItem,
+    removeSaleItemIsPending,
+    reactivateSaleItemIsPending,
+}: {
+    item: CurrentSaleItem
+    onEditSaleItem: (saleItem: CurrentSaleItem) => void
+    onRemoveSaleItem: (saleItem: CurrentSaleItem) => void
+    onReactivateSaleItem: (saleItem: CurrentSaleItem) => void
+    removeSaleItemIsPending: boolean
+    reactivateSaleItemIsPending: boolean
+}) {
+    const isDeleted = !!item.deletedAt
+
+    return (
+        <TableRow className={isDeleted ? "bg-destructive/5 text-muted-foreground" : undefined}>
+            <TableCell className={isDeleted ? "line-through" : undefined}>{item.product.name}</TableCell>
+            <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
+            <TableCell>{item.quantity}</TableCell>
+            <TableCell>{formatCurrency(item.totalPrice)}</TableCell>
+            <TableCell>{formatCurrency(item.discount ?? 0)}</TableCell>
+            <TableCell>{formatCurrency(item.totalPrice - (item.discount ?? 0))}</TableCell>
+            <TableCell className="text-right">
+                {isDeleted ? (
+                    <Button
+                        variant="outline"
+                        disabled={reactivateSaleItemIsPending}
+                        onClick={() => onReactivateSaleItem(item)}
+                    ><RotateCcwIcon />reativar</Button>
+                ) : (
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => onEditSaleItem(item)}
+                        ><PencilIcon /></Button>
+                        <Button
+                            variant="destructive"
+                            disabled={removeSaleItemIsPending}
+                            onClick={() => onRemoveSaleItem(item)}
+                        ><TrashIcon /></Button>
+                    </div>
+                )}
+            </TableCell>
+        </TableRow>
     )
 }
 
@@ -374,7 +480,9 @@ interface SaleDetailsProps {
     selection?: SaleItemSelection | null
     clientSearchRef: RefObject<HTMLInputElement | null>
     paymentDialogOpen: boolean
+    showDeletedItems: boolean
     onPaymentDialogOpenChange: (open: boolean) => void
+    onShowDeletedItemsChange: (showDeletedItems: boolean) => void
     removeSelection: () => void
 }
 
@@ -384,7 +492,9 @@ function SaleDetails({
     selection,
     clientSearchRef,
     paymentDialogOpen,
+    showDeletedItems,
     onPaymentDialogOpenChange,
+    onShowDeletedItemsChange,
     removeSelection
 }: SaleDetailsProps) {
     const {
@@ -396,7 +506,7 @@ function SaleDetails({
         updateSaleItemIsPending,
         updateSaleClient,
         updateSaleClientIsPending
-    } = useSales()
+    } = useSales({ includeDeleted: showDeletedItems })
     const productId = selection?.mode === "add" ? selection.productId : null
     const selectedSaleItem = selection?.mode === "edit" ? selection.saleItem : null
     const {
@@ -452,15 +562,19 @@ function SaleDetails({
                 return
             }
 
-            await updateSaleItem({
-                saleItemId: selection.saleItem.id,
-                quantity,
-                discount: parsedDiscount,
-                unitPrice: isGenericProduct ? parsedUnitPrice : undefined
-            })
+            try {
+                await updateSaleItem({
+                    saleItemId: selection.saleItem.id,
+                    quantity,
+                    discount: parsedDiscount,
+                    unitPrice: isGenericProduct ? parsedUnitPrice : undefined
+                })
 
-            removeSelection()
-            toast.success("item da venda alterado com sucesso")
+                removeSelection()
+                toast.success("item da venda alterado com sucesso")
+            } catch (error) {
+                toast.error(getApiErrorMessage(error, "Erro ao alterar item da venda"))
+            }
             return
         }
 
@@ -474,17 +588,21 @@ function SaleDetails({
             return
         }
 
-        await addProductToSale({
-            productId: Number(selection.productId),
-            quantity,
-            discount: parsedDiscount,
-            unitPrice: selection.productId === GENERIC_PRODUCT_ID ? parsedUnitPrice : undefined
-        })
+        try {
+            await addProductToSale({
+                productId: Number(selection.productId),
+                quantity,
+                discount: parsedDiscount,
+                unitPrice: selection.productId === GENERIC_PRODUCT_ID ? parsedUnitPrice : undefined
+            })
 
-        removeSelection()
-        setQuantity(1)
-        setUnitPrice(maskCurrency("0"))
-        toast.success("item adicionado à venda com sucesso")
+            removeSelection()
+            setQuantity(1)
+            setUnitPrice(maskCurrency("0"))
+            toast.success("item adicionado à venda com sucesso")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao adicionar item à venda"))
+        }
     }, [addProductToSale, discount, isGenericProduct, quantity, removeSelection, selection, unitPrice, updateSaleItem])
 
     useEffect(() => {
@@ -539,8 +657,10 @@ function SaleDetails({
         )
     }
 
-    const saleTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + value.totalPrice, 0) : 0
-    const discountTotal = sale.saleItem ? sale.saleItem.reduce((acc, value) => acc + (value.discount ?? 0), 0) : 0
+    const activeSaleItems = sale.saleItem ? sale.saleItem.filter((item) => !item.deletedAt) : []
+    const deletedSaleItemsCount = sale.saleItem ? sale.saleItem.filter((item) => item.deletedAt).length : 0
+    const saleTotal = activeSaleItems.reduce((acc, value) => acc + value.totalPrice, 0)
+    const discountTotal = activeSaleItems.reduce((acc, value) => acc + (value.discount ?? 0), 0)
     const paidTotal = sale.payment ? sale.payment.reduce((acc, value) => acc + value.amount, 0) : 0
     const actualTotal = saleTotal - discountTotal - paidTotal
 
@@ -597,6 +717,15 @@ function SaleDetails({
                     </div>
                 </div>
                 <div className="w-full flex flex-col gap-2">
+                    <Button
+                        variant={showDeletedItems ? "default" : "outline"}
+                        onClick={() => onShowDeletedItemsChange(!showDeletedItems)}
+                    >{showDeletedItems ? "ocultar excluídos" : "mostrar excluídos"}</Button>
+                    {showDeletedItems && deletedSaleItemsCount > 0 && (
+                        <p className="text-center text-xs text-muted-foreground">
+                            {deletedSaleItemsCount} item(ns) excluído(s) visíveis na tabela
+                        </p>
+                    )}
                     <h3 className="text-lg text-center font-bold">cliente da venda</h3>
                     <Combobox
                         key={sale.client?.id ?? "no-client"}
@@ -608,14 +737,18 @@ function SaleDetails({
                         itemToStringLabel={(client) => String(client?.name ?? "")}
                         onValueChange={async (client: ClientOption | null) => {
                             if (client) {
-                                await updateSaleClient({
-                                    saleId: sale.id,
-                                    clientId: client.id
-                                })
+                                try {
+                                    await updateSaleClient({
+                                        saleId: sale.id,
+                                        clientId: client.id
+                                    })
 
-                                window.setTimeout(() => {
-                                    clientSearchRef.current?.blur()
-                                }, 0)
+                                    window.setTimeout(() => {
+                                        clientSearchRef.current?.blur()
+                                    }, 0)
+                                } catch (error) {
+                                    toast.error(getApiErrorMessage(error, "Erro ao alterar cliente da venda"))
+                                }
                             }
                         }}
                     >

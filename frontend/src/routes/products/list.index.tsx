@@ -19,6 +19,7 @@ import {
 import { useProducts } from "@/hooks/use-products"
 import type { Product, Products } from "@/lib/api-types"
 import { formatCurrency, maskCurrency } from "@/utils/finance"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export const Route = createFileRoute("/products/list/")({
     component: RouteComponent,
@@ -157,15 +158,19 @@ function ProductDetails({ product }: { product: Product | null }) {
             return
         }
 
-        await updateProduct({
-            productId: product.id,
-            name: name.trim(),
-            gtin: gtin.trim() || null,
-            buyPrice: Number(buyPrice.replace(/\D/g, "")),
-            sellPrice: Number(sellPrice.replace(/\D/g, "")),
-        })
-        toast.success("produto atualizado com sucesso")
-        setIsEditing(false)
+        try {
+            await updateProduct({
+                productId: product.id,
+                name: name.trim(),
+                gtin: gtin.trim() || null,
+                buyPrice: Number(buyPrice.replace(/\D/g, "")),
+                sellPrice: Number(sellPrice.replace(/\D/g, "")),
+            })
+            toast.success("produto atualizado com sucesso")
+            setIsEditing(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao atualizar produto"))
+        }
     }
 
     function cancelEdit() {

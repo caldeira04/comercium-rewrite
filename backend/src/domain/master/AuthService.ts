@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite"
 import { Database } from "bun:sqlite"
 import { getMasterDbPath, getTenantDbPath, getTenantMigrationsDir } from "@/config/paths"
 import { ensureDataDirectories } from "@/db/bootstrap"
+import { AppError } from "../../utils/errors"
 
 export async function signUp(
     tenantSlug: string,
@@ -25,7 +26,7 @@ export async function signUp(
     ensureDataDirectories()
 
     if (existsSync(dbPath)) {
-        throw new Error(`DB do tenant já existe: ${dbPath}`)
+        throw new AppError("já existe uma loja com este identificador", 409, "TENANT_ALREADY_EXISTS")
     }
 
     const sqlite = new Database(dbPath)
@@ -45,7 +46,7 @@ export async function signUp(
         phone,
     }).returning({ id: tenant.id })
 
-    if (!createdTenant) throw new Error("Erro ao criar nova loja")
+    if (!createdTenant) throw new AppError("erro ao criar nova loja", 500, "TENANT_CREATE_FAILED")
 
     const [newUser] = await masterDb.insert(tenantUser).values({
         login: email,
@@ -53,7 +54,7 @@ export async function signUp(
         tenantId: createdTenant[0].id
     }).returning({ id: tenantUser.id })
 
-    if (!newUser) throw new Error("Erro ao criar usuário em nova loja")
+    if (!newUser) throw new AppError("erro ao criar usuário em nova loja", 500, "TENANT_USER_CREATE_FAILED")
 
     const token = generateSessionToken()
     const tokenHash = await hashToken(token)
@@ -86,13 +87,13 @@ export async function login(username: string, password: string) {
         .limit(1)
 
     if (!user) {
-        throw new Error("Invalid Credentials")
+        throw new AppError("credenciais inválidas", 401, "INVALID_CREDENTIALS")
     }
 
     const validPassword = await verifyPassword(password, user.password)
 
     if (!validPassword) {
-        throw new Error("Invalid Credentials")
+        throw new AppError("credenciais inválidas", 401, "INVALID_CREDENTIALS")
     }
 
     const token = generateSessionToken()

@@ -21,6 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useStock } from "@/hooks/use-stock"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export default function StockMovementDialog({ productId }: { productId: number }) {
     const [open, setOpen] = useState(false)
@@ -36,14 +37,18 @@ export default function StockMovementDialog({ productId }: { productId: number }
             return
         }
 
-        await createStockMovement({
-            productId,
-            type,
-            quantity: parsedQuantity,
-            reason: reason || "ajuste manual",
-        })
-        toast.success("estoque atualizado")
-        setOpen(false)
+        try {
+            await createStockMovement({
+                productId,
+                type,
+                quantity: parsedQuantity,
+                reason: reason || "ajuste manual",
+            })
+            toast.success("estoque atualizado")
+            setOpen(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao movimentar estoque"))
+        }
     }
 
     return (

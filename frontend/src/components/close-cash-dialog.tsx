@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCash } from "@/hooks/use-cash"
 import { maskCurrency } from "@/utils/finance"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export default function CloseCashDialog({ cashId }: { cashId: string }) {
     const [open, setOpen] = useState(false)
@@ -22,12 +23,16 @@ export default function CloseCashDialog({ cashId }: { cashId: string }) {
     const { closeCash, closeCashIsPending } = useCash()
 
     async function handleClose() {
-        await closeCash({
-            cashId,
-            actualClosingAmount: Number(amount.replace(/\D/g, "")),
-        })
-        toast.success("caixa fechado com sucesso")
-        setOpen(false)
+        try {
+            await closeCash({
+                cashId,
+                actualClosingAmount: Number(amount.replace(/\D/g, "")),
+            })
+            toast.success("caixa fechado com sucesso")
+            setOpen(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao fechar caixa"))
+        }
     }
 
     return (

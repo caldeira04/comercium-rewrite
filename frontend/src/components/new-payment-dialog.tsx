@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { usePayments } from "@/hooks/use-payments"
 import { toast } from "sonner"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 const paymentMethods = [
     {
@@ -83,14 +84,18 @@ export default function NewPaymentDialog({
             return
         }
 
-        await createPayments({
-            paidAmount: Number(clearAmount),
-            paymentMethod: paymentMethod.value,
-            saleId,
-            totalAmount
-        })
-        toast.success("pagamento lançado com sucesso")
-        setOpen(false)
+        try {
+            await createPayments({
+                paidAmount: Number(clearAmount),
+                paymentMethod: paymentMethod.value,
+                saleId,
+                totalAmount
+            })
+            toast.success("pagamento lançado com sucesso")
+            setOpen(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao lançar pagamento"))
+        }
     }, [amount, createPayments, paymentMethod.value, saleId, setOpen, totalAmount])
 
     useEffect(() => {

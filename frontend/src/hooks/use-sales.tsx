@@ -1,14 +1,19 @@
 import { api } from "@/lib/api"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
+import { throwApiError } from "@/lib/api-error"
 
-export function useSales() {
+export function useSales({ includeDeleted = false }: {
+    includeDeleted?: boolean
+} = {}) {
 
     const currentSaleQuery = useQuery({
-        queryKey: ["currentSale"],
+        queryKey: ["currentSale", { includeDeleted }],
         queryFn: async () => {
-            const { data, error } = await api.tenant.sales.current.get()
-            if (error) throw error
+            const { data, error } = await api.tenant.sales.current.get({
+                query: includeDeleted ? { includeDeleted: "true" } : undefined
+            })
+            if (error) throwApiError(error)
             return data
         }
     })
@@ -17,7 +22,7 @@ export function useSales() {
         queryKey: ["sales"],
         queryFn: async () => {
             const { data, error } = await api.tenant.sales.get()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         }
     })
@@ -25,7 +30,7 @@ export function useSales() {
     const createSaleMutation = useMutation({
         mutationFn: async () => {
             const { data, error } = await api.tenant.sales.new.post()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -41,7 +46,7 @@ export function useSales() {
                     credentials: "include"
                 }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -60,7 +65,7 @@ export function useSales() {
             }, {
                 fetch: { credentials: "include" }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -86,7 +91,7 @@ export function useSales() {
                 fetch: { credentials: "include" }
             })
 
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -110,7 +115,42 @@ export function useSales() {
                 fetch: { credentials: "include" }
             })
 
-            if (error) throw error
+            if (error) throwApiError(error)
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
+    const removeProductFromSaleMutation = useMutation({
+        mutationFn: async ({ saleItemId, deleteReason }: {
+            saleItemId: string
+            deleteReason?: string
+        }) => {
+            const { data, error } = await api.tenant.sales["sale-item"]({ saleItemId }).delete({
+                deleteReason
+            }, {
+                fetch: { credentials: "include" }
+            })
+
+            if (error) throwApiError(error)
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
+    const reactivateProductFromSaleMutation = useMutation({
+        mutationFn: async (saleItemId: string) => {
+            const { data, error } = await api.tenant.sales["sale-item"]({ saleItemId }).reactivate.patch(undefined, {
+                fetch: { credentials: "include" }
+            })
+
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -138,6 +178,12 @@ export function useSales() {
         updateSaleItem: updateSaleItemMutation.mutateAsync,
         updateSaleItemIsPending: updateSaleItemMutation.isPending,
         updateSaleItemIsError: updateSaleItemMutation.isError,
+        removeProductFromSale: removeProductFromSaleMutation.mutateAsync,
+        removeProductFromSaleIsPending: removeProductFromSaleMutation.isPending,
+        removeProductFromSaleIsError: removeProductFromSaleMutation.isError,
+        reactivateProductFromSale: reactivateProductFromSaleMutation.mutateAsync,
+        reactivateProductFromSaleIsPending: reactivateProductFromSaleMutation.isPending,
+        reactivateProductFromSaleIsError: reactivateProductFromSaleMutation.isError,
         updateSaleClient: updateSaleClientMutation.mutateAsync,
         updateSaleClientIsPending: updateSaleClientMutation.isPending,
         updateSaleClientIsError: updateSaleClientMutation.isError,

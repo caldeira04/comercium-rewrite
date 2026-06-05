@@ -1,6 +1,7 @@
 import { getTenantDb } from "@/db/db";
 import { product } from "@/db/schema/tenant/product"
 import { asc, eq, isNull, sql } from "drizzle-orm";
+import { AppError } from "../../../utils/errors";
 
 export async function createProduct(tenantSlug: string, data: {
     name: string
@@ -97,7 +98,7 @@ export async function updateProduct(tenantSlug: string, data: {
     const { productId, name, buyPrice, sellPrice, gtin, userId } = data
 
     if (productId === 0) {
-        throw new Error("não é possível editar o produto genérico")
+        throw new AppError("não é possível editar o produto genérico", 409, "GENERIC_PRODUCT_IMMUTABLE")
     }
 
     const [updatedProduct] = await db.update(product).set({
@@ -119,7 +120,7 @@ export async function deleteProduct(tenantSlug: string, productId: number, userI
     const db = getTenantDb(tenantSlug)
 
     if (productId === 0) {
-        throw new Error("não é possível editar o produto genérico")
+        throw new AppError("não é possível editar o produto genérico", 409, "GENERIC_PRODUCT_IMMUTABLE")
     }
 
     const deleted = await db.update(product).set({

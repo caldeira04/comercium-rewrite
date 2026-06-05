@@ -1,5 +1,6 @@
 import { api } from "@/lib/api"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { throwApiError } from "@/lib/api-error"
 
 type CreateClientInput = {
     name: string
@@ -29,7 +30,7 @@ export function useClients() {
                     credentials: "include"
                 }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
     })
@@ -41,7 +42,7 @@ export function useClients() {
                     credentials: "include"
                 }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -52,7 +53,7 @@ export function useClients() {
     const editClientMutation = useMutation({
         mutationFn: async ({ client, clientId }: EditClientInput) => {
             const { data, error } = await api.tenant.clients({ clientId }).patch(client)
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {

@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
+import { throwApiError } from "@/lib/api-error"
 
 export function useCash() {
 
@@ -8,7 +9,7 @@ export function useCash() {
         queryKey: ["currentCash"],
         queryFn: async () => {
             const { data, error } = await api.tenant.cash.current.get()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         }
     })
@@ -17,7 +18,7 @@ export function useCash() {
         queryKey: ["cash"],
         queryFn: async () => {
             const { data, error } = await api.tenant.cash.get()
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         }
     })
@@ -33,7 +34,7 @@ export function useCash() {
                     credentials: "include"
                 }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {
@@ -54,7 +55,7 @@ export function useCash() {
                     credentials: "include"
                 }
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {

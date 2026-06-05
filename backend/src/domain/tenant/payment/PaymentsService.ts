@@ -3,6 +3,7 @@ import { settleSale } from "../sales/SalesService";
 import { payment, sale } from "@/db/schema/tenant";
 import { desc, sql } from "drizzle-orm";
 import { createCashMovement } from "../cash/CashService";
+import { AppError } from "../../../utils/errors";
 
 export function createPayment(tenantSlug: string, data: {
     userId: string
@@ -29,9 +30,13 @@ export function createPayment(tenantSlug: string, data: {
             }
         })
 
-        if (!selectedSale) throw new Error("não foi possível encontrar venda")
+        if (!selectedSale) throw new AppError("não foi possível encontrar venda", 404, "SALE_NOT_FOUND")
 
-        if (paidAmount >= totalAmount) await settleSale(tenantSlug, { userId, saleId })
+        const cashId = paidAmount >= totalAmount
+            ? await settleSale(tenantSlug, { userId, saleId })
+            : selectedSale.cashId
+
+        if (!cashId) throw new AppError("o caixa precisa estar aberto para registrar um pagamento", 409, "CASH_NOT_OPEN")
 
         const [newPayment] = await tx.insert(payment).values({
             amount: paidAmount,
@@ -41,7 +46,7 @@ export function createPayment(tenantSlug: string, data: {
         }).returning()
 
         await createCashMovement(tenantSlug, {
-            cashId: selectedSale.cashId,
+            cashId,
             amount: paidAmount,
             nature: "in",
             type: "payment",

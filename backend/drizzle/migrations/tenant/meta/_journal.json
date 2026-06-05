@@ -78,6 +78,13 @@
       "when": 1780358486757,
       "tag": "0010_add_generic_product_to_sales",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1780616405000,
+      "tag": "0011_remove_cashid_from_sale",
+      "breakpoints": true
     }
   ]
 }

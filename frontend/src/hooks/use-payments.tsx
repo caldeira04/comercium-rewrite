@@ -1,6 +1,7 @@
 import { api } from "@/lib/api"
 import { useMutation } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
+import { throwApiError } from "@/lib/api-error"
 
 export function usePayments() {
 
@@ -16,7 +17,7 @@ export function usePayments() {
                 paymentMethod,
                 totalAmount
             })
-            if (error) throw error
+            if (error) throwApiError(error)
             return data
         },
         onSuccess: () => {

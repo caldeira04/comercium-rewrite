@@ -13,7 +13,7 @@ export const sale = sqliteTable("sale", {
     clientId: integer("client_id").references(() => client.id, { onDelete: "restrict" }),
     settledAt: text("settled_at"),
     cancelledAt: text("cancelled_at"),
-    cashId: text("cash_id").notNull().references(() => cash.id, { onDelete: "restrict" }),
+    cashId: text("cash_id").references(() => cash.id, { onDelete: "restrict" }),
 
     ...auditing(),
     ...timestamps()

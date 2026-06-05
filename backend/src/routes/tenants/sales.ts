@@ -1,4 +1,4 @@
-import { addProductToSale, createSale, currentSale, getSales, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
+import { addProductToSale, createSale, currentSale, getSales, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
 import Elysia, { t } from "elysia";
 
@@ -19,10 +19,17 @@ const sales = new Elysia({ prefix: "/sales" })
         )
     })
 
-    .get("/current", async ({ auth }) => {
-        const sale = await currentSale(auth.tenantSlug)
+    .get("/current", async ({ auth, query }) => {
+        const includeDeleted = query.includeDeleted === "true"
+        const sale = await currentSale(auth.tenantSlug, includeDeleted)
 
         return sale
+    }, {
+        query: t.Partial(
+            t.Object({
+                includeDeleted: t.String()
+            })
+        )
     })
 
     .post("/new", async ({ auth }) => {
@@ -72,6 +79,36 @@ const sales = new Elysia({ prefix: "/sales" })
             quantity: t.Number(),
             discount: t.Number(),
             unitPrice: t.Optional(t.Number()),
+        })
+    })
+
+    .delete("/sale-item/:saleItemId", async ({ params, body, auth }) => {
+        const deleted = await removeProductFromSale(auth.tenantSlug, {
+            saleItemId: params.saleItemId,
+            userId: auth.userId,
+            deleteReason: body.deleteReason ?? "remoção manual"
+        })
+
+        return deleted
+    }, {
+        params: t.Object({
+            saleItemId: t.String(),
+        }),
+        body: t.Object({
+            deleteReason: t.Optional(t.String()),
+        })
+    })
+
+    .patch("/sale-item/:saleItemId/reactivate", async ({ params, auth }) => {
+        const reactivated = await reactivateProductFromSale(auth.tenantSlug, {
+            saleItemId: params.saleItemId,
+            userId: auth.userId,
+        })
+
+        return reactivated
+    }, {
+        params: t.Object({
+            saleItemId: t.String(),
         })
     })
 

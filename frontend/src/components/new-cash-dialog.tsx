@@ -14,6 +14,8 @@ import { Label } from "./ui/label"
 import { Input } from "./ui/input"
 import { maskCurrency } from "@/utils/finance"
 import { useCash } from "@/hooks/use-cash"
+import { toast } from "sonner"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export default function NewCashDialog() {
     const [open, setOpen] = useState(false)
@@ -23,10 +25,15 @@ export default function NewCashDialog() {
     async function handleOpenCash() {
         const clearAmount = amount.replace(/\D/g, '')
 
-        await createCash({
-            openingAmount: Number(clearAmount)
-        })
-        setOpen(false)
+        try {
+            await createCash({
+                openingAmount: Number(clearAmount)
+            })
+            toast.success("caixa aberto com sucesso")
+            setOpen(false)
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao abrir caixa"))
+        }
     }
 
     return (

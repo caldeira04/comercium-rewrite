@@ -1,6 +1,7 @@
 import { getTenantDb } from "@/db/db";
 import { client } from "@/db/schema/tenant/client"
 import { desc, eq, isNull, sql } from "drizzle-orm";
+import { AppError } from "../../../utils/errors";
 
 export async function createClient(tenantSlug: string, data: {
     name: string
@@ -35,7 +36,7 @@ export async function editClient(tenantSlug: string, data: {
     const db = getTenantDb(tenantSlug)
     const { clientId, name, document, email, phone, userId } = data
 
-    if (clientId === 0) throw new Error("não é possível editar o cliente \"Consumidor Final\"")
+    if (clientId === 0) throw new AppError("não é possível editar o cliente \"Consumidor Final\"", 409, "DEFAULT_CLIENT_IMMUTABLE")
 
     const [updatedClient] = await db.update(client).set({
         name,
