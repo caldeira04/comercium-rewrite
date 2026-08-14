@@ -1,7 +1,8 @@
 import { getApiUrl } from "@/lib/api-config"
 
 export type ResponseUser = {
-    userId: number
+    userId: string
+    tenantId: string
     tenantSlug: string
     login: string
     tenantName: string

@@ -1,7 +1,7 @@
 import { getTenantDb } from "@/db/db";
 import { settleSale } from "../sales/SalesService";
 import { payment, sale } from "@/db/schema/tenant";
-import { desc, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { createCashMovement } from "../cash/CashService";
 import { AppError } from "../../../utils/errors";
 
@@ -57,6 +57,72 @@ export function createPayment(tenantSlug: string, data: {
         })
 
         return newPayment
+    })
+
+    return transaction
+}
+
+export async function refundPayment(tenantSlug: string, data: {
+    paymentId: string
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+    const { paymentId, userId } = data
+
+    const transaction = await db.transaction(async (tx) => {
+        const selectedPayment = await tx.query.payment.findFirst({
+            where: (payment, { eq }) => eq(payment.id, paymentId),
+            columns: {
+                id: true,
+                amount: true,
+                status: true,
+                saleId: true,
+            },
+        })
+
+        if (!selectedPayment) {
+            throw new AppError("pagamento não encontrado", 404, "PAYMENT_NOT_FOUND")
+        }
+
+        if (selectedPayment.status !== "paid") {
+            throw new AppError("apenas pagamentos pagos podem ser estornados", 409, "PAYMENT_NOT_PAID")
+        }
+
+        const selectedSale = await tx.query.sale.findFirst({
+            where: (sale, { eq }) => eq(sale.id, selectedPayment.saleId),
+            columns: {
+                id: true,
+                cashId: true,
+            },
+        })
+
+        if (!selectedSale) {
+            throw new AppError("venda do pagamento não encontrada", 404, "SALE_NOT_FOUND")
+        }
+
+        if (!selectedSale.cashId) {
+            throw new AppError("venda sem caixa vinculado", 409, "SALE_WITHOUT_CASH")
+        }
+
+        await tx.update(payment).set({
+            status: "refunded",
+            updatedAt: sql`(CURRENT_TIMESTAMP)`,
+            updatedByUserId: userId,
+        })
+            .where(eq(payment.id, selectedPayment.id))
+
+        await createCashMovement(tenantSlug, {
+            cashId: selectedSale.cashId,
+            amount: selectedPayment.amount,
+            nature: "out",
+            type: "refund",
+            userId,
+            description: "estorno de pagamento",
+            referenceType: "refund",
+            referenceId: selectedPayment.id,
+        })
+
+        return selectedPayment
     })
 
     return transaction

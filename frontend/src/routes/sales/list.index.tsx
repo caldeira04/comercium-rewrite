@@ -1,5 +1,6 @@
 import { Spinner } from "@/components/ui/spinner"
 import { useSales } from "@/hooks/use-sales"
+import { usePayments } from "@/hooks/use-payments"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import {
@@ -10,8 +11,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/finance"
+import { formatPaymentMethod } from "@/utils/formatters"
+import { getApiErrorMessage } from "@/lib/api-error"
+import { toast } from "sonner"
 import type { SaleListItem, Sales } from "@/lib/api-types"
 import { formatTime } from "@/utils/time"
 
@@ -106,8 +112,34 @@ function SaleDetails({ sale }: { sale?: SaleListItem | null }) {
 }
 
 function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
+    const { cancelSale, cancelSaleIsPending } = useSales()
+    const { refundPayment, refundPaymentIsPending } = usePayments()
     const paidAmount = sale.payment.reduce((total, payment) => total + payment.amount, 0)
     const pendingAmount = sale.totalAmount - paidAmount
+
+    async function handleRefund(paymentId: string) {
+        const confirmed = window.confirm("estornar este pagamento?")
+        if (!confirmed) return
+
+        try {
+            await refundPayment(paymentId)
+            toast.success("pagamento estornado com sucesso")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao estornar pagamento"))
+        }
+    }
+
+    async function handleCancel() {
+        const confirmed = window.confirm("cancelar esta venda?")
+        if (!confirmed) return
+
+        try {
+            await cancelSale(sale.id)
+            toast.success("venda cancelada com sucesso")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao cancelar venda"))
+        }
+    }
 
     return (
         <>
@@ -121,7 +153,7 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
                 <Metric label="total" value={formatCurrency(sale.totalAmount)} />
                 <Metric label="pago" value={formatCurrency(paidAmount)} />
                 <Metric label="pendente" value={formatCurrency(pendingAmount)} />
-                <Metric label="status" value={pendingAmount <= 0 ? "quitada" : "pendente"} />
+                <Metric label="status" value={sale.settledAt ? "quitada" : pendingAmount <= 0 ? "quitada" : "pendente"} />
             </div>
             <div>
                 <h3 className="mb-2 font-bold">produtos</h3>
@@ -144,6 +176,49 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
                     </TableBody>
                 </Table>
             </div>
+            {sale.payment.length > 0 && (
+                <div>
+                    <h3 className="mb-2 font-bold">pagamentos</h3>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>forma</TableHead>
+                                <TableHead className="text-right">valor</TableHead>
+                                <TableHead>status</TableHead>
+                                <TableHead className="text-right">ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {sale.payment.map((payment) => (
+                                <TableRow key={payment.id}>
+                                    <TableCell className="capitalize">{formatPaymentMethod({ method: payment.paymentMethod })}</TableCell>
+                                    <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={payment.status === "paid" ? "secondary" : "outline"}>{payment.status}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {payment.status === "paid" && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={refundPaymentIsPending}
+                                                onClick={() => handleRefund(payment.id)}
+                                            >estornar</Button>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            {!sale.settledAt && (
+                <Button
+                    variant="destructive"
+                    disabled={cancelSaleIsPending}
+                    onClick={handleCancel}
+                >cancelar venda</Button>
+            )}
         </>
     )
 }

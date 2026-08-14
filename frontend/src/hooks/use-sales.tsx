@@ -159,6 +159,20 @@ export function useSales({ includeDeleted = false }: {
         }
     })
 
+    const cancelSaleMutation = useMutation({
+        mutationFn: async (saleId: string) => {
+            const { data, error } = await api.tenant.sales({ id: saleId }).cancel.post({
+                fetch: { credentials: "include" }
+            })
+            if (error) throwApiError(error)
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+        }
+    })
+
     return {
         sales: salesQuery.data,
         salesIsPending: salesQuery.isPending,
@@ -187,5 +201,8 @@ export function useSales({ includeDeleted = false }: {
         updateSaleClient: updateSaleClientMutation.mutateAsync,
         updateSaleClientIsPending: updateSaleClientMutation.isPending,
         updateSaleClientIsError: updateSaleClientMutation.isError,
+        cancelSale: cancelSaleMutation.mutateAsync,
+        cancelSaleIsPending: cancelSaleMutation.isPending,
+        cancelSaleIsError: cancelSaleMutation.isError,
     }
 }

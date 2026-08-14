@@ -35,7 +35,11 @@ export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
             },
             payment: {
                 columns: {
-                    amount: true
+                    id: true,
+                    amount: true,
+                    status: true,
+                    paymentMethod: true,
+                    paidAt: true,
                 }
             },
             saleItem: {
@@ -382,4 +386,55 @@ export async function reactivateProductFromSale(tenantSlug: string, data: {
     if (!reactivated) throw new AppError("item da venda excluído não encontrado", 404, "DELETED_SALE_ITEM_NOT_FOUND")
 
     return reactivated
+}
+
+export async function cancelSale(tenantSlug: string, data: {
+    saleId: string
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+    const { saleId, userId } = data
+
+    const transaction = await db.transaction(async (tx) => {
+        const selectedSale = await tx.query.sale.findFirst({
+            where: (sale, { and, eq, isNull }) =>
+                and(
+                    eq(sale.id, saleId),
+                    isNull(sale.settledAt),
+                    isNull(sale.cancelledAt),
+                    isNull(sale.deletedAt),
+                ),
+            columns: { id: true },
+        })
+
+        if (!selectedSale) {
+            throw new AppError("venda não encontrada", 404, "SALE_NOT_FOUND")
+        }
+
+        const paidPayments = await tx.query.payment.findMany({
+            where: (payment, { and, eq }) =>
+                and(
+                    eq(payment.saleId, saleId),
+                    eq(payment.status, "paid"),
+                ),
+            columns: { id: true },
+        })
+
+        if (paidPayments.length > 0) {
+            throw new AppError("estorne os pagamentos antes de cancelar a venda", 409, "SALE_HAS_PAID_PAYMENTS")
+        }
+
+        await tx.update(sale).set({
+            cancelledAt: sql`(CURRENT_TIMESTAMP)`,
+            updatedAt: sql`(CURRENT_TIMESTAMP)`,
+            updatedByUserId: userId,
+            deletedAt: sql`(CURRENT_TIMESTAMP)`,
+            deletedByUserId: userId,
+        })
+            .where(eq(sale.id, selectedSale.id))
+
+        return { ok: true, saleId: selectedSale.id }
+    })
+
+    return transaction
 }

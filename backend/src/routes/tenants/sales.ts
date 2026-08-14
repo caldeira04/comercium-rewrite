@@ -1,4 +1,4 @@
-import { addProductToSale, createSale, currentSale, getSales, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
+import { addProductToSale, cancelSale, createSale, currentSale, getSales, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
 import Elysia, { t } from "elysia";
 
@@ -122,6 +122,19 @@ const sales = new Elysia({ prefix: "/sales" })
     }, {
         params: t.Object({
             saleId: t.String()
+        })
+    })
+
+    .post("/:id/cancel", async ({ auth, params }) => {
+        const cancelled = await cancelSale(auth.tenantSlug, {
+            userId: auth.userId,
+            saleId: params.id
+        })
+
+        return cancelled
+    }, {
+        params: t.Object({
+            id: t.String()
         })
     })
 

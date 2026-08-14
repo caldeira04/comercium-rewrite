@@ -1,4 +1,4 @@
-import { createPayment } from "@/domain/tenant/payment/PaymentsService"
+import { createPayment, refundPayment } from "@/domain/tenant/payment/PaymentsService"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
@@ -22,6 +22,19 @@ const payment = new Elysia({ prefix: "/payments" })
             totalAmount: t.Number(),
             paidAmount: t.Number(),
             paymentMethod: t.UnionEnum(["cash", "pix", "debit", "credit", "voucher"])
+        })
+    })
+
+    .post("/refund", async ({ body, auth }) => {
+        const refunded = await refundPayment(auth.tenantSlug, {
+            paymentId: body.paymentId,
+            userId: auth.userId,
+        })
+
+        return refunded
+    }, {
+        body: t.Object({
+            paymentId: t.String()
         })
     })
 

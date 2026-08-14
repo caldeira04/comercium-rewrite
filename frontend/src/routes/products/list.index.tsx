@@ -9,6 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     Table,
     TableBody,
     TableCell,
@@ -17,6 +24,7 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { useProducts } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 import type { Product, Products } from "@/lib/api-types"
 import { formatCurrency, maskCurrency } from "@/utils/finance"
 import { getApiErrorMessage } from "@/lib/api-error"
@@ -27,19 +35,25 @@ export const Route = createFileRoute("/products/list/")({
 
 function RouteComponent() {
     const { products, productsIsPending, productsIsError } = useProducts()
+    const { categories } = useCategories()
     const [search, setSearch] = useState("")
+    const [categoryFilter, setCategoryFilter] = useState("all")
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
     const filteredProducts = useMemo(() => {
         const catalogProducts = products?.filter((product) => product.id !== 0) ?? []
         const normalizedSearch = search.trim().toLowerCase()
-        if (!normalizedSearch) return catalogProducts
+        const filteredByCategory = categoryFilter === "all"
+            ? catalogProducts
+            : catalogProducts.filter((product) => String(product.category?.id ?? "none") === categoryFilter)
 
-        return catalogProducts.filter((product) =>
+        if (!normalizedSearch) return filteredByCategory
+
+        return filteredByCategory.filter((product) =>
             product.name.toLowerCase().includes(normalizedSearch) ||
             product.gtin?.toLowerCase().includes(normalizedSearch)
         )
-    }, [products, search])
+    }, [products, search, categoryFilter])
 
     return (
         <div className="flex h-screen w-full gap-4 self-start overflow-hidden p-4">
@@ -53,12 +67,26 @@ function RouteComponent() {
                 </div>
                 <Card className="min-h-0 flex-1">
                     <CardContent className="flex h-full min-h-0 flex-col gap-4">
-                        <Input
-                            className="max-w-lg"
-                            placeholder="buscar por nome ou GTIN"
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
+                        <div className="flex items-center gap-3">
+                            <Input
+                                className="max-w-lg"
+                                placeholder="buscar por nome ou GTIN"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                            />
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="categoria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">todas as categorias</SelectItem>
+                                    <SelectItem value="none">sem categoria</SelectItem>
+                                    {(categories ?? []).map((category) => (
+                                        <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         {productsIsPending && <Spinner />}
                         {productsIsError && <span>ocorreu um erro ao buscar os produtos</span>}
                         {!productsIsPending && filteredProducts.length === 0 && (
@@ -91,6 +119,7 @@ function ProductsTable({ products, onSelect }: {
                 <TableRow>
                     <TableHead className="w-[90px]">ID</TableHead>
                     <TableHead>produto</TableHead>
+                    <TableHead>categoria</TableHead>
                     <TableHead>GTIN</TableHead>
                     <TableHead className="text-right">estoque</TableHead>
                     <TableHead className="text-right">custo</TableHead>
@@ -107,6 +136,7 @@ function ProductsTable({ products, onSelect }: {
                         <TableRow key={product.id} className="cursor-pointer" onClick={() => onSelect(product)}>
                             <TableCell className="font-medium">{product.id}</TableCell>
                             <TableCell>{product.name}</TableCell>
+                            <TableCell>{product.category?.name ?? "-"}</TableCell>
                             <TableCell>{product.gtin ?? "-"}</TableCell>
                             <TableCell className={stock <= 0 ? "text-right font-bold text-red-600" : "text-right"}>{stock}</TableCell>
                             <TableCell className="text-right">{formatCurrency(product.buyPrice)}</TableCell>
@@ -122,11 +152,13 @@ function ProductsTable({ products, onSelect }: {
 
 function ProductDetails({ product }: { product: Product | null }) {
     const { updateProduct, updateProductIsPending } = useProducts()
+    const { categories } = useCategories()
     const [isEditing, setIsEditing] = useState(false)
     const [name, setName] = useState("")
     const [gtin, setGtin] = useState("")
     const [buyPrice, setBuyPrice] = useState("R$ 0,00")
     const [sellPrice, setSellPrice] = useState("R$ 0,00")
+    const [categoryId, setCategoryId] = useState<string>("none")
 
     useEffect(() => {
         if (!product) return
@@ -136,6 +168,7 @@ function ProductDetails({ product }: { product: Product | null }) {
         setGtin(product.gtin ?? "")
         setBuyPrice(maskCurrency(String(product.buyPrice)))
         setSellPrice(maskCurrency(String(product.sellPrice)))
+        setCategoryId(product.category ? String(product.category.id) : "none")
     }, [product])
 
     if (!product) {
@@ -165,6 +198,7 @@ function ProductDetails({ product }: { product: Product | null }) {
                 gtin: gtin.trim() || null,
                 buyPrice: Number(buyPrice.replace(/\D/g, "")),
                 sellPrice: Number(sellPrice.replace(/\D/g, "")),
+                categoryId: categoryId === "none" ? null : Number(categoryId),
             })
             toast.success("produto atualizado com sucesso")
             setIsEditing(false)
@@ -180,6 +214,7 @@ function ProductDetails({ product }: { product: Product | null }) {
         setGtin(product.gtin ?? "")
         setBuyPrice(maskCurrency(String(product.buyPrice)))
         setSellPrice(maskCurrency(String(product.sellPrice)))
+        setCategoryId(product.category ? String(product.category.id) : "none")
         setIsEditing(false)
     }
 
@@ -209,19 +244,33 @@ function ProductDetails({ product }: { product: Product | null }) {
                                 <Label htmlFor="product-sell-price">venda</Label>
                                 <Input disabled={product.id === 0} id="product-sell-price" value={sellPrice} onChange={(event) => setSellPrice(maskCurrency(event.target.value))} />
                             </div>
+                            <div className="flex flex-col gap-2">
+                                <Label>categoria</Label>
+                                <Select value={categoryId} onValueChange={setCategoryId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="selecione uma categoria" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">sem categoria</SelectItem>
+                                        {(categories ?? []).map((category) => (
+                                            <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <Button variant="outline" onClick={cancelEdit}>cancelar edição</Button>
                         <Button disabled={updateProductIsPending || product.id === 0} onClick={handleSave}>salvar alterações</Button>
                     </div>
                 ) : (
                     <>
-                        <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-3">
                             <Metric label="estoque" value={String(stock)} />
                             <Metric label="movimentos" value={String(product.stockMovement.length)} />
                             <Metric label="custo" value={formatCurrency(product.buyPrice)} />
                             <Metric label="venda" value={formatCurrency(product.sellPrice)} />
+                            <Metric label="categoria" value={product.category?.name ?? "sem categoria"} />
                             <Metric label="margem" value={formatCurrency(margin)} />
-                            <Metric label="markup" value={`${product.buyPrice > 0 ? ((margin / product.buyPrice) * 100).toFixed(1) : "0"}%`} />
                         </div>
                         <Button variant="outline" disabled={product.id === 0} onClick={() => setIsEditing(true)}>editar produto</Button>
                         <StockMovementDialog productId={product.id} />

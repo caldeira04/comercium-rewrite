@@ -25,9 +25,30 @@ export function usePayments() {
             queryClient.invalidateQueries({ queryKey: ["currentSale"] })
         }
     })
+    const refundPaymentMutation = useMutation({
+        mutationFn: async (paymentId: string) => {
+            const { data, error } = await api.tenant.payments.refund.post({
+                paymentId
+            }, {
+                fetch: { credentials: "include" }
+            })
+            if (error) throwApiError(error)
+            return data
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["sales"] })
+            queryClient.invalidateQueries({ queryKey: ["currentSale"] })
+            queryClient.invalidateQueries({ queryKey: ["currentCash"] })
+            queryClient.invalidateQueries({ queryKey: ["cash"] })
+        }
+    })
+
     return {
         createPayments: createPaymentsMutation.mutateAsync,
         createPaymentsIsPending: createPaymentsMutation.isPending,
         createPaymentsIsError: createPaymentsMutation.isError,
+        refundPayment: refundPaymentMutation.mutateAsync,
+        refundPaymentIsPending: refundPaymentMutation.isPending,
+        refundPaymentIsError: refundPaymentMutation.isError,
     }
 }

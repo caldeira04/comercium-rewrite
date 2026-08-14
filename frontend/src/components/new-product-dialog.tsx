@@ -13,7 +13,15 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { useProducts } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
 import { maskCurrency } from "@/utils/finance"
 import { getApiErrorMessage } from "@/lib/api-error"
 
@@ -23,7 +31,9 @@ export default function NewProductDialog() {
     const [gtin, setGtin] = useState("")
     const [buyPrice, setBuyPrice] = useState("R$ 0,00")
     const [sellPrice, setSellPrice] = useState("R$ 0,00")
+    const [categoryId, setCategoryId] = useState<string>("none")
     const { createProduct, createProductIsPending } = useProducts()
+    const { categories } = useCategories()
 
     async function handleSubmit() {
         if (!name.trim()) {
@@ -37,6 +47,7 @@ export default function NewProductDialog() {
                 gtin: gtin.trim(),
                 buyPrice: Number(buyPrice.replace(/\D/g, "")),
                 sellPrice: Number(sellPrice.replace(/\D/g, "")),
+                categoryId: categoryId === "none" ? undefined : Number(categoryId),
             })
 
             toast.success("produto cadastrado com sucesso")
@@ -44,6 +55,7 @@ export default function NewProductDialog() {
             setGtin("")
             setBuyPrice("R$ 0,00")
             setSellPrice("R$ 0,00")
+            setCategoryId("none")
             setOpen(false)
         } catch (error) {
             toast.error(getApiErrorMessage(error, "Erro ao cadastrar produto"))
@@ -76,6 +88,20 @@ export default function NewProductDialog() {
                     <div className="flex flex-col gap-2">
                         <Label htmlFor="sellPrice">venda</Label>
                         <Input id="sellPrice" value={sellPrice} onChange={(event) => setSellPrice(maskCurrency(event.target.value))} />
+                    </div>
+                    <div className="col-span-2 flex flex-col gap-2">
+                        <Label>categoria</Label>
+                        <Select value={categoryId} onValueChange={setCategoryId}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="selecione uma categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">sem categoria</SelectItem>
+                                {(categories ?? []).map((category) => (
+                                    <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
                 <DialogFooter>

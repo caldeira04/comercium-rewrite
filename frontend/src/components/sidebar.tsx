@@ -19,7 +19,7 @@ import { Link } from "@tanstack/react-router"
 import { type ResponseUser } from "@/utils/auth"
 import { getApiUrl } from "@/lib/api-config"
 
-export default function AppSidebar({ login, tenantName, tenantSlug }: ResponseUser) {
+export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<ResponseUser, "tenantId">) {
     async function handleLogout() {
         await fetch(getApiUrl("/master/auth/logout"), {
             method: "POST",

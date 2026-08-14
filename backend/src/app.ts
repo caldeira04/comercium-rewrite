@@ -2,6 +2,7 @@ import { Elysia } from "elysia"
 import { cors } from "@elysia/cors"
 import auth from "./routes/master/auth"
 import tenants from "./routes/master/tenants"
+import users from "./routes/master/users"
 import onboarding from "./routes/master/onboarding"
 import products from "./routes/tenants/products"
 import { authPlugin } from "./utils/elysia"
@@ -10,6 +11,7 @@ import clients from "./routes/tenants/clients"
 import cash from "./routes/tenants/cash"
 import payment from "./routes/tenants/payments"
 import stock from "./routes/tenants/stock"
+import categories from "./routes/tenants/categories"
 import { AppError } from "./utils/errors"
 
 export function createApp({ corsOrigin = "http://localhost:5173" }: {
@@ -61,6 +63,7 @@ export function createApp({ corsOrigin = "http://localhost:5173" }: {
             master
                 .use(auth)
                 .use(tenants)
+                .use(users)
                 .use(onboarding)
         )
         .group('/tenant', (tenant) =>
@@ -72,6 +75,7 @@ export function createApp({ corsOrigin = "http://localhost:5173" }: {
                 .use(cash)
                 .use(payment)
                 .use(stock)
+                .use(categories)
         )
         .get("/", () => "Hello Elysia")
 }

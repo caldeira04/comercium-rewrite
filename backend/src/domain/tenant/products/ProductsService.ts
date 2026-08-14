@@ -8,16 +8,18 @@ export async function createProduct(tenantSlug: string, data: {
     buyPrice: number
     sellPrice: number
     gtin?: string
+    categoryId?: number | null
     createdByUserId?: string | null
 }) {
     const db = getTenantDb(tenantSlug)
-    const { name, buyPrice, sellPrice, gtin, createdByUserId } = data
+    const { name, buyPrice, sellPrice, gtin, categoryId, createdByUserId } = data
 
     const [newProduct] = await db.insert(product).values({
         name,
         buyPrice,
         sellPrice,
         gtin: gtin ?? null,
+        categoryId: categoryId ?? null,
         createdByUserId,
         updatedByUserId: createdByUserId
     }).returning()
@@ -46,6 +48,12 @@ export async function getProducts(tenantSlug: string, includeDeleted?: boolean) 
                     columns: {
                         quantity: true,
                         type: true
+                    }
+                },
+                category: {
+                    columns: {
+                        id: true,
+                        name: true
                     }
                 }
             },
@@ -77,6 +85,12 @@ export async function getSingleProduct(tenantSlug: string, productId: number) {
                         quantity: true,
                         type: true
                     }
+                },
+                category: {
+                    columns: {
+                        id: true,
+                        name: true
+                    }
                 }
             },
             where: (product, { eq }) =>
@@ -92,10 +106,11 @@ export async function updateProduct(tenantSlug: string, data: {
     buyPrice?: number
     sellPrice?: number
     gtin?: string | null
+    categoryId?: number | null
     userId: string
 }) {
     const db = getTenantDb(tenantSlug)
-    const { productId, name, buyPrice, sellPrice, gtin, userId } = data
+    const { productId, name, buyPrice, sellPrice, gtin, categoryId, userId } = data
 
     if (productId === 0) {
         throw new AppError("não é possível editar o produto genérico", 409, "GENERIC_PRODUCT_IMMUTABLE")
@@ -106,6 +121,7 @@ export async function updateProduct(tenantSlug: string, data: {
         ...(buyPrice !== undefined ? { buyPrice } : {}),
         ...(sellPrice !== undefined ? { sellPrice } : {}),
         ...(gtin !== undefined ? { gtin } : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
         updatedAt: sql`(CURRENT_TIMESTAMP)`,
         updatedByUserId: userId,
     })

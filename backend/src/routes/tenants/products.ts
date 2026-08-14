@@ -28,13 +28,14 @@ const products = new Elysia({ prefix: "/products" })
     })
 
     .post("/", async ({ body, auth }) => {
-        const { name, buyPrice, sellPrice, gtin } = body
+        const { name, buyPrice, sellPrice, gtin, categoryId } = body
 
         return await createProduct(auth.tenantSlug, {
             name,
             buyPrice,
             sellPrice,
             gtin: gtin ?? undefined,
+            categoryId: categoryId ?? undefined,
             createdByUserId: String(auth.userId),
         })
     }, {
@@ -44,6 +45,7 @@ const products = new Elysia({ prefix: "/products" })
                 buyPrice: t.Numeric(),
                 sellPrice: t.Numeric(),
                 gtin: t.Optional(t.String()),
+                categoryId: t.Optional(t.Number()),
             }),
     })
 
@@ -54,6 +56,7 @@ const products = new Elysia({ prefix: "/products" })
             buyPrice: body.buyPrice,
             sellPrice: body.sellPrice,
             gtin: body.gtin ?? undefined,
+            categoryId: body.categoryId,
             userId: auth.userId,
         })
     }, {
@@ -65,6 +68,7 @@ const products = new Elysia({ prefix: "/products" })
             buyPrice: t.Number(),
             sellPrice: t.Number(),
             gtin: t.Nullable(t.String()),
+            categoryId: t.Nullable(t.Number()),
         }))
     })
 

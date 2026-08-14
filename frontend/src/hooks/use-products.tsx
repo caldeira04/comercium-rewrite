@@ -17,17 +17,19 @@ export function useProducts(productId?: number) {
     const singleProduct = productsQuery.data?.find((product) => product.id === productId)
 
     const createProductMutation = useMutation({
-        mutationFn: async ({ buyPrice, name, sellPrice, gtin }: {
+        mutationFn: async ({ buyPrice, name, sellPrice, gtin, categoryId }: {
             buyPrice: number
             sellPrice: number
             name: string
             gtin: string
+            categoryId?: number
         }) => {
             const { data, error } = await api.tenant.products.post({
                 buyPrice,
                 name,
                 sellPrice,
-                gtin
+                gtin,
+                categoryId
             })
             if (error) throwApiError(error)
             return data
@@ -38,18 +40,20 @@ export function useProducts(productId?: number) {
     })
 
     const updateProductMutation = useMutation({
-        mutationFn: async ({ productId, buyPrice, name, sellPrice, gtin }: {
+        mutationFn: async ({ productId, buyPrice, name, sellPrice, gtin, categoryId }: {
             productId: number
             buyPrice: number
             sellPrice: number
             name: string
             gtin: string | null
+            categoryId?: number | null
         }) => {
             const { data, error } = await api.tenant.products({ productId: String(productId) }).patch({
                 buyPrice,
                 name,
                 sellPrice,
-                gtin
+                gtin,
+                categoryId
             })
             if (error) throwApiError(error)
             return data
