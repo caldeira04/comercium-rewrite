@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import * as z from "zod"
 import { useForm } from "@tanstack/react-form"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -38,6 +38,7 @@ export const Route = createFileRoute('/onboarding/')({
 
 function RouteComponent() {
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
     
     // Check if system is already set up
     const { data: setupStatus } = useQuery({
@@ -86,6 +87,7 @@ function RouteComponent() {
                 }
 
                 toast.success("Loja configurada com sucesso!")
+                await queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
                 navigate({ to: "/" })
             } catch (e) {
                 toast.error(getApiErrorMessage(e, "Erro ao configurar loja"))

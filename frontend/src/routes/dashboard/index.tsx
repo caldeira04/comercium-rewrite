@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
+import { Metric } from "@/components/metric"
 import { useCash } from "@/hooks/use-cash"
 import { useProducts } from "@/hooks/use-products"
 import { useSales } from "@/hooks/use-sales"
@@ -113,18 +114,6 @@ function RouteComponent() {
                 </Card>
             </div>
         </div>
-    )
-}
-
-function Metric({ label, value, detail }: { label: string, value: string, detail: string }) {
-    return (
-        <Card>
-            <CardContent>
-                <p className="text-sm uppercase text-muted-foreground">{label}</p>
-                <p className="text-2xl font-bold">{value}</p>
-                <p className="text-sm text-muted-foreground">{detail}</p>
-            </CardContent>
-        </Card>
     )
 }
 

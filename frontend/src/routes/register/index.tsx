@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from "@tanstack/react-query"
 import * as z from "zod"
 import { useForm } from "@tanstack/react-form"
 import { toast } from "sonner"
@@ -39,6 +40,7 @@ export const Route = createFileRoute('/register/')({
 function RouteComponent() {
 
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
     const form = useForm({
         defaultValues: {
@@ -69,6 +71,7 @@ function RouteComponent() {
                 }
 
                 toast.success("registro de loja realizado com sucesso")
+                await queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
                 navigate({ to: "/" })
             } catch (e) {
                 toast.error(getApiErrorMessage(e, "Erro ao realizar registro de loja"))

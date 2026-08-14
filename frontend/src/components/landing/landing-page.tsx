@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useMotionValueEvent, useScroll } from "motion/react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { CashDemo, CouponsDemo, SalesDemo, StockDemo } from "./demos"
+import { CashDemo, DashboardDemo, PdvDemo, StockDemo } from "./demos"
 import { ModeToggle } from '../theme-toggle';
 import { ArrowDown, ArrowRight } from 'lucide-react';
 import Pricing from './pricing';
@@ -187,18 +187,17 @@ export default function LandingPage() {
                         </div>
                     </div>
                     <div className='border-1 border-border p-4 w-full flex justify-center h-3/4 rouded-lg'>
-                        <Tabs defaultValue='sales' className='w-full flex items-center justify-center'>
+<Tabs defaultValue='dashboard' className='w-full flex items-center justify-center'>
                             <TabsList className='gap-8'>
-                                <TabsTrigger value='sales'>vendas</TabsTrigger>
-                                <TabsTrigger value='stock'>estoque</TabsTrigger>
-                                <TabsTrigger value='cash'>caixas</TabsTrigger>
-                                <TabsTrigger value='coupons'>notas</TabsTrigger>
+                                <TabsTrigger value='dashboard'>dashboard</TabsTrigger>
+                                <TabsTrigger value='pdv'>ponto de venda</TabsTrigger>
+                                <TabsTrigger value='estoque'>estoque</TabsTrigger>
+                                <TabsTrigger value='caixas'>caixas</TabsTrigger>
                             </TabsList>
-                            <TabsContent className='w-full overflow-auto' value='sales'><SalesDemo /></TabsContent>
-                            <TabsContent className='w-full overflow-auto' value='stock'><StockDemo /></TabsContent>
-                            <TabsContent className='w-full overflow-auto' value='cash'><CashDemo /></TabsContent>
-                            <TabsContent className='w-full overflow-auto' value='coupons'><CouponsDemo /></TabsContent>
-
+                            <TabsContent className='w-full overflow-auto' value='dashboard'><DashboardDemo /></TabsContent>
+                            <TabsContent className='w-full overflow-auto' value='pdv'><PdvDemo /></TabsContent>
+                            <TabsContent className='w-full overflow-auto' value='estoque'><StockDemo /></TabsContent>
+                            <TabsContent className='w-full overflow-auto' value='caixas'><CashDemo /></TabsContent>
                         </Tabs>
                     </div>
                 </div>
