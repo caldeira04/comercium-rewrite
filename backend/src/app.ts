@@ -15,7 +15,7 @@ import categories from "./routes/tenants/categories"
 import { AppError } from "./utils/errors"
 
 export function createApp({ corsOrigin = "http://localhost:5173" }: {
-    corsOrigin?: string
+    corsOrigin?: string | string[]
 } = {}) {
     return new Elysia()
         .onError(({ code, error, set }) => {
