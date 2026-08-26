@@ -6,6 +6,7 @@ export type ResponseUser = {
     tenantSlug: string
     login: string
     tenantName: string
+    impersonatedByAdminId?: string | null
 }
 
 export const loaderCredentials = async () => {

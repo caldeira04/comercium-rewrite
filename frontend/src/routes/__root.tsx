@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
 import AppSidebar from "@/components/sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner"
 import { loaderCredentials } from "@/utils/auth"
 import { useQuery } from "@tanstack/react-query"
 
@@ -61,7 +62,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
     const { pathname } = useLocation()
     const normalizedPathname = pathname.replace(/\/$/, "") || "/"
-    const isSidebarVisible = !["/", "/login", "/register", "/onboarding"].includes(normalizedPathname)
+    const isAdminPath = normalizedPathname === "/admin" || normalizedPathname.startsWith("/admin/")
+    const isSidebarVisible = !isAdminPath && !["/", "/login", "/register", "/onboarding"].includes(normalizedPathname)
 
     const loaderData = Route.useLoaderData()
     const { data: authData } = useQuery({
@@ -78,23 +80,35 @@ function RootComponent() {
             enableSystem
             disableTransitionOnChange
         >
-            <SidebarProvider>
-                <div className="flex w-full min-h-screen items-center justify-center">
-                    {isSidebarVisible && user && (
-                        <AppSidebar
-                            login={user.login}
-                            tenantName={user.tenantName}
-                            tenantSlug={user.tenantSlug}
-                            userId={user.userId}
-                        />
-                    )}
-
-                    <TooltipProvider>
-                        <Outlet />
-                    </TooltipProvider>
+            {isAdminPath ? (
+                <TooltipProvider>
+                    <Outlet />
                     <Toaster />
-                </div>
-            </SidebarProvider>
+                </TooltipProvider>
+            ) : (
+                <SidebarProvider>
+                    <div className="flex w-full min-h-screen items-center justify-center">
+                        {isSidebarVisible && user && (
+                            <AppSidebar
+                                login={user.login}
+                                tenantName={user.tenantName}
+                                tenantSlug={user.tenantSlug}
+                                userId={user.userId}
+                            />
+                        )}
+
+                        <TooltipProvider>
+                            <div className={`relative flex w-full min-h-screen ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
+                                {user?.impersonatedByAdminId && (
+                                    <ImpersonationBanner tenantName={user.tenantName} />
+                                )}
+                                <Outlet />
+                            </div>
+                        </TooltipProvider>
+                        <Toaster />
+                    </div>
+                </SidebarProvider>
+            )}
             <TanStackDevtools
                 config={{
                     position: "bottom-right",

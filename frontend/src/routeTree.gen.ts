@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as RegisterIndexRouteImport } from './routes/register/index'
@@ -16,6 +17,7 @@ import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as ClientsIndexRouteImport } from './routes/clients/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as SalesReportIndexRouteImport } from './routes/sales/report.index'
 import { Route as SalesListIndexRouteImport } from './routes/sales/list.index'
 import { Route as SalesDailyIndexRouteImport } from './routes/sales/daily.index'
@@ -24,7 +26,22 @@ import { Route as ProductsListIndexRouteImport } from './routes/products/list.in
 import { Route as CashReportIndexRouteImport } from './routes/cash/report.index'
 import { Route as CashListIndexRouteImport } from './routes/cash/list.index'
 import { Route as CashCurrentIndexRouteImport } from './routes/cash/current.index'
+import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminTenantsIndexRouteImport } from './routes/admin/tenants/index'
+import { Route as AdminMonitoringIndexRouteImport } from './routes/admin/monitoring/index'
+import { Route as AdminLoginIndexRouteImport } from './routes/admin/login/index'
+import { Route as AdminFlagsIndexRouteImport } from './routes/admin/flags/index'
+import { Route as AdminFiscalIndexRouteImport } from './routes/admin/fiscal/index'
+import { Route as AdminBillingIndexRouteImport } from './routes/admin/billing/index'
+import { Route as AdminAuditIndexRouteImport } from './routes/admin/audit/index'
+import { Route as AdminAnnouncementsIndexRouteImport } from './routes/admin/announcements/index'
+import { Route as AdminTenantsTenantIdRouteImport } from './routes/admin/tenants/$tenantId'
 
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -59,6 +76,11 @@ const ClientsIndexRoute = ClientsIndexRouteImport.update({
   id: '/clients/',
   path: '/clients/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const SalesReportIndexRoute = SalesReportIndexRouteImport.update({
   id: '/sales/report/',
@@ -100,15 +122,77 @@ const CashCurrentIndexRoute = CashCurrentIndexRouteImport.update({
   path: '/cash/current/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTenantsIndexRoute = AdminTenantsIndexRouteImport.update({
+  id: '/tenants/',
+  path: '/tenants/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMonitoringIndexRoute = AdminMonitoringIndexRouteImport.update({
+  id: '/monitoring/',
+  path: '/monitoring/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginIndexRoute = AdminLoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFlagsIndexRoute = AdminFlagsIndexRouteImport.update({
+  id: '/flags/',
+  path: '/flags/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFiscalIndexRoute = AdminFiscalIndexRouteImport.update({
+  id: '/fiscal/',
+  path: '/fiscal/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBillingIndexRoute = AdminBillingIndexRouteImport.update({
+  id: '/billing/',
+  path: '/billing/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditIndexRoute = AdminAuditIndexRouteImport.update({
+  id: '/audit/',
+  path: '/audit/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnnouncementsIndexRoute = AdminAnnouncementsIndexRouteImport.update({
+  id: '/announcements/',
+  path: '/announcements/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTenantsTenantIdRoute = AdminTenantsTenantIdRouteImport.update({
+  id: '/tenants/$tenantId',
+  path: '/tenants/$tenantId',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
   '/onboarding/': typeof OnboardingIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/admin/announcements/': typeof AdminAnnouncementsIndexRoute
+  '/admin/audit/': typeof AdminAuditIndexRoute
+  '/admin/billing/': typeof AdminBillingIndexRoute
+  '/admin/fiscal/': typeof AdminFiscalIndexRoute
+  '/admin/flags/': typeof AdminFlagsIndexRoute
+  '/admin/login/': typeof AdminLoginIndexRoute
+  '/admin/monitoring/': typeof AdminMonitoringIndexRoute
+  '/admin/tenants/': typeof AdminTenantsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
   '/cash/current/': typeof CashCurrentIndexRoute
   '/cash/list/': typeof CashListIndexRoute
   '/cash/report/': typeof CashReportIndexRoute
@@ -120,12 +204,23 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminIndexRoute
   '/clients': typeof ClientsIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/login': typeof LoginIndexRoute
   '/onboarding': typeof OnboardingIndexRoute
   '/register': typeof RegisterIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/admin/announcements': typeof AdminAnnouncementsIndexRoute
+  '/admin/audit': typeof AdminAuditIndexRoute
+  '/admin/billing': typeof AdminBillingIndexRoute
+  '/admin/fiscal': typeof AdminFiscalIndexRoute
+  '/admin/flags': typeof AdminFlagsIndexRoute
+  '/admin/login': typeof AdminLoginIndexRoute
+  '/admin/monitoring': typeof AdminMonitoringIndexRoute
+  '/admin/tenants': typeof AdminTenantsIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
   '/cash/current': typeof CashCurrentIndexRoute
   '/cash/list': typeof CashListIndexRoute
   '/cash/report': typeof CashReportIndexRoute
@@ -138,12 +233,24 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/clients/': typeof ClientsIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/login/': typeof LoginIndexRoute
   '/onboarding/': typeof OnboardingIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/admin/tenants/$tenantId': typeof AdminTenantsTenantIdRoute
+  '/admin/announcements/': typeof AdminAnnouncementsIndexRoute
+  '/admin/audit/': typeof AdminAuditIndexRoute
+  '/admin/billing/': typeof AdminBillingIndexRoute
+  '/admin/fiscal/': typeof AdminFiscalIndexRoute
+  '/admin/flags/': typeof AdminFlagsIndexRoute
+  '/admin/login/': typeof AdminLoginIndexRoute
+  '/admin/monitoring/': typeof AdminMonitoringIndexRoute
+  '/admin/tenants/': typeof AdminTenantsIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
   '/cash/current/': typeof CashCurrentIndexRoute
   '/cash/list/': typeof CashListIndexRoute
   '/cash/report/': typeof CashReportIndexRoute
@@ -157,12 +264,24 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/admin/'
     | '/clients/'
     | '/dashboard/'
     | '/login/'
     | '/onboarding/'
     | '/register/'
     | '/settings/'
+    | '/admin/tenants/$tenantId'
+    | '/admin/announcements/'
+    | '/admin/audit/'
+    | '/admin/billing/'
+    | '/admin/fiscal/'
+    | '/admin/flags/'
+    | '/admin/login/'
+    | '/admin/monitoring/'
+    | '/admin/tenants/'
+    | '/admin/users/'
     | '/cash/current/'
     | '/cash/list/'
     | '/cash/report/'
@@ -174,12 +293,23 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/clients'
     | '/dashboard'
     | '/login'
     | '/onboarding'
     | '/register'
     | '/settings'
+    | '/admin/tenants/$tenantId'
+    | '/admin/announcements'
+    | '/admin/audit'
+    | '/admin/billing'
+    | '/admin/fiscal'
+    | '/admin/flags'
+    | '/admin/login'
+    | '/admin/monitoring'
+    | '/admin/tenants'
+    | '/admin/users'
     | '/cash/current'
     | '/cash/list'
     | '/cash/report'
@@ -191,12 +321,24 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/admin/'
     | '/clients/'
     | '/dashboard/'
     | '/login/'
     | '/onboarding/'
     | '/register/'
     | '/settings/'
+    | '/admin/tenants/$tenantId'
+    | '/admin/announcements/'
+    | '/admin/audit/'
+    | '/admin/billing/'
+    | '/admin/fiscal/'
+    | '/admin/flags/'
+    | '/admin/login/'
+    | '/admin/monitoring/'
+    | '/admin/tenants/'
+    | '/admin/users/'
     | '/cash/current/'
     | '/cash/list/'
     | '/cash/report/'
@@ -209,6 +351,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ClientsIndexRoute: typeof ClientsIndexRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
   LoginIndexRoute: typeof LoginIndexRoute
@@ -227,6 +370,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -275,6 +425,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/clients/'
       preLoaderRoute: typeof ClientsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/sales/report/': {
       id: '/sales/report/'
@@ -332,11 +489,112 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CashCurrentIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users/': {
+      id: '/admin/users/'
+      path: '/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tenants/': {
+      id: '/admin/tenants/'
+      path: '/tenants'
+      fullPath: '/admin/tenants/'
+      preLoaderRoute: typeof AdminTenantsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/monitoring/': {
+      id: '/admin/monitoring/'
+      path: '/monitoring'
+      fullPath: '/admin/monitoring/'
+      preLoaderRoute: typeof AdminMonitoringIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login/': {
+      id: '/admin/login/'
+      path: '/login'
+      fullPath: '/admin/login/'
+      preLoaderRoute: typeof AdminLoginIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/flags/': {
+      id: '/admin/flags/'
+      path: '/flags'
+      fullPath: '/admin/flags/'
+      preLoaderRoute: typeof AdminFlagsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/fiscal/': {
+      id: '/admin/fiscal/'
+      path: '/fiscal'
+      fullPath: '/admin/fiscal/'
+      preLoaderRoute: typeof AdminFiscalIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/billing/': {
+      id: '/admin/billing/'
+      path: '/billing'
+      fullPath: '/admin/billing/'
+      preLoaderRoute: typeof AdminBillingIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit/': {
+      id: '/admin/audit/'
+      path: '/audit'
+      fullPath: '/admin/audit/'
+      preLoaderRoute: typeof AdminAuditIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/announcements/': {
+      id: '/admin/announcements/'
+      path: '/announcements'
+      fullPath: '/admin/announcements/'
+      preLoaderRoute: typeof AdminAnnouncementsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/tenants/$tenantId': {
+      id: '/admin/tenants/$tenantId'
+      path: '/tenants/$tenantId'
+      fullPath: '/admin/tenants/$tenantId'
+      preLoaderRoute: typeof AdminTenantsTenantIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminTenantsTenantIdRoute: typeof AdminTenantsTenantIdRoute
+  AdminAnnouncementsIndexRoute: typeof AdminAnnouncementsIndexRoute
+  AdminAuditIndexRoute: typeof AdminAuditIndexRoute
+  AdminBillingIndexRoute: typeof AdminBillingIndexRoute
+  AdminFiscalIndexRoute: typeof AdminFiscalIndexRoute
+  AdminFlagsIndexRoute: typeof AdminFlagsIndexRoute
+  AdminLoginIndexRoute: typeof AdminLoginIndexRoute
+  AdminMonitoringIndexRoute: typeof AdminMonitoringIndexRoute
+  AdminTenantsIndexRoute: typeof AdminTenantsIndexRoute
+  AdminUsersIndexRoute: typeof AdminUsersIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+  AdminTenantsTenantIdRoute: AdminTenantsTenantIdRoute,
+  AdminAnnouncementsIndexRoute: AdminAnnouncementsIndexRoute,
+  AdminAuditIndexRoute: AdminAuditIndexRoute,
+  AdminBillingIndexRoute: AdminBillingIndexRoute,
+  AdminFiscalIndexRoute: AdminFiscalIndexRoute,
+  AdminFlagsIndexRoute: AdminFlagsIndexRoute,
+  AdminLoginIndexRoute: AdminLoginIndexRoute,
+  AdminMonitoringIndexRoute: AdminMonitoringIndexRoute,
+  AdminTenantsIndexRoute: AdminTenantsIndexRoute,
+  AdminUsersIndexRoute: AdminUsersIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   ClientsIndexRoute: ClientsIndexRoute,
   DashboardIndexRoute: DashboardIndexRoute,
   LoginIndexRoute: LoginIndexRoute,

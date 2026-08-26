@@ -90,6 +90,11 @@ export async function login(username: string, password: string) {
         throw new AppError("credenciais inválidas", 401, "INVALID_CREDENTIALS")
     }
 
+    const [userRow] = await db.select({ isActive: tenantUser.isActive }).from(tenantUser).where(eq(tenantUser.id, user.id)).limit(1)
+    if (!userRow?.isActive) {
+        throw new AppError("usuário desativado", 403, "USER_DISABLED")
+    }
+
     const validPassword = await verifyPassword(password, user.password)
 
     if (!validPassword) {
@@ -116,6 +121,7 @@ export async function validateSession(token: string) {
         .select({
             sessionId: session.id,
             expiresAt: session.expiresAt,
+            impersonatedByAdminId: session.impersonatedByAdminId,
             userId: tenantUser.id,
             login: tenantUser.login,
             tenantId: tenantUser.tenantId,

@@ -1,4 +1,4 @@
-import { sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { timestamps } from "@/utils/drizzle"
 import { tenant } from "./tenant"
 import { relations } from "drizzle-orm"
@@ -8,6 +8,7 @@ export const tenantUser = sqliteTable("tenant_users", {
     tenantId: text("tenant_id").notNull().references(() => tenant.id, { onDelete: "cascade" }),
     login: text("login").notNull(),
     password: text("password").notNull(),
+    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
 
     ...timestamps()
 }, (table) => [
@@ -19,6 +20,7 @@ export const session = sqliteTable("session", {
     tenantUserId: text("tenant_user_id").notNull().references(() => tenantUser.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull().unique(),
     expiresAt: text("expires_at").notNull(),
+    impersonatedByAdminId: text("impersonated_by_admin_id"),
     createdAt: timestamps().createdAt,
 })
 
