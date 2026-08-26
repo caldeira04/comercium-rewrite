@@ -1,7 +1,7 @@
-import { useClients } from "@/hooks/use-clients"
-import type { Client } from "@/lib/types"
-import { loaderCredentials } from '@/utils/auth'
-import { createFileRoute } from '@tanstack/react-router'
+import { useClients } from "@/hooks/use-clients";
+import type { Client } from "@/lib/types";
+import { loaderCredentials } from "@/utils/auth";
+import { createFileRoute } from "@tanstack/react-router";
 import {
     Command,
     CommandEmpty,
@@ -9,8 +9,8 @@ import {
     CommandItem,
     CommandList,
     CommandShortcut,
-} from "@/components/ui/command"
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
+} from "@/components/ui/command";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
     Combobox,
     ComboboxContent,
@@ -18,40 +18,41 @@ import {
     ComboboxInput,
     ComboboxItem,
     ComboboxList,
-} from "@/components/ui/combobox"
-import NewClientDialog from "@/components/new-client-dialog"
-import { SaleItemsTable } from "@/components/sales/sale-items-table"
-import { formatCurrency, maskCurrency } from '@/utils/finance'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { RefObject } from 'react'
-import { useSales } from '@/hooks/use-sales'
-import { Button } from '@/components/ui/button'
-import { Spinner } from "@/components/ui/spinner"
-import { useProducts } from "@/hooks/use-products"
-import { toast } from "sonner"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { InputGroup } from "@/components/ui/input-group"
-import { MinusIcon, PlusIcon } from "lucide-react"
-import NewPaymentDialog from "@/components/new-payment-dialog"
-import type { CurrentSale, CurrentSaleItem, Product } from "@/lib/api-types"
-import { getApiErrorMessage } from "@/lib/api-error"
+} from "@/components/ui/combobox";
+import NewClientDialog from "@/components/new-client-dialog";
+import { SaleItemsTable } from "@/components/sales/sale-items-table";
+import { formatCurrency, maskCurrency } from "@/utils/finance";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { useSales } from "@/hooks/use-sales";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { useProducts } from "@/hooks/use-products";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { InputGroup } from "@/components/ui/input-group";
+import { MinusIcon, PlusIcon } from "lucide-react";
+import NewPaymentDialog from "@/components/new-payment-dialog";
+import { PdvHotkeys } from "@/components/sales/pdv-hotkeys";
+import type { CurrentSale, CurrentSaleItem, Product } from "@/lib/api-types";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 type SaleItemSelection =
-    | { mode: "add", productId: string }
-    | { mode: "edit", saleItem: CurrentSaleItem }
+    | { mode: "add"; productId: string }
+    | { mode: "edit"; saleItem: CurrentSaleItem };
 
-type ClientOption = Pick<Client, "id" | "name">
+type ClientOption = Pick<Client, "id" | "name">;
 
-const GENERIC_PRODUCT_ID = "0"
+const GENERIC_PRODUCT_ID = "0";
 
-export const Route = createFileRoute('/sales/daily/')({
+export const Route = createFileRoute("/sales/daily/")({
     loader: loaderCredentials,
     component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-    const [showDeletedItems, setShowDeletedItems] = useState(false)
+    const [showDeletedItems, setShowDeletedItems] = useState(false);
     const {
         currentSale,
         currentSaleIsPending,
@@ -60,95 +61,121 @@ function RouteComponent() {
         removeProductFromSale,
         removeProductFromSaleIsPending,
         reactivateProductFromSale,
-        reactivateProductFromSaleIsPending
-    } = useSales({ includeDeleted: showDeletedItems })
-    const [selectedItem, setSelectedItem] = useState<SaleItemSelection | null>(null)
-    const [productSearch, setProductSearch] = useState("")
-    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
-    const { products, productsIsPending } = useProducts()
-    const productSearchRef = useRef<HTMLInputElement>(null)
-    const clientSearchRef = useRef<HTMLInputElement>(null)
+        reactivateProductFromSaleIsPending,
+    } = useSales({ includeDeleted: showDeletedItems });
+    const [selectedItem, setSelectedItem] = useState<SaleItemSelection | null>(
+        null,
+    );
+    const [productSearch, setProductSearch] = useState("");
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [showHotkeys, setShowHotkeys] = useState(false);
+    const { products, productsIsPending } = useProducts();
+    const productSearchRef = useRef<HTMLInputElement>(null);
+    const clientSearchRef = useRef<HTMLInputElement>(null);
 
-    const canAddProduct = !!currentSale
-    const actualTotal = currentSale ? getSaleRemainingTotal(currentSale) : 0
+    const canAddProduct = !!currentSale;
+    const actualTotal = currentSale ? getSaleRemainingTotal(currentSale) : 0;
 
-    const removeSaleItem = useCallback(async (saleItem: CurrentSaleItem) => {
-        try {
-            await removeProductFromSale({
-                saleItemId: saleItem.id,
-                deleteReason: "remoção manual"
-            })
+    const removeSaleItem = useCallback(
+        async (saleItem: CurrentSaleItem) => {
+            try {
+                await removeProductFromSale({
+                    saleItemId: saleItem.id,
+                    deleteReason: "remoção manual",
+                });
 
-            if (selectedItem?.mode === "edit" && selectedItem.saleItem.id === saleItem.id) {
-                setSelectedItem(null)
+                if (
+                    selectedItem?.mode === "edit" &&
+                    selectedItem.saleItem.id === saleItem.id
+                ) {
+                    setSelectedItem(null);
+                }
+
+                toast.success("item removido da venda");
+            } catch (error) {
+                toast.error(
+                    getApiErrorMessage(error, "Erro ao remover item da venda"),
+                );
             }
+        },
+        [removeProductFromSale, selectedItem],
+    );
 
-            toast.success("item removido da venda")
-        } catch (error) {
-            toast.error(getApiErrorMessage(error, "Erro ao remover item da venda"))
-        }
-    }, [removeProductFromSale, selectedItem])
-
-    const reactivateSaleItem = useCallback(async (saleItem: CurrentSaleItem) => {
-        try {
-            await reactivateProductFromSale(saleItem.id)
-            toast.success("item reativado na venda")
-        } catch (error) {
-            toast.error(getApiErrorMessage(error, "Erro ao reativar item da venda"))
-        }
-    }, [reactivateProductFromSale])
+    const reactivateSaleItem = useCallback(
+        async (saleItem: CurrentSaleItem) => {
+            try {
+                await reactivateProductFromSale(saleItem.id);
+                toast.success("item reativado na venda");
+            } catch (error) {
+                toast.error(
+                    getApiErrorMessage(error, "Erro ao reativar item da venda"),
+                );
+            }
+        },
+        [reactivateProductFromSale],
+    );
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
-            if (paymentDialogOpen) return
+            if (paymentDialogOpen) return;
 
             if (event.key === "F1") {
-                event.preventDefault()
+                event.preventDefault();
 
-                if (currentSaleIsPending || createSaleIsPending) return
+                if (currentSaleIsPending || createSaleIsPending) return;
 
                 if (currentSale) {
-                    toast.error("já existe uma venda em andamento")
-                    return
+                    toast.error("já existe uma venda em andamento");
+                    return;
                 }
 
-                createSale()
-                return
+                createSale();
+                return;
             }
 
             if (event.key === "F2") {
-                event.preventDefault()
-                productSearchRef.current?.focus()
-                return
+                event.preventDefault();
+                productSearchRef.current?.focus();
+                return;
             }
 
             if (event.key === "F3") {
-                event.preventDefault()
-                const latestSaleItem = currentSale?.saleItem[0]
-                if (latestSaleItem) setSelectedItem({ mode: "edit", saleItem: latestSaleItem })
-                return
+                event.preventDefault();
+                const latestSaleItem = currentSale?.saleItem[0];
+                if (latestSaleItem)
+                    setSelectedItem({ mode: "edit", saleItem: latestSaleItem });
+                return;
             }
 
             if (event.key === "F4") {
-                event.preventDefault()
-                clientSearchRef.current?.focus()
-                return
+                event.preventDefault();
+                clientSearchRef.current?.focus();
+                return;
             }
 
             if (event.key === "F8" || event.key === "F10") {
-                event.preventDefault()
+                event.preventDefault();
                 if (!currentSale) {
-                    toast.error("inicie uma venda para adicionar pagamentos")
-                    return
+                    toast.error("inicie uma venda para adicionar pagamentos");
+                    return;
                 }
 
                 if (actualTotal <= 0) {
-                    toast.error("não há valor pendente para pagamento")
-                    return
+                    toast.error("não há valor pendente para pagamento");
+                    return;
                 }
 
-                setPaymentDialogOpen(true)
-                return
+                setPaymentDialogOpen(true);
+                return;
+            }
+
+            if (
+                event.key === "?" ||
+                (event.shiftKey && event.key === "/")
+            ) {
+                event.preventDefault();
+                setShowHotkeys((value) => !value);
+                return;
             }
 
             if (
@@ -156,39 +183,47 @@ function RouteComponent() {
                 event.key !== "Escape" &&
                 !(event.key === "Backspace" && event.ctrlKey)
             ) {
-                return
+                return;
             }
 
-            const productSearchInput = productSearchRef.current
+            const productSearchInput = productSearchRef.current;
 
             if (
                 event.key === "Escape" &&
                 productSearchInput &&
                 document.activeElement === productSearchInput
             ) {
-                event.preventDefault()
-                productSearchInput.blur()
-                return
+                event.preventDefault();
+                productSearchInput.blur();
+                return;
             }
 
             if (event.key === "Escape" && selectedItem) {
-                event.preventDefault()
-                setSelectedItem(null)
-                return
+                event.preventDefault();
+                setSelectedItem(null);
+                return;
             }
 
             if (event.key === "Backspace" && event.ctrlKey) {
-                const activeElement = document.activeElement
+                const activeElement = document.activeElement;
                 if (activeElement === productSearchRef.current) {
-                    event.preventDefault()
-                    setProductSearch("")
+                    event.preventDefault();
+                    setProductSearch("");
                 }
             }
         }
 
-        window.addEventListener("keydown", handleKeyDown)
-        return () => window.removeEventListener("keydown", handleKeyDown)
-    }, [actualTotal, createSale, createSaleIsPending, currentSale, currentSaleIsPending, paymentDialogOpen, selectedItem])
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [
+        actualTotal,
+        createSale,
+        createSaleIsPending,
+        currentSale,
+        currentSaleIsPending,
+        paymentDialogOpen,
+        selectedItem,
+    ]);
 
     useEffect(() => {
         if (
@@ -198,24 +233,35 @@ function RouteComponent() {
             productsIsPending ||
             !currentSale
         ) {
-            return
+            return;
         }
 
         const timeoutId = window.setTimeout(() => {
-            if (isClientComboboxTarget(document.activeElement, clientSearchRef.current)) {
-                return
+            if (
+                isClientComboboxTarget(
+                    document.activeElement,
+                    clientSearchRef.current,
+                )
+            ) {
+                return;
             }
 
-            productSearchRef.current?.focus()
-        }, 0)
+            productSearchRef.current?.focus();
+        }, 0);
 
-        return () => window.clearTimeout(timeoutId)
-    }, [currentSale, currentSaleIsPending, paymentDialogOpen, productsIsPending, selectedItem])
+        return () => window.clearTimeout(timeoutId);
+    }, [
+        currentSale,
+        currentSaleIsPending,
+        paymentDialogOpen,
+        productsIsPending,
+        selectedItem,
+    ]);
 
     return (
-        <div className='p-2 gap-2 w-full flex self-start h-screen'>
+        <div className="p-2 gap-2 w-full flex self-start h-screen">
             {/* barra de pesquisa e tabela de itens */}
-            <div className='w-full flex flex-col'>
+            <div className="w-full flex flex-col">
                 {products && !productsIsPending && (
                     <SearchBar
                         inputRef={productSearchRef}
@@ -223,23 +269,45 @@ function RouteComponent() {
                         products={products}
                         search={productSearch}
                         onSearchChange={setProductSearch}
-                        onSelectProduct={(productId) => setSelectedItem({ mode: "add", productId })}
-                        onSelectGenericProduct={() => setSelectedItem({ mode: "add", productId: GENERIC_PRODUCT_ID })}
+                        onSelectProduct={(productId) =>
+                            setSelectedItem({ mode: "add", productId })
+                        }
+                        onSelectGenericProduct={() =>
+                            setSelectedItem({
+                                mode: "add",
+                                productId: GENERIC_PRODUCT_ID,
+                            })
+                        }
                     />
                 )}
                 {!currentSaleIsPending && currentSale && (
-                    <SaleItemsTable
-                        sale={currentSale}
-                        onEditSaleItem={(saleItem) => setSelectedItem({ mode: "edit", saleItem })}
-                        onRemoveSaleItem={removeSaleItem}
-                        onReactivateSaleItem={reactivateSaleItem}
-                        removeSaleItemIsPending={removeProductFromSaleIsPending}
-                        reactivateSaleItemIsPending={reactivateProductFromSaleIsPending}
-                    />
+                    <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+                        <SaleItemsTable
+                            sale={currentSale}
+                            onEditSaleItem={(saleItem) =>
+                                setSelectedItem({ mode: "edit", saleItem })
+                            }
+                            onRemoveSaleItem={removeSaleItem}
+                            onReactivateSaleItem={reactivateSaleItem}
+                            removeSaleItemIsPending={
+                                removeProductFromSaleIsPending
+                            }
+                            reactivateSaleItemIsPending={
+                                reactivateProductFromSaleIsPending
+                            }
+                        />
+                    </div>
                 )}
+                <PdvHotkeys
+                    show={showHotkeys}
+                    onToggle={() => setShowHotkeys((value) => !value)}
+                    sale={currentSale ?? null}
+                    pendingTotal={actualTotal}
+                    hasSelection={!!selectedItem}
+                />
             </div>
             {/* barra lateral direita */}
-            <div className='w-1/4 max-w-1/4'>
+            <div className="w-1/4 max-w-1/4">
                 {currentSaleIsPending ? (
                     <Spinner />
                 ) : (
@@ -252,58 +320,72 @@ function RouteComponent() {
                         onPaymentDialogOpenChange={setPaymentDialogOpen}
                         onShowDeletedItemsChange={setShowDeletedItems}
                         removeSelection={() => setSelectedItem(null)}
-                    />)}
+                    />
+                )}
             </div>
         </div>
-    )
+    );
 }
 
 function getSaleRemainingTotal(sale: NonNullable<CurrentSale>) {
-    const activeItems = sale.saleItem.filter((item) => !item.deletedAt)
-    const saleTotal = activeItems.reduce((acc, value) => acc + value.totalPrice, 0)
-    const discountTotal = activeItems.reduce((acc, value) => acc + (value.discount ?? 0), 0)
-    const paidTotal = sale.payment.reduce((acc, value) => acc + value.amount, 0)
+    const activeItems = sale.saleItem.filter((item) => !item.deletedAt);
+    const saleTotal = activeItems.reduce(
+        (acc, value) => acc + value.totalPrice,
+        0,
+    );
+    const discountTotal = activeItems.reduce(
+        (acc, value) => acc + (value.discount ?? 0),
+        0,
+    );
+    const paidTotal = sale.payment.reduce(
+        (acc, value) => acc + value.amount,
+        0,
+    );
 
-    return saleTotal - discountTotal - paidTotal
+    return saleTotal - discountTotal - paidTotal;
 }
 
 function isCommandInputTarget(target: EventTarget | null) {
-    return target instanceof HTMLElement && target.dataset.slot === "command-input"
+    return (
+        target instanceof HTMLElement && target.dataset.slot === "command-input"
+    );
 }
 
 function isEditableTarget(target: EventTarget | null) {
-    if (!(target instanceof HTMLElement)) return false
+    if (!(target instanceof HTMLElement)) return false;
 
     return (
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target.isContentEditable
-    )
+    );
 }
 
 function isClientComboboxTarget(
     target: Element | null,
-    clientSearchInput: HTMLInputElement | null
+    clientSearchInput: HTMLInputElement | null,
 ) {
-    if (!target || !clientSearchInput) return false
+    if (!target || !clientSearchInput) return false;
 
-    const clientInputGroup = clientSearchInput.closest("[data-slot='input-group']")
+    const clientInputGroup = clientSearchInput.closest(
+        "[data-slot='input-group']",
+    );
 
     return (
         target === clientSearchInput ||
         !!clientInputGroup?.contains(target) ||
         !!target.closest("[data-slot='combobox-content']")
-    )
+    );
 }
 
 interface SearchBarProps {
-    inputRef: RefObject<HTMLInputElement | null>
-    disabled: boolean
-    products: Product[]
-    search: string
-    onSearchChange: (search: string) => void
-    onSelectProduct: (productId: string) => void
-    onSelectGenericProduct: () => void
+    inputRef: RefObject<HTMLInputElement | null>;
+    disabled: boolean;
+    products: Product[];
+    search: string;
+    onSearchChange: (search: string) => void;
+    onSelectProduct: (productId: string) => void;
+    onSelectGenericProduct: () => void;
 }
 
 function SearchBar({
@@ -313,22 +395,31 @@ function SearchBar({
     search,
     onSearchChange,
     onSelectProduct,
-    onSelectGenericProduct
+    onSelectGenericProduct,
 }: SearchBarProps) {
-    const searchableProducts = products.filter((product) => String(product.id) !== GENERIC_PRODUCT_ID)
+    const searchableProducts = products.filter(
+        (product) => String(product.id) !== GENERIC_PRODUCT_ID,
+    );
 
     return (
         <div className="flex h-1/3 flex-col gap-2">
-            <Button disabled={disabled} variant="outline" onClick={onSelectGenericProduct}>
+            <Button
+                disabled={disabled}
+                variant="outline"
+                onClick={onSelectGenericProduct}
+            >
                 adicionar produto genérico
             </Button>
-            <Command className="h-full w-full rounded-lg border"
+            <Command
+                className="h-full w-full rounded-lg border"
                 filter={(value, search) => {
-                    if (value.toLowerCase().match(search.toLowerCase())) return 1
-                    return 0
+                    if (value.toLowerCase().match(search.toLowerCase()))
+                        return 1;
+                    return 0;
                 }}
             >
-                <CommandInput placeholder="busque por um produto ou escaneie o código de barras"
+                <CommandInput
+                    placeholder="busque por um produto ou escaneie o código de barras"
                     ref={inputRef}
                     value={search}
                     onValueChange={(e) => onSearchChange(e)}
@@ -338,36 +429,37 @@ function SearchBar({
                     {search && (
                         <CommandEmpty>nenhum produto encontrado</CommandEmpty>
                     )}
-                    {search && searchableProducts.map((p) => (
-                        <CommandItem
-                            key={p.id}
-                            value={`${p.id}|${p.name} ${p.gtin}`}
-                            onSelect={(val) => {
-                                onSelectProduct(val.split("|")[0])
-                                onSearchChange("")
-                            }}
-                        >
-                            {p.name} - {p.gtin ?? "sem GTIN"} - {formatCurrency(p.sellPrice)}
-                            <CommandShortcut>↵</CommandShortcut>
-                        </CommandItem>
-                    ))}
+                    {search &&
+                        searchableProducts.map((p) => (
+                            <CommandItem
+                                key={p.id}
+                                value={`${p.id}|${p.name} ${p.gtin}`}
+                                onSelect={(val) => {
+                                    onSelectProduct(val.split("|")[0]);
+                                    onSearchChange("");
+                                }}
+                            >
+                                {p.name} - {p.gtin ?? "sem GTIN"} -{" "}
+                                {formatCurrency(p.sellPrice)}
+                                <CommandShortcut>↵</CommandShortcut>
+                            </CommandItem>
+                        ))}
                 </CommandList>
             </Command>
         </div>
-    )
+    );
 }
 
 interface SaleDetailsProps {
-    sale?: CurrentSale
-    selection?: SaleItemSelection | null
-    clientSearchRef: RefObject<HTMLInputElement | null>
-    paymentDialogOpen: boolean
-    showDeletedItems: boolean
-    onPaymentDialogOpenChange: (open: boolean) => void
-    onShowDeletedItemsChange: (showDeletedItems: boolean) => void
-    removeSelection: () => void
+    sale?: CurrentSale;
+    selection?: SaleItemSelection | null;
+    clientSearchRef: RefObject<HTMLInputElement | null>;
+    paymentDialogOpen: boolean;
+    showDeletedItems: boolean;
+    onPaymentDialogOpenChange: (open: boolean) => void;
+    onShowDeletedItemsChange: (showDeletedItems: boolean) => void;
+    removeSelection: () => void;
 }
-
 
 function SaleDetails({
     sale,
@@ -377,7 +469,7 @@ function SaleDetails({
     showDeletedItems,
     onPaymentDialogOpenChange,
     onShowDeletedItemsChange,
-    removeSelection
+    removeSelection,
 }: SaleDetailsProps) {
     const {
         createSale,
@@ -387,61 +479,70 @@ function SaleDetails({
         updateSaleItem,
         updateSaleItemIsPending,
         updateSaleClient,
-        updateSaleClientIsPending
-    } = useSales({ includeDeleted: showDeletedItems })
-    const productId = selection?.mode === "add" ? selection.productId : null
-    const selectedSaleItem = selection?.mode === "edit" ? selection.saleItem : null
-    const {
-        singleProduct: product,
-        singleProductIsPending,
-    } = useProducts(Number(productId))
-    const { clients } = useClients()
-    const [quantity, setQuantity] = useState<number>(1)
-    const [discount, setDiscount] = useState<string>(maskCurrency("0"))
-    const [unitPrice, setUnitPrice] = useState<string>(maskCurrency("0"))
-    const quantityInputRef = useRef<HTMLInputElement>(null)
-    const submitButtonRef = useRef<HTMLButtonElement>(null)
-    const isGenericProduct = selection?.mode === "add"
-        ? selection.productId === GENERIC_PRODUCT_ID
-        : selection?.saleItem.productId === Number(GENERIC_PRODUCT_ID)
+        updateSaleClientIsPending,
+    } = useSales({ includeDeleted: showDeletedItems });
+    const productId = selection?.mode === "add" ? selection.productId : null;
+    const selectedSaleItem =
+        selection?.mode === "edit" ? selection.saleItem : null;
+    const { singleProduct: product, singleProductIsPending } = useProducts(
+        Number(productId),
+    );
+    const { clients } = useClients();
+    const [quantity, setQuantity] = useState<number>(1);
+    const [discount, setDiscount] = useState<string>(maskCurrency("0"));
+    const [unitPrice, setUnitPrice] = useState<string>(maskCurrency("0"));
+    const quantityInputRef = useRef<HTMLInputElement>(null);
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
+    const isGenericProduct =
+        selection?.mode === "add"
+            ? selection.productId === GENERIC_PRODUCT_ID
+            : selection?.saleItem.productId === Number(GENERIC_PRODUCT_ID);
 
     useEffect(() => {
         if (selection?.mode === "edit") {
-            setQuantity(selection.saleItem.quantity)
-            setDiscount(maskCurrency(String(selection.saleItem.discount ?? 0)))
-            setUnitPrice(maskCurrency(String(selection.saleItem.unitPrice)))
-            return
+            setQuantity(selection.saleItem.quantity);
+            setDiscount(maskCurrency(String(selection.saleItem.discount ?? 0)));
+            setUnitPrice(maskCurrency(String(selection.saleItem.unitPrice)));
+            return;
         }
 
-        setQuantity(1)
-        setDiscount(maskCurrency("0"))
-        setUnitPrice(maskCurrency("0"))
-    }, [selection])
+        setQuantity(1);
+        setDiscount(maskCurrency("0"));
+        setUnitPrice(maskCurrency("0"));
+    }, [selection]);
 
-    const selectedItemName = selectedSaleItem?.product.name ?? product?.name ?? ""
-    const selectedItemPrice = isGenericProduct ? Number(unitPrice.replace(/\D/g, "")) : selectedSaleItem?.unitPrice ?? product?.sellPrice ?? 0
-    const hasSelection = !!selection
-    const isEditMode = selection?.mode === "edit"
-    const submitIsPending = isEditMode ? updateSaleItemIsPending : addProductToSaleIsPending
-    const canSubmitSelection = hasSelection && !submitIsPending && (isEditMode || !!product)
+    const selectedItemName =
+        selectedSaleItem?.product.name ?? product?.name ?? "";
+    const selectedItemPrice = isGenericProduct
+        ? Number(unitPrice.replace(/\D/g, ""))
+        : (selectedSaleItem?.unitPrice ?? product?.sellPrice ?? 0);
+    const hasSelection = !!selection;
+    const isEditMode = selection?.mode === "edit";
+    const submitIsPending = isEditMode
+        ? updateSaleItemIsPending
+        : addProductToSaleIsPending;
+    const canSubmitSelection =
+        hasSelection && !submitIsPending && (isEditMode || !!product);
     const selectionFocusKey =
-        selection?.mode === "edit" ? `edit-${selection.saleItem.id}` :
-            selection?.mode === "add" ? `add-${selection.productId}` :
-                null
+        selection?.mode === "edit"
+            ? `edit-${selection.saleItem.id}`
+            : selection?.mode === "add"
+              ? `add-${selection.productId}`
+              : null;
 
     const confirmSelection = useCallback(async () => {
         if (quantity < 1) {
-            toast.error("quantidade deve ser maior que 0")
-            return
+            toast.error("quantidade deve ser maior que 0");
+            return;
         }
 
-        const parsedDiscount = Number(discount.replace(/\D/g, ''))
-        const parsedUnitPrice = Number(unitPrice.replace(/\D/g, ''))
+        const parsedDiscount = Number(discount.replace(/\D/g, ""));
+        const parsedUnitPrice = Number(unitPrice.replace(/\D/g, ""));
 
         if (selection?.mode === "edit") {
             if (isGenericProduct && parsedUnitPrice < 1) {
-                toast.error("informe o valor de venda do produto genérico")
-                return
+                toast.error("informe o valor de venda do produto genérico");
+                return;
             }
 
             try {
@@ -449,25 +550,27 @@ function SaleDetails({
                     saleItemId: selection.saleItem.id,
                     quantity,
                     discount: parsedDiscount,
-                    unitPrice: isGenericProduct ? parsedUnitPrice : undefined
-                })
+                    unitPrice: isGenericProduct ? parsedUnitPrice : undefined,
+                });
 
-                removeSelection()
-                toast.success("item da venda alterado com sucesso")
+                removeSelection();
+                toast.success("item da venda alterado com sucesso");
             } catch (error) {
-                toast.error(getApiErrorMessage(error, "Erro ao alterar item da venda"))
+                toast.error(
+                    getApiErrorMessage(error, "Erro ao alterar item da venda"),
+                );
             }
-            return
+            return;
         }
 
         if (selection?.mode !== "add") {
-            toast.error("selecione um produto para continuar")
-            return
+            toast.error("selecione um produto para continuar");
+            return;
         }
 
         if (selection.productId === GENERIC_PRODUCT_ID && parsedUnitPrice < 1) {
-            toast.error("informe o valor de venda do produto genérico")
-            return
+            toast.error("informe o valor de venda do produto genérico");
+            return;
         }
 
         try {
@@ -475,125 +578,190 @@ function SaleDetails({
                 productId: Number(selection.productId),
                 quantity,
                 discount: parsedDiscount,
-                unitPrice: selection.productId === GENERIC_PRODUCT_ID ? parsedUnitPrice : undefined
-            })
+                unitPrice:
+                    selection.productId === GENERIC_PRODUCT_ID
+                        ? parsedUnitPrice
+                        : undefined,
+            });
 
-            removeSelection()
-            setQuantity(1)
-            setUnitPrice(maskCurrency("0"))
-            toast.success("item adicionado à venda com sucesso")
+            removeSelection();
+            setQuantity(1);
+            setUnitPrice(maskCurrency("0"));
+            toast.success("item adicionado à venda com sucesso");
         } catch (error) {
-            toast.error(getApiErrorMessage(error, "Erro ao adicionar item à venda"))
+            toast.error(
+                getApiErrorMessage(error, "Erro ao adicionar item à venda"),
+            );
         }
-    }, [addProductToSale, discount, isGenericProduct, quantity, removeSelection, selection, unitPrice, updateSaleItem])
+    }, [
+        addProductToSale,
+        discount,
+        isGenericProduct,
+        quantity,
+        removeSelection,
+        selection,
+        unitPrice,
+        updateSaleItem,
+    ]);
 
     useEffect(() => {
-        if (!canSubmitSelection || !selectionFocusKey) return
+        if (!canSubmitSelection || !selectionFocusKey) return;
 
         const timeoutId = window.setTimeout(() => {
-            submitButtonRef.current?.focus()
-        }, 0)
+            submitButtonRef.current?.focus();
+        }, 0);
 
-        return () => window.clearTimeout(timeoutId)
-    }, [canSubmitSelection, selectionFocusKey])
+        return () => window.clearTimeout(timeoutId);
+    }, [canSubmitSelection, selectionFocusKey]);
 
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
-            if (!selection || paymentDialogOpen || submitIsPending) return
+            if (!selection || paymentDialogOpen || submitIsPending) return;
 
             if (event.key === "Enter") {
-                if (isCommandInputTarget(event.target)) return
+                if (isCommandInputTarget(event.target)) return;
 
-                event.preventDefault()
-                confirmSelection()
-                return
+                event.preventDefault();
+                confirmSelection();
+                return;
             }
 
             if (event.key === "+") {
-                event.preventDefault()
-                setQuantity((value) => value + 1)
-                return
+                event.preventDefault();
+                setQuantity((value) => value + 1);
+                return;
             }
 
             if (event.key === "-") {
-                event.preventDefault()
-                setQuantity((value) => Math.max(1, value - 1))
+                event.preventDefault();
+                setQuantity((value) => Math.max(1, value - 1));
             }
         }
 
-        window.addEventListener("keydown", handleKeyDown)
-        return () => window.removeEventListener("keydown", handleKeyDown)
-    }, [confirmSelection, paymentDialogOpen, selection, submitIsPending])
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [confirmSelection, paymentDialogOpen, selection, submitIsPending]);
 
     if (!sale) {
         return (
-            <Card className='w-full flex items-center justify-start h-screen'>
+            <Card className="w-full flex items-center justify-start h-screen">
                 <CardContent className="flex flex-col gap-4 items-center h-full">
                     <h2 className="text-lg font-bold">inicie uma venda</h2>
                     <Button
                         disabled={createSaleIsPending}
                         onClick={() => createSale()}
-                    >iniciar venda</Button>
+                    >
+                        iniciar venda
+                    </Button>
                 </CardContent>
             </Card>
-        )
+        );
     }
 
-    const activeSaleItems = sale.saleItem ? sale.saleItem.filter((item) => !item.deletedAt) : []
-    const deletedSaleItemsCount = sale.saleItem ? sale.saleItem.filter((item) => item.deletedAt).length : 0
-    const saleTotal = activeSaleItems.reduce((acc, value) => acc + value.totalPrice, 0)
-    const discountTotal = activeSaleItems.reduce((acc, value) => acc + (value.discount ?? 0), 0)
-    const paidTotal = sale.payment ? sale.payment.reduce((acc, value) => acc + value.amount, 0) : 0
-    const actualTotal = saleTotal - discountTotal - paidTotal
+    const activeSaleItems = sale.saleItem
+        ? sale.saleItem.filter((item) => !item.deletedAt)
+        : [];
+    const deletedSaleItemsCount = sale.saleItem
+        ? sale.saleItem.filter((item) => item.deletedAt).length
+        : 0;
+    const saleTotal = activeSaleItems.reduce(
+        (acc, value) => acc + value.totalPrice,
+        0,
+    );
+    const discountTotal = activeSaleItems.reduce(
+        (acc, value) => acc + (value.discount ?? 0),
+        0,
+    );
+    const paidTotal = sale.payment
+        ? sale.payment.reduce((acc, value) => acc + value.amount, 0)
+        : 0;
+    const actualTotal = saleTotal - discountTotal - paidTotal;
 
     return (
-        <Card className='w-full flex items-center justify-start h-screen'>
+        <Card className="w-full flex items-center justify-start h-screen">
             <CardContent className="flex flex-col gap-4 items-center h-full">
                 <h2 className="text-lg font-bold">detalhes da venda</h2>
                 <div className="flex flex-col gap-2">
-                    <h3 className="text-lg font-bold text-center">{hasSelection && (isEditMode || (!singleProductIsPending && product)) ? 'produto encontrado' : "nenhum produto selecionado"}</h3>
+                    <h3 className="text-lg font-bold text-center">
+                        {hasSelection &&
+                        (isEditMode || (!singleProductIsPending && product))
+                            ? "produto encontrado"
+                            : "nenhum produto selecionado"}
+                    </h3>
                     <div className="flex flex-col gap-2">
                         <Label>nome</Label>
                         <Input value={selectedItemName} disabled />
                         <Label>valor de venda</Label>
                         <Input
-                            value={isGenericProduct ? unitPrice : formatCurrency(selectedItemPrice)}
+                            value={
+                                isGenericProduct
+                                    ? unitPrice
+                                    : formatCurrency(selectedItemPrice)
+                            }
                             disabled={!isGenericProduct}
-                            onChange={(event) => setUnitPrice(maskCurrency(event.target.value))}
+                            onChange={(event) =>
+                                setUnitPrice(maskCurrency(event.target.value))
+                            }
                         />
                         {hasSelection && (
                             <>
                                 <Label>quantidade</Label>
                                 <InputGroup className="flex items-center justify-between">
                                     <Button
-                                        onClick={() => setQuantity(val => val - 1)}
-                                        className="w-1/3" variant={"ghost"}><MinusIcon /></Button>
+                                        onClick={() =>
+                                            setQuantity((val) => val - 1)
+                                        }
+                                        className="w-1/3"
+                                        variant={"ghost"}
+                                    >
+                                        <MinusIcon />
+                                    </Button>
                                     <Input
                                         ref={quantityInputRef}
                                         className="text-center"
                                         value={quantity}
-                                        onChange={(e) => setQuantity(Number(e.target.value))}
+                                        onChange={(e) =>
+                                            setQuantity(Number(e.target.value))
+                                        }
                                     />
-                                    <Button className="w-1/3"
-                                        onClick={() => setQuantity(val => val + 1)}
-                                        variant={"ghost"}><PlusIcon /></Button>
+                                    <Button
+                                        className="w-1/3"
+                                        onClick={() =>
+                                            setQuantity((val) => val + 1)
+                                        }
+                                        variant={"ghost"}
+                                    >
+                                        <PlusIcon />
+                                    </Button>
                                 </InputGroup>
                                 <Label htmlFor="discount">desconto</Label>
                                 <Input
                                     id="discount"
                                     value={discount}
                                     onChange={(e) => {
-                                        setDiscount(maskCurrency(e.target.value))
+                                        setDiscount(
+                                            maskCurrency(e.target.value),
+                                        );
                                     }}
                                 />
                                 <Button
                                     onClick={() => removeSelection()}
-                                    variant={"outline"}>cancelar {isEditMode ? "edição" : "adição"}</Button>
+                                    variant={"outline"}
+                                >
+                                    cancelar {isEditMode ? "edição" : "adição"}
+                                </Button>
                                 <Button
                                     ref={submitButtonRef}
-                                    disabled={submitIsPending || (!isEditMode && !product)}
+                                    disabled={
+                                        submitIsPending ||
+                                        (!isEditMode && !product)
+                                    }
                                     onClick={() => confirmSelection()}
-                                >{isEditMode ? "salvar alterações" : "adicionar produto"}</Button>
+                                >
+                                    {isEditMode
+                                        ? "salvar alterações"
+                                        : "adicionar produto"}
+                                </Button>
                             </>
                         )}
                     </div>
@@ -601,35 +769,53 @@ function SaleDetails({
                 <div className="w-full flex flex-col gap-2">
                     <Button
                         variant={showDeletedItems ? "default" : "outline"}
-                        onClick={() => onShowDeletedItemsChange(!showDeletedItems)}
-                    >{showDeletedItems ? "ocultar excluídos" : "mostrar excluídos"}</Button>
+                        onClick={() =>
+                            onShowDeletedItemsChange(!showDeletedItems)
+                        }
+                    >
+                        {showDeletedItems
+                            ? "ocultar excluídos"
+                            : "mostrar excluídos"}
+                    </Button>
                     {showDeletedItems && deletedSaleItemsCount > 0 && (
                         <p className="text-center text-xs text-muted-foreground">
-                            {deletedSaleItemsCount} item(ns) excluído(s) visíveis na tabela
+                            {deletedSaleItemsCount} item(ns) excluído(s)
+                            visíveis na tabela
                         </p>
                     )}
-                    <h3 className="text-lg text-center font-bold">cliente da venda</h3>
+                    <h3 className="text-lg text-center font-bold">
+                        cliente da venda
+                    </h3>
                     <Combobox
                         key={sale.client?.id ?? "no-client"}
                         disabled={updateSaleClientIsPending}
                         defaultValue={sale.client ?? null}
                         items={clients as ClientOption[]}
-                        isItemEqualToValue={(item, value) => item?.id === value?.id}
+                        isItemEqualToValue={(item, value) =>
+                            item?.id === value?.id
+                        }
                         itemToStringValue={(client) => String(client?.id ?? "")}
-                        itemToStringLabel={(client) => String(client?.name ?? "")}
+                        itemToStringLabel={(client) =>
+                            String(client?.name ?? "")
+                        }
                         onValueChange={async (client: ClientOption | null) => {
                             if (client) {
                                 try {
                                     await updateSaleClient({
                                         saleId: sale.id,
-                                        clientId: client.id
-                                    })
+                                        clientId: client.id,
+                                    });
 
                                     window.setTimeout(() => {
-                                        clientSearchRef.current?.blur()
-                                    }, 0)
+                                        clientSearchRef.current?.blur();
+                                    }, 0);
                                 } catch (error) {
-                                    toast.error(getApiErrorMessage(error, "Erro ao alterar cliente da venda"))
+                                    toast.error(
+                                        getApiErrorMessage(
+                                            error,
+                                            "Erro ao alterar cliente da venda",
+                                        ),
+                                    );
                                 }
                             }
                         }}
@@ -640,7 +826,9 @@ function SaleDetails({
                             placeholder="digite o nome de um cliente"
                         />
                         <ComboboxContent>
-                            <ComboboxEmpty><NewClientDialog /></ComboboxEmpty>
+                            <ComboboxEmpty>
+                                <NewClientDialog />
+                            </ComboboxEmpty>
                             <ComboboxList>
                                 {(item) => (
                                     <ComboboxItem key={item.id} value={item}>
@@ -654,11 +842,26 @@ function SaleDetails({
             </CardContent>
             <CardFooter className="mb-4 w-full flex-col items-start gap-2">
                 <h3 className="text-xl font-bold">finalizar venda</h3>
-                <div className="w-full flex items-center justify-between text-lg"><span>cliente:</span><span>{sale.client ? sale.client.name : "-"}</span></div>
-                <div className="w-full flex items-center justify-between text-lg"><span>subtotal:</span><span>{formatCurrency(saleTotal)}</span></div>
-                <div className="w-full flex items-center justify-between text-lg"><span>descontos:</span><span>{formatCurrency(discountTotal)}</span></div>
-                <div className="w-full flex items-center justify-between text-lg"><span>pago:</span><span>{formatCurrency(paidTotal)}</span></div>
-                <div className="w-full flex items-center justify-between text-lg"><span>total:</span><span>{formatCurrency(actualTotal)}</span></div>
+                <div className="w-full flex items-center justify-between text-lg">
+                    <span>cliente:</span>
+                    <span>{sale.client ? sale.client.name : "-"}</span>
+                </div>
+                <div className="w-full flex items-center justify-between text-lg">
+                    <span>subtotal:</span>
+                    <span>{formatCurrency(saleTotal)}</span>
+                </div>
+                <div className="w-full flex items-center justify-between text-lg">
+                    <span>descontos:</span>
+                    <span>{formatCurrency(discountTotal)}</span>
+                </div>
+                <div className="w-full flex items-center justify-between text-lg">
+                    <span>pago:</span>
+                    <span>{formatCurrency(paidTotal)}</span>
+                </div>
+                <div className="w-full flex items-center justify-between text-lg">
+                    <span>total:</span>
+                    <span>{formatCurrency(actualTotal)}</span>
+                </div>
                 <NewPaymentDialog
                     open={paymentDialogOpen}
                     onOpenChange={onPaymentDialogOpenChange}
@@ -667,6 +870,5 @@ function SaleDetails({
                 />
             </CardFooter>
         </Card>
-    )
-
+    );
 }
