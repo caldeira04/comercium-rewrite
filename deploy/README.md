@@ -45,3 +45,28 @@
 #       sudo systemctl start comercium
 #   (data/ and backups/ are preserved — the tarball only overwrites comercium,
 #    web/, and drizzle/.)
+
+## 6. Automatic deploys on push to main (GitHub Actions)
+#   .github/workflows/deploy.yml rebuilds the release and redeploys on every
+#   push to `main` (and via the "Run workflow" button). It:
+#     1. Checks out the repo, installs deps, runs ./deploy/build-release.sh
+#     2. Uploads dist/comercium-release.tar.gz + deploy/install.sh to the VPS
+#     3. Runs install.sh remotely (preserves /opt/comercium/data), restarts the
+#        systemd service, and health-checks https://<domain>/login
+#
+#   Prerequisites on the VPS (one-time):
+#     - The `comercium` systemd service installed and the SSH user allowed
+#       passwordless sudo for the install/restart commands.
+#     - The workflow skips wiping data, so redeploys are non-destructive.
+#
+#   Required GitHub repository secrets:
+#     DEPLOY_DOMAIN  Public domain, e.g. comerciumerp.com.br
+#     VPS_HOST       VPS IP or hostname
+#     VPS_USER       SSH user (must have passwordless sudo)
+#     VPS_SSH_KEY    SSH private key (OpenSSH format) of that user
+#     VPS_HOST_KEY   (recommended) the VPS host public key, as printed by:
+#                      ssh-keyscan -t ed25519 <VPS_HOST>
+#                    If omitted, the workflow falls back to ssh-keyscan at build
+#                    time (weaker — host key is not pinned).
+#   To grab the host key for the secret:
+#     ssh-keyscan -t ed25519 <VPS_HOST>

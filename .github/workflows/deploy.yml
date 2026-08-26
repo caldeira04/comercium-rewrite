@@ -1,0 +1,88 @@
+name: Deploy to production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Prevent overlapping deploys (e.g. two pushes in quick succession).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate required secrets
+        env:
+          DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          for var in DEPLOY_DOMAIN VPS_HOST VPS_USER VPS_SSH_KEY; do
+            if [ -z "${!var}" ]; then
+              echo "ERROR: missing required secret '${var}' (see deploy/README.md)" >&2
+              exit 1
+            fi
+          done
+
+      - name: Build release
+        env:
+          DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
+        run: ./deploy/build-release.sh "$DEPLOY_DOMAIN"
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          umask 077
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "${{ secrets.VPS_HOST_KEY }}" ]; then
+            printf '%s\n' "${{ secrets.VPS_HOST_KEY }}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan "${{ secrets.VPS_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload release to VPS
+        run: |
+          scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
+            dist/comercium-release.tar.gz deploy/install.sh \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
+
+      - name: Install and restart service on VPS
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" 'bash -s' <<'EOF'
+          set -euo pipefail
+          if ! systemctl list-unit-files --no-pager --type=service | grep -q '^comercium\.service'; then
+            echo "ERROR: comercium systemd service not found on the VPS." >&2
+            echo "Run the initial VPS setup first (see deploy/README.md)." >&2
+            exit 1
+          fi
+          sudo bash /tmp/install.sh deploy /tmp/comercium-release.tar.gz
+          echo "==> Service status:"
+          sudo systemctl --no-pager --lines=15 status comercium || true
+          EOF
+
+      - name: Health check
+        run: |
+          curl -sS --fail --max-time 15 "https://${{ secrets.DEPLOY_DOMAIN }}/login" -o /dev/null \
+            && echo "Deploy verified: https://${{ secrets.DEPLOY_DOMAIN }} is serving the app"
