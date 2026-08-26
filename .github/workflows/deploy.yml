@@ -72,7 +72,7 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" 'bash -s' <<'EOF'
           set -euo pipefail
-          if ! systemctl list-unit-files --no-pager --type=service | grep -q '^comercium\.service'; then
+          if ! systemctl cat comercium.service >/dev/null 2>&1; then
             echo "ERROR: comercium systemd service not found on the VPS." >&2
             echo "Run the initial VPS setup first (see deploy/README.md)." >&2
             exit 1
