@@ -98,7 +98,7 @@ function RootComponent() {
                         )}
 
                         <TooltipProvider>
-                            <div className={`relative flex w-full min-h-screen ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
+                            <div className={`relative flex w-full min-h-screen ${!isSidebarVisible ? "items-center justify-center" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
                                 {user?.impersonatedByAdminId && (
                                     <ImpersonationBanner tenantName={user.tenantName} />
                                 )}
