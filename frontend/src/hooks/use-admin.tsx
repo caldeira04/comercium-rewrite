@@ -12,7 +12,7 @@ import { api } from "@/lib/api"
 import { queryClient } from "@/lib/queryClient"
 import { throwApiError } from "@/lib/api-error"
 
-const adminBase = api.admin
+const adminBase = api.master.admin
 
 export function useAdminOverview() {
     return useQuery({

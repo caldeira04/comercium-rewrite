@@ -5,6 +5,10 @@
 # and routes /master/* and /tenant/* to the API, everything else to the frontend,
 # so the browser talks to a single origin (no CORS, Secure Lax cookies work).
 #
+# The admin panel API lives under /master/admin/* (NOT /admin/*), so Caddy routes
+# it to the API. The admin panel SPA pages live under /admin/* (frontend). Do not
+# add /admin/* to the API path list in the Caddyfile, or the SPA pages will break.
+#
 # No Bun or Node is needed on the VPS — the binary embeds the Bun runtime.
 
 ## 1. Point DNS at the VPS

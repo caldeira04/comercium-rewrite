@@ -93,11 +93,11 @@ export function createApp({ corsOrigin = "http://localhost:5173" }: {
                 .use(tenants)
                 .use(users)
                 .use(onboarding)
-        )
-        .group('/admin', (admin) =>
-            admin
-                .use(adminPublic)
-                .use(adminProtected)
+                .group('/admin', (admin) =>
+                    admin
+                        .use(adminPublic)
+                        .use(adminProtected)
+                )
         )
         .group('/tenant', (tenant) =>
             tenant

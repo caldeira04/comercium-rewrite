@@ -32,7 +32,7 @@ function RouteComponent() {
     const { data: status, isPending: statusPending } = useQuery({
         queryKey: ["admin", "auth", "status"],
         queryFn: async () => {
-            const response = await fetch(getApiUrl("/admin/auth/status"))
+            const response = await fetch(getApiUrl("/master/admin/auth/status"))
             if (!response.ok) throw new Error("Falha ao verificar o sistema administrativo")
             return response.json() as Promise<{ isSetup: boolean, adminCount: number }>
         },
@@ -71,7 +71,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         validators: { onSubmit: loginSchema },
         onSubmit: async ({ value }) => {
             try {
-                const response = await fetch(getApiUrl("/admin/auth/login"), {
+                const response = await fetch(getApiUrl("/master/admin/auth/login"), {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },
@@ -163,7 +163,7 @@ function BootstrapForm({ onSuccess }: { onSuccess: () => void }) {
         validators: { onSubmit: bootstrapSchema },
         onSubmit: async ({ value }) => {
             try {
-                const response = await fetch(getApiUrl("/admin/auth/bootstrap"), {
+                const response = await fetch(getApiUrl("/master/admin/auth/bootstrap"), {
                     method: "POST",
                     credentials: "include",
                     headers: { "Content-Type": "application/json" },

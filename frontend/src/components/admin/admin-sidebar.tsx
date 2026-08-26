@@ -60,7 +60,7 @@ export function AdminSidebar({ admin }: { admin: AdminUser }) {
     const navigate = useNavigate()
 
     async function handleLogout() {
-        await fetch(getApiUrl("/admin/auth/logout"), {
+        await fetch(getApiUrl("/master/admin/auth/logout"), {
             method: "POST",
             credentials: "include",
         })

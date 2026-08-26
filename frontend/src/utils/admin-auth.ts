@@ -9,7 +9,7 @@ export type AdminUser = {
 
 export const adminCredentials = async () => {
     try {
-        const response = await fetch(getApiUrl("/admin/auth/me"), {
+        const response = await fetch(getApiUrl("/master/admin/auth/me"), {
             credentials: "include"
         })
 
