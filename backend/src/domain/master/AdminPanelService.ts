@@ -10,6 +10,8 @@ import { sale } from "@/db/schema/tenant/sale"
 import { payment } from "@/db/schema/tenant/payment"
 import { client } from "@/db/schema/tenant/client"
 import { cash } from "@/db/schema/tenant/cash"
+import { fiscalDocument } from "@/db/schema/tenant/fiscal"
+import { getFocusConfig } from "@/domain/tenant/fiscal/focus-config"
 import { AppError } from "../../utils/errors"
 import { audit } from "../../utils/audit"
 import { generateSessionToken, hashToken } from "../../utils/auth"
@@ -644,7 +646,7 @@ export async function getHealth() {
             backgroundJobs: "not_configured",
             queues: "not_configured",
             webhooks: "not_configured",
-            fiscal: "not_configured",
+            fiscal: getFocusConfig().configured ? "configured" : "not_configured",
         },
         timestamp: new Date().toISOString(),
     }
@@ -687,17 +689,89 @@ export async function getBillingSummary() {
     }
 }
 
+type FiscalDocWithTenant = typeof fiscalDocument.$inferSelect & {
+    tenantId: string
+    tenantName: string
+    tenantSlug: string | null
+}
+
+async function collectFiscalDocuments(): Promise<FiscalDocWithTenant[]> {
+    const tenants = await db.select().from(tenant).where(isNull(tenant.deletedAt))
+    const all: FiscalDocWithTenant[] = []
+
+    for (const t of tenants) {
+        if (!t.slug) continue
+        try {
+            const tdb = getTenantDb(t.slug)
+            const rows = await tdb.select().from(fiscalDocument).orderBy(desc(fiscalDocument.createdAt)).limit(200)
+            for (const row of rows) {
+                all.push({ ...row, tenantId: t.id, tenantName: t.name, tenantSlug: t.slug })
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return all.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+}
+
 export async function getFiscalOverview() {
+    const config = getFocusConfig()
+    if (!config.configured) {
+        return {
+            configured: false,
+            environment: config.environment,
+            documentsIssued: 0,
+            authorized: 0,
+            rejected: 0,
+            cancelled: 0,
+            contingency: 0,
+            failureRate: 0,
+            rejectionCodes: [],
+            recentErrors: [],
+        }
+    }
+
+    const all = await collectFiscalDocuments()
+    const authorized = all.filter((d) => d.status === "autorizado").length
+    const rejected = all.filter((d) => d.status === "erro_autorizacao" || d.status === "denegado").length
+    const cancelled = all.filter((d) => d.status === "cancelado").length
+    const failureRate = all.length > 0 ? Math.round((rejected / all.length) * 1000) / 10 : 0
+
+    const rejectionMap = new Map<string, number>()
+    for (const doc of all) {
+        if (doc.status === "erro_autorizacao" || doc.status === "denegado") {
+            const code = doc.sefazCode ?? "sem_codigo"
+            rejectionMap.set(code, (rejectionMap.get(code) ?? 0) + 1)
+        }
+    }
+
+    const recentErrors = all
+        .filter((d) => d.status === "erro_autorizacao" || d.status === "denegado")
+        .slice(0, 20)
+        .map((d) => ({
+            id: d.id,
+            ref: d.ref,
+            saleId: d.saleId,
+            status: d.status,
+            sefazCode: d.sefazCode,
+            sefazMessage: d.sefazMessage,
+            tenantId: d.tenantId,
+            tenantName: d.tenantName,
+            createdAt: d.createdAt,
+        }))
+
     return {
-        configured: false,
-        documentsIssued: 0,
-        authorized: 0,
-        rejected: 0,
-        cancelled: 0,
+        configured: true,
+        environment: config.environment,
+        documentsIssued: all.length,
+        authorized,
+        rejected,
+        cancelled,
         contingency: 0,
-        failureRate: 0,
-        rejectionCodes: [],
-        recentErrors: [],
+        failureRate,
+        rejectionCodes: [...rejectionMap.entries()].map(([code, total]) => ({ code, total })).sort((a, b) => b.total - a.total),
+        recentErrors,
     }
 }
 
@@ -708,10 +782,27 @@ export async function listFiscalDocuments(params: {
 }) {
     const page = Math.max(1, params.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20))
+    const config = getFocusConfig()
+
+    if (!config.configured) {
+        return {
+            configured: false,
+            environment: config.environment,
+            documents: [],
+            pagination: { page, pageSize, total: 0, totalPages: 0 },
+        }
+    }
+
+    const all = await collectFiscalDocuments()
+    const filtered = params.status ? all.filter((d) => d.status === params.status) : all
+    const total = filtered.length
+    const documents = filtered.slice((page - 1) * pageSize, page * pageSize)
+
     return {
-        configured: false,
-        documents: [],
-        pagination: { page, pageSize, total: 0, totalPages: 0 },
+        configured: true,
+        environment: config.environment,
+        documents,
+        pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
     }
 }
 

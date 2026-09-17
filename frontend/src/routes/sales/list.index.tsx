@@ -1,6 +1,7 @@
 import { Spinner } from "@/components/ui/spinner"
 import { useSales } from "@/hooks/use-sales"
 import { usePayments } from "@/hooks/use-payments"
+import { useSaleNfce } from "@/hooks/use-fiscal"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import {
@@ -219,7 +220,80 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
                     onClick={handleCancel}
                 >cancelar venda</Button>
             )}
+            <NfcePanel saleId={sale.id} settledAt={sale.settledAt} />
         </>
+    )
+}
+
+function NfcePanel({ saleId, settledAt }: { saleId: string, settledAt?: string | null }) {
+    const { nfce, nfceIsPending, emitNfce, emitNfceIsPending, refreshNfce, refreshNfceIsPending, cancelNfce, cancelNfceIsPending } = useSaleNfce(saleId)
+
+    async function handleEmit() {
+        try {
+            await emitNfce(saleId)
+            toast.success("NFC-e enviada para a Focus em homologação")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao emitir NFC-e"))
+        }
+    }
+
+    async function handleRefresh() {
+        try {
+            await refreshNfce(saleId)
+            toast.success("status da NFC-e atualizado")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao consultar NFC-e"))
+        }
+    }
+
+    async function handleCancel() {
+        const justificativa = window.prompt("justificativa do cancelamento (15 a 255 caracteres)")
+        if (!justificativa) return
+        try {
+            await cancelNfce({ targetSaleId: saleId, justificativa })
+            toast.success("NFC-e cancelada")
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "Erro ao cancelar NFC-e"))
+        }
+    }
+
+    return (
+        <div className="flex flex-col gap-2 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+                <h3 className="font-bold">NFC-e</h3>
+                {nfce && <Badge variant={nfce.status === "autorizado" ? "secondary" : "outline"}>{nfce.status}</Badge>}
+            </div>
+            {!settledAt && (
+                <p className="text-sm text-muted-foreground">finalize a venda para emitir a NFC-e.</p>
+            )}
+            {nfceIsPending && <span className="text-sm text-muted-foreground">carregando documento…</span>}
+            {!nfceIsPending && !nfce && (
+                <p className="text-sm text-muted-foreground">nenhuma NFC-e emitida para esta venda.</p>
+            )}
+            {nfce && (
+                <div className="flex flex-col gap-1 text-sm">
+                    <span className="font-mono text-xs">ref {nfce.ref}</span>
+                    {nfce.sefazCode && <span>sefaz {nfce.sefazCode} · {nfce.sefazMessage ?? ""}</span>}
+                    {nfce.chaveNfe && <span className="font-mono text-xs">chave {nfce.chaveNfe}</span>}
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                <Button size="sm" disabled={!settledAt || emitNfceIsPending} onClick={handleEmit}>
+                    emitir NFC-e
+                </Button>
+                {nfce && (
+                    <Button size="sm" variant="outline" disabled={refreshNfceIsPending} onClick={handleRefresh}>
+                        consultar status
+                    </Button>
+                )}
+                {nfce?.status === "autorizado" && (
+                    <Button size="sm" variant="outline" disabled={cancelNfceIsPending} onClick={handleCancel}>
+                        cancelar
+                    </Button>
+                )}
+            </div>
+            <p className="text-xs text-muted-foreground">emissão em homologação, sem validade fiscal.</p>
+        </div>
     )
 }
 

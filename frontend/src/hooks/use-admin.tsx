@@ -184,7 +184,11 @@ export function useAdminBilling() {
     })
 }
 
-export function useAdminFiscal() {
+export function useAdminFiscal(params: {
+    status?: string
+    page?: number
+    pageSize?: number
+} = {}) {
     const overview = useQuery({
         queryKey: ["admin", "fiscal", "overview"],
         queryFn: async () => {
@@ -194,7 +198,23 @@ export function useAdminFiscal() {
         },
     })
 
-    return { ...overview }
+    const documents = useQuery({
+        queryKey: ["admin", "fiscal", "documents", params],
+        queryFn: async () => {
+            const { data, error } = await adminBase.fiscal.documents.get({
+                query: {
+                    status: params.status || undefined,
+                    page: params.page ? String(params.page) : undefined,
+                    pageSize: params.pageSize ? String(params.pageSize) : undefined,
+                }
+            })
+            if (error) throwApiError(error)
+            return data
+        },
+        enabled: overview.data?.configured === true,
+    })
+
+    return { ...overview, documents: documents.data, documentsIsPending: documents.isPending }
 }
 
 export function useAdminFlags() {
