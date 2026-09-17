@@ -85,6 +85,13 @@
       "when": 1780616405000,
       "tag": "0011_remove_cashid_from_sale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1789656000000,
+      "tag": "0012_fiscal_nfce",
+      "breakpoints": true
     }
   ]
 }

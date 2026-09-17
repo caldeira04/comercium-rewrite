@@ -171,21 +171,62 @@ export type BillingSummary = {
     withoutPlan: Array<{ id: string, name: string, slug: string, planId: string | null, subscriptionStatusId: string | null, subscriptionExpireDate: string | null, isActive: boolean }>
 }
 
+export type FiscalRejectionCode = {
+    code: string
+    total: number
+}
+
+export type FiscalRecentError = {
+    id: string
+    ref: string
+    saleId: string
+    status: string
+    sefazCode: string | null
+    sefazMessage: string | null
+    tenantId: string
+    tenantName: string
+    createdAt: string
+}
+
 export type FiscalOverview = {
     configured: boolean
+    environment?: "homologacao" | "producao"
     documentsIssued: number
     authorized: number
     rejected: number
     cancelled: number
     contingency: number
     failureRate: number
-    rejectionCodes: never[]
-    recentErrors: never[]
+    rejectionCodes: FiscalRejectionCode[]
+    recentErrors: FiscalRecentError[]
+}
+
+export type FiscalDocumentItem = {
+    id: string
+    saleId: string
+    ref: string
+    status: "pendente" | "processando" | "autorizado" | "erro_autorizacao" | "denegado" | "cancelado"
+    environment: "homologacao" | "producao"
+    sefazCode: string | null
+    sefazMessage: string | null
+    chaveNfe: string | null
+    numero: string | null
+    serie: string | null
+    xmlPath: string | null
+    danfePath: string | null
+    qrcodeUrl: string | null
+    consultaUrl: string | null
+    createdAt: string
+    updatedAt: string
+    tenantId?: string
+    tenantName?: string
+    tenantSlug?: string | null
 }
 
 export type FiscalDocuments = {
     configured: boolean
-    documents: never[]
+    environment?: "homologacao" | "producao"
+    documents: FiscalDocumentItem[]
     pagination: Pagination
 }
 

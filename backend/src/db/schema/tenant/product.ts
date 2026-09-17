@@ -11,6 +11,11 @@ export const product = sqliteTable("product", {
     buyPrice: integer("buy_price").notNull(),
     productSettingsId: integer("product_settings_id").references(() => productSettings.id, { onDelete: "set null" }),
     categoryId: integer("category_id").references(() => category.id, { onDelete: "set null" }),
+    fiscalNcm: text("fiscal_ncm"),
+    fiscalCfop: text("fiscal_cfop"),
+    fiscalCst: text("fiscal_cst"),
+    fiscalOrigem: text("fiscal_origem"),
+    fiscalUnidade: text("fiscal_unidade"),
     ...auditing(),
     ...timestamps()
 })
