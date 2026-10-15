@@ -29,7 +29,7 @@ export function PdvHotkeys({
         {
             keys: "F3",
             label: "editar último item",
-            active: !!sale?.saleItem.some((item) => !item.deletedAt),
+            active: !!sale?.saleItem?.some((item) => !item.deletedAt),
         },
         { keys: "F4", label: "buscar cliente", active: !!sale },
         {
