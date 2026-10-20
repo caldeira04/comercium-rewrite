@@ -10,23 +10,39 @@
 # add /admin/* to the API path list in the Caddyfile, or the SPA pages will break.
 #
 # No Bun or Node is needed on the VPS — the binary embeds the Bun runtime.
+# GitHub Actions builds on an ARM64 runner inside Oracle Linux 9 to match the
+# VPS architecture and Linux ABI.
 
 ## 1. Point DNS at the VPS
 #   Create an A record:  example.com  ->  <VPS public IP>
 
-## 2. Build the release (on your dev machine)
+## 2. Build the release (on Oracle Linux 9 ARM64)
 #   ./deploy/build-release.sh example.com
-#   -> dist/comercium-release.tar.gz (binary + frontend + migrations + data)
+#   -> dist/comercium-release.tar.gz (binary + frontend + migrations + help docs; no data)
 
 ## 3. Copy it to the VPS
 #   scp dist/comercium-release.tar.gz user@<VPS_IP>:/tmp/
 
-## 4. Install on the VPS (Ubuntu/Debian, as sudo)
+## 4. One-time VPS setup (Oracle Linux 9.8 aarch64)
+#   The deploy workflow updates an existing installation; it does not provision
+#   the host. Before the first deploy, create the `comercium` service account,
+#   install deploy/comercium.service as /etc/systemd/system/comercium.service,
+#   and create /opt/comercium/comercium.env. Adjust the unit if using another
+#   service account, then add the AI provider configuration to
+#   /opt/comercium/comercium.env (`OPENROUTER_API_KEY`, and optionally
+#   `OPENROUTER_EMBEDDING_MODEL` / `OPENROUTER_CHAT_MODEL`). The key stays on
+#   the backend and is never included in the release artifact. Then
+#   install/configure Caddy for DEPLOY_DOMAIN and ensure the VPS user has
+#   passwordless sudo for systemctl and release installation. Permit inbound
+#   80/443 in both firewalld and the OCI security list/NSG. The host needs
+#   systemd, tar, gzip, and curl; it does not need Bun. After preparing the
+#   service and environment file, create /opt/comercium and run
+#   `systemctl daemon-reload && systemctl enable comercium` before the first
+#   Actions deploy. The workflow restarts it after installing the first binary.
+#
 #   Copy deploy/install.sh to the VPS (or git clone), then:
-#   sudo bash install.sh example.com /tmp/comercium-release.tar.gz
-#   install.sh: installs Caddy (auto HTTPS), unpacks to /opt/comercium, writes
-#   /opt/comercium/comercium.env, generates /etc/caddy/Caddyfile, and enables the
-#   comercium systemd service.
+#   sudo bash install.sh /tmp/comercium-release.tar.gz
+#   install.sh unpacks to /opt/comercium and restarts the preconfigured service.
 
 ## 5. Verify
 #   systemctl status comercium
@@ -36,8 +52,9 @@
 ## Notes
 # - Fresh start: delete /opt/comercium/data, then the /onboarding flow creates
 #   the first tenant + admin on first visit.
-# - Existing data: the release bundles backend/data (tenant migrations applied
-#   at build time). Master DB auto-migrates on boot.
+# - Production data remains on the VPS and is never copied into the artifact.
+#   Master and existing tenant databases apply pending migrations on startup;
+#   migration errors prevent the new service from starting.
 # - Backups: copy deploy/backup.sh to /opt/comercium/backup.sh and add a cron job:
 #       0 2 * * * /opt/comercium/backup.sh
 #   Backups land in /opt/comercium/backups/. Move them off-box (rclone/restic)
@@ -47,13 +64,14 @@
 #       sudo tar -xzf /tmp/comercium-release.tar.gz -C /opt/comercium
 #       sudo chmod +x /opt/comercium/comercium
 #       sudo systemctl start comercium
-#   (data/ and backups/ are preserved — the tarball only overwrites comercium,
-#    web/, and drizzle/.)
+#   (data/ and backups/ are preserved — the release replaces comercium, web/,
+#    drizzle/, and the versioned help-document directory.)
 
 ## 6. Automatic deploys on push to main (GitHub Actions)
-#   .github/workflows/deploy.yml rebuilds the release and redeploys on every
+#   .github/workflows/deploy.yml builds an ARM64 release and redeploys on every
 #   push to `main` (and via the "Run workflow" button). It:
-#     1. Checks out the repo, installs deps, runs ./deploy/build-release.sh
+#     1. Checks out the repo on an ARM64 runner, builds inside Oracle Linux 9,
+#        and runs ./deploy/build-release.sh
 #     2. Uploads dist/comercium-release.tar.gz + deploy/install.sh to the VPS
 #     3. Runs install.sh remotely (preserves /opt/comercium/data), restarts the
 #        systemd service, and health-checks https://<domain>/login
@@ -70,7 +88,7 @@
 #     VPS_SSH_KEY    SSH private key (OpenSSH format) of that user
 #     VPS_HOST_KEY   (recommended) the VPS host public key, as printed by:
 #                      ssh-keyscan -t ed25519 <VPS_HOST>
-#                    If omitted, the workflow falls back to ssh-keyscan at build
-#                    time (weaker — host key is not pinned).
+#                    If omitted, the workflow falls back to ssh-keyscan during
+#                    deployment (weaker — host key is not pinned).
 #   To grab the host key for the secret:
 #     ssh-keyscan -t ed25519 <VPS_HOST>

@@ -23,7 +23,7 @@ export const Route = createRootRoute({
                 content: "width=device-width, initial-scale=1",
             },
             {
-                title: "TanStack Start Starter",
+                title: "Comercium — Gestão comercial",
             },
         ],
         links: [
@@ -47,7 +47,7 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="en">
+        <html lang="pt-BR">
             <head>
                 <HeadContent />
             </head>
@@ -76,7 +76,7 @@ function RootComponent() {
     return (
         <ThemeProvider
             attribute="class"
-            defaultTheme="light"
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
         >
@@ -87,7 +87,7 @@ function RootComponent() {
                 </TooltipProvider>
             ) : (
                 <SidebarProvider>
-                    <div className="flex w-full min-h-screen items-center justify-center">
+                    <div className="flex min-h-svh w-full">
                         {isSidebarVisible && user && (
                             <AppSidebar
                                 login={user.login}
@@ -98,7 +98,7 @@ function RootComponent() {
                         )}
 
                         <TooltipProvider>
-                            <div className={`relative flex w-full min-h-screen ${!isSidebarVisible ? "items-center justify-center" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
+                            <div className={`relative flex min-h-svh min-w-0 flex-1 flex-col ${!isSidebarVisible ? "items-center justify-center" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
                                 {user?.impersonatedByAdminId && (
                                     <ImpersonationBanner tenantName={user.tenantName} />
                                 )}

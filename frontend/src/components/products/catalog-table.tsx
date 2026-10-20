@@ -42,10 +42,10 @@ export function CatalogTable({ products, onSelect }: {
                             <TableCell>{product.name}</TableCell>
                             <TableCell>{product.category?.name ?? "-"}</TableCell>
                             <TableCell>{product.gtin ?? "-"}</TableCell>
-                            <TableCell className={stock <= 0 ? "text-right font-bold text-red-600" : "text-right"}>{stock}</TableCell>
+                            <TableCell className={stock <= 0 ? "text-right font-bold text-[var(--danger)]" : "text-right"}>{stock}</TableCell>
                             <TableCell className="text-right">{formatCurrency(product.buyPrice)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(product.sellPrice)}</TableCell>
-                            <TableCell className={margin < 0 ? "text-right text-red-600" : "text-right text-green-600"}>{formatCurrency(margin)}</TableCell>
+                            <TableCell className={margin < 0 ? "text-right text-[var(--danger)]" : "text-right text-[var(--success)]"}>{formatCurrency(margin)}</TableCell>
                         </TableRow>
                     )
                 })}

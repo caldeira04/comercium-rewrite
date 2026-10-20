@@ -60,7 +60,7 @@ function RouteComponent() {
     })
 
     return (
-        <Card className='min-w-2/4'>
+        <Card className="w-full max-w-md">
             <CardHeader>
                 <CardTitle>
                     <h1>realizar login</h1>
@@ -68,7 +68,7 @@ function RouteComponent() {
                 <CardDescription>
                     não tem loja? <Link
                         to='/register'
-                        className='hover:underline text-main'
+                        className="text-primary hover:underline"
                     >faça seu cadastro</Link>
                 </CardDescription>
             </CardHeader>

@@ -27,20 +27,20 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                 <div className='flex gap-2 justify-between'>
                     <Card className='flex-1'>
                         <CardContent className='flex items-center gap-4'>
-                            <div className='bg-green-600/10 w-12 h-12 rounded-full flex items-center justify-center text-green-800'><ArrowDown /> </div>
+                            <div className='flex h-12 w-12 items-center justify-center rounded-md bg-[var(--success-soft)] text-[var(--success)]'><ArrowDown /> </div>
                             <div className='flex flex-col gap-2 items-start'>
                                 <h3 className='font-bold'>entradas</h3>
-                                <span className='font-bold text-lg text-green-600 text-nowrap'>{formatCurrency(cash.amounts.inflow)}</span>
+                                <span className='text-lg font-bold text-nowrap text-[var(--success)]'>{formatCurrency(cash.amounts.inflow)}</span>
                                 <span className='text-muted-foreground text-xs'>{cash.movementSummary.inCount} movimentações</span>
                             </div>
                         </CardContent>
                     </Card>
                     <Card className='flex-1'>
                         <CardContent className='flex items-center gap-4'>
-                            <div className='bg-red-600/10 w-12 h-12 rounded-full flex items-center justify-center text-red-800'><ArrowUp /> </div>
+                            <div className='flex h-12 w-12 items-center justify-center rounded-md bg-[var(--danger-soft)] text-[var(--danger)]'><ArrowUp /> </div>
                             <div className='flex flex-col gap-2 items-start'>
                                 <h3 className='font-bold'>saídas</h3>
-                                <span className='font-bold text-lg text-red-600 text-nowrap'>{formatCurrency(cash.amounts.outflow)}</span>
+                                <span className='text-lg font-bold text-nowrap text-[var(--danger)]'>{formatCurrency(cash.amounts.outflow)}</span>
                                 <span className='text-muted-foreground text-xs'>{cash.movementSummary.outCount} movimentações</span>
                             </div>
                         </CardContent>
@@ -66,11 +66,11 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                         </CardContent>
                     </Card>
                     {!isOpen && (
-                        <Card className={cash.amounts.difference && cash.amounts.difference >= 0 ? "bg-green-600/10" : "bg-red-600/10"}>
+                        <Card className={cash.amounts.difference && cash.amounts.difference >= 0 ? "bg-[var(--success-soft)]" : "bg-[var(--danger-soft)]"}>
                             <CardContent className='flex items-center gap-4'>
                                 <div className='flex flex-col gap-2 items-start'>
                                     <h3 className='font-bold'>diferença</h3>
-                                    <span className={`${cash.amounts.difference && cash.amounts.difference >= 0 ? "text-green-600" : "text-red-600"} font-bold text-lg`}>{formatCurrency(cash.amounts.difference ?? 0)}</span>
+                                    <span className={`${cash.amounts.difference && cash.amounts.difference >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"} text-lg font-bold`}>{formatCurrency(cash.amounts.difference ?? 0)}</span>
                                     <span className='text-muted-foreground text-xs'>total - contado</span>
                                 </div>
                             </CardContent>
@@ -83,7 +83,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                         <Card className='flex-1'>
                             <CardContent className='flex flex-col items-start gap-4'>
                                 <div className='flex gap-2 items-center justify-start'>
-                                    <div className='bg-green-600/10 w-10 h-10 rounded-full flex text-green-600 items-center justify-center'><Banknote /> </div>
+                                    <div className='flex h-10 w-10 items-center justify-center rounded-md bg-[var(--success-soft)] text-[var(--success)]'><Banknote /> </div>
                                     <h3>dinheiro</h3>
                                 </div>
                                 <div className='flex flex-col gap-2 items-start'>
@@ -107,7 +107,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                         <Card className='flex-1'>
                             <CardContent className='flex flex-col items-start gap-4'>
                                 <div className='flex gap-2 items-center justify-start'>
-                                    <div className='bg-blue-600/10 w-10 h-10 rounded-full flex text-blue-600 items-center justify-center'><CreditCard /> </div>
+                                    <div className='flex h-10 w-10 items-center justify-center rounded-md bg-accent text-accent-foreground'><CreditCard /> </div>
                                     <h3>débito</h3>
                                 </div>
                                 <div className='flex flex-col gap-2 items-start'>
@@ -119,7 +119,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                         <Card className='flex-1'>
                             <CardContent className='flex flex-col items-start gap-4'>
                                 <div className='flex gap-2 items-center justify-start'>
-                                    <div className='bg-red-600/10 w-10 h-10 rounded-full flex text-red-600 items-center justify-center'><CreditCard /> </div>
+                                    <div className='flex h-10 w-10 items-center justify-center rounded-md bg-[var(--danger-soft)] text-[var(--danger)]'><CreditCard /> </div>
                                     <h3>crédito</h3>
                                 </div>
                                 <div className='flex flex-col gap-2 items-start'>
@@ -215,7 +215,7 @@ function CashMovementsTable({ cash }: {
                                 <TableCell
                                     className={cn(
                                         "text-right font-semibold",
-                                        item.nature === "in" ? "text-emerald-600" : "text-red-500"
+                                        item.nature === "in" ? "text-[var(--success)]" : "text-[var(--danger)]"
                                     )}
                                 >
                                     {item.nature === "in" ? "+" : "-"}

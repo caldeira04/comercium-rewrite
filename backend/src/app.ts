@@ -13,6 +13,7 @@ import cash from "./routes/tenants/cash"
 import payment from "./routes/tenants/payments"
 import stock from "./routes/tenants/stock"
 import categories from "./routes/tenants/categories"
+import assistant from "./routes/tenants/assistant"
 import { AppError } from "./utils/errors"
 import { db } from "@/db/db"
 import { systemError } from "@/db/schema/master/admin"
@@ -109,6 +110,7 @@ export function createApp({ corsOrigin = "http://localhost:5173" }: {
                 .use(payment)
                 .use(stock)
                 .use(categories)
+                .use(assistant)
         )
         .get("/", () => "Hello Elysia")
 }

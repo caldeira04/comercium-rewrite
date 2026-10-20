@@ -16,18 +16,11 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Use an ARM64 runner and Oracle Linux build container for the VPS target.
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install workspace dependencies
-        run: bun install --frozen-lockfile
 
       - name: Validate required secrets
         env:
@@ -46,43 +39,79 @@ jobs:
       - name: Build release
         env:
           DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
-        run: ./deploy/build-release.sh "$DEPLOY_DOMAIN"
+        run: |
+          docker run --rm -i --platform linux/arm64 \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            --env DEPLOY_DOMAIN \
+            --env WORKSPACE_UID="$(id -u)" \
+            --env WORKSPACE_GID="$(id -g)" \
+            oraclelinux:9 \
+            bash -euo pipefail -s <<'BUILD'
+          trap 'chown -R "$WORKSPACE_UID:$WORKSPACE_GID" /workspace' EXIT
+          dnf module enable -y nodejs:20
+          dnf install -y curl unzip tar gzip git gcc gcc-c++ make python3 nodejs npm
+          node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (!((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22)) { console.error("Vite needs Node 20.19+ or 22.12+; found " + process.versions.node); process.exit(1) }'
+          export BUN_INSTALL=/tmp/bun
+          curl -fsSL https://bun.sh/install | bash
+          export PATH="$BUN_INSTALL/bin:$PATH"
+          test "$(uname -m)" = aarch64
+          bun install --frozen-lockfile
+          ./deploy/build-release.sh "$DEPLOY_DOMAIN"
+          BUILD
+          test -x dist/release/comercium
 
       - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST_KEY: ${{ secrets.VPS_HOST_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           mkdir -p ~/.ssh
           umask 077
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          if [ -n "${{ secrets.VPS_HOST_KEY }}" ]; then
-            printf '%s\n' "${{ secrets.VPS_HOST_KEY }}" > ~/.ssh/known_hosts
+          if [ -n "$VPS_HOST_KEY" ]; then
+            printf '%s\n' "$VPS_HOST_KEY" > ~/.ssh/known_hosts
           else
-            ssh-keyscan "${{ secrets.VPS_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
+            ssh-keyscan -t ed25519 "$VPS_HOST" > ~/.ssh/known_hosts 2>/dev/null
           fi
+          test -s ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
       - name: Upload release to VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
             dist/comercium-release.tar.gz deploy/install.sh \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/"
+            "$VPS_USER@$VPS_HOST:/tmp/"
 
       - name: Install and restart service on VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" 'bash -s' <<'EOF'
+            "$VPS_USER@$VPS_HOST" 'bash -s' <<'EOF'
           set -euo pipefail
           if ! systemctl cat comercium.service >/dev/null 2>&1; then
             echo "ERROR: comercium systemd service not found on the VPS." >&2
             echo "Run the initial VPS setup first (see deploy/README.md)." >&2
             exit 1
           fi
-          sudo bash /tmp/install.sh deploy /tmp/comercium-release.tar.gz
+          sudo bash /tmp/install.sh /tmp/comercium-release.tar.gz
           echo "==> Service status:"
-          sudo systemctl --no-pager --lines=15 status comercium || true
+          sudo systemctl is-active --quiet comercium
+          sudo systemctl --no-pager --lines=15 status comercium
           EOF
 
       - name: Health check
+        env:
+          DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
         run: |
-          curl -sS --fail --max-time 15 "https://${{ secrets.DEPLOY_DOMAIN }}/login" -o /dev/null \
-            && echo "Deploy verified: https://${{ secrets.DEPLOY_DOMAIN }} is serving the app"
+          curl --silent --show-error --fail --location \
+            --retry 12 --retry-delay 5 --retry-all-errors --max-time 15 \
+            "https://${DEPLOY_DOMAIN}/login" -o /dev/null
+          echo "Deploy verified: https://${DEPLOY_DOMAIN} is serving the app"

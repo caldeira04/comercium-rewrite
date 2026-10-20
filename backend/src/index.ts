@@ -1,6 +1,7 @@
 import path from "node:path"
 import { existsSync, readFileSync } from "node:fs"
 import { createApp } from "./app"
+import { initializeAssistantKnowledgeBase } from "./domain/assistant/AssistantService"
 
 export type { App } from "./app"
 
@@ -54,6 +55,7 @@ const corsOrigin = (process.env.CORS_ORIGIN ?? "http://localhost:5173")
     .map((origin) => origin.trim())
     .filter(Boolean)
 const app = createApp({ corsOrigin }).listen(port)
+initializeAssistantKnowledgeBase()
 
 console.log(
     `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

@@ -26,8 +26,8 @@ function RouteComponent() {
     const currentSaleTotal = currentSaleItems.reduce((total, item) => total + item.totalPrice - (item.discount ?? 0), 0)
 
     return (
-        <div className="flex h-screen w-full flex-col gap-4 self-start p-4">
-            <div className="flex items-center justify-between">
+        <main className="flex min-h-svh w-full flex-col gap-6 self-start p-4 md:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold uppercase">dashboard</h1>
                     <p className="text-muted-foreground">visão operacional do ERP local</p>
@@ -45,7 +45,7 @@ function RouteComponent() {
                     </CardContent>
                 </Card>
             )}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <Metric
                     label="caixa atual"
                     value={currentCash ? currentCash.status === "open" ? "aberto" : "fechado" : "sem caixa"}
@@ -67,7 +67,7 @@ function RouteComponent() {
                     detail={`${products?.length ?? 0} produtos cadastrados`}
                 />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
                 <Card>
                     <CardContent>
                         <h2 className="mb-3 font-bold">atalhos</h2>
@@ -88,7 +88,7 @@ function RouteComponent() {
                                 {lowStockProducts.slice(0, 8).map((product) => (
                                     <div key={product.id} className="flex justify-between rounded-lg border p-2">
                                         <span>{product.name}</span>
-                                        <span className="font-bold text-red-600">{getProductStock(product)}</span>
+                                        <span className="font-bold text-[var(--danger)]">{getProductStock(product)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -113,7 +113,7 @@ function RouteComponent() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </main>
     )
 }
 

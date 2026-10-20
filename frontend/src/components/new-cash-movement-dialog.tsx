@@ -45,7 +45,7 @@ export default function NewCashMovementDialog({ type, cashId }: NewCashMovementD
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className={`w-full ${type === "topup" ? "bg-green-500" : "bg-red-500"}`}>{type === "topup" ? (
+                <Button className={`w-full ${type === "topup" ? "bg-[var(--success)] text-[#06130f] hover:bg-[var(--success)]/90" : "bg-[var(--danger-soft)] text-[var(--danger)] hover:bg-[var(--danger-soft)]/80"}`}>{type === "topup" ? (
                     <>
                         <BanknoteArrowUp /> suprimento
                     </>

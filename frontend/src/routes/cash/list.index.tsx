@@ -54,13 +54,13 @@ function RouteComponent() {
                             {cashes.map((cash) => (
                                 <TableRow key={cash.id} className="cursor-pointer" onClick={() => setSelectedCash(cash)}>
                                     <TableCell className="font-medium">{cash.id.split("-")[0]}</TableCell>
-                                    <TableCell><Badge className={cash.status === "open" ? "bg-green-600" : "bg-red-600"}>{cash.status === "open" ? "aberto" : "fechado"}</Badge></TableCell>
+                                    <TableCell><Badge className={cash.status === "open" ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{cash.status === "open" ? "aberto" : "fechado"}</Badge></TableCell>
                                     <TableCell>{formatTime(new Date(cash.openedAt)).ddMMyy}</TableCell>
                                     <TableCell>{cash.closedAt ? formatTime(new Date(cash.closedAt)).ddMMyy : "-"}</TableCell>
                                     <TableCell>{cash.users.createdBy?.login ?? "sistema"}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.expectedClosing)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.actualClosing ?? 0)}</TableCell>
-                                    <TableCell className={cash.amounts.difference && cash.amounts.difference < 0 ? "text-right text-red-600" : "text-right text-green-600"}>{formatCurrency(cash.amounts.difference ?? 0)}</TableCell>
+                                    <TableCell className={cash.amounts.difference && cash.amounts.difference < 0 ? "text-right text-[var(--danger)]" : "text-right text-[var(--success)]"}>{formatCurrency(cash.amounts.difference ?? 0)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

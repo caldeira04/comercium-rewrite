@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `assistant_knowledge_chunk_source_index_unique` ON `assistant_knowledge_chunk` (`source_file`,`chunk_index`);

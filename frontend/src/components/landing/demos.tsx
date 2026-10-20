@@ -64,7 +64,7 @@ export function DashboardDemo() {
                             {lowStock.map((product) => (
                                 <div key={product.name} className="flex justify-between rounded-lg border p-2">
                                     <span>{product.name}</span>
-                                    <span className="font-bold text-red-600">{product.stock}</span>
+                                    <span className="font-bold text-[var(--danger)]">{product.stock}</span>
                                 </div>
                             ))}
                         </div>

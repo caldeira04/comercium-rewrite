@@ -1,4 +1,5 @@
 import { ChevronUp, LogOutIcon, SettingsIcon } from "lucide-react"
+import { useLocation } from "@tanstack/react-router"
 import {
     Sidebar,
     SidebarContent,
@@ -20,6 +21,9 @@ import { type ResponseUser } from "@/utils/auth"
 import { getApiUrl } from "@/lib/api-config"
 
 export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<ResponseUser, "tenantId">) {
+    const { pathname } = useLocation()
+    const normalizedPathname = pathname.replace(/\/$/, "") || "/"
+
     async function handleLogout() {
         await fetch(getApiUrl("/master/auth/logout"), {
             method: "POST",
@@ -31,9 +35,15 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<Respo
 
     return (
         <Sidebar collapsible="offcanvas">
-            <SidebarHeader className="mt-2 flex items-center justify-center">
-                <Link to="/">
-                    <h1 className="text-3xl font-bold uppercase">Comercium</h1>
+            <SidebarHeader className="px-4 pt-5 pb-4">
+                <Link to="/dashboard" className="flex items-center gap-2.5 px-2 py-1">
+                    <svg className="size-7 shrink-0 text-primary" viewBox="0 0 64 64" aria-hidden="true">
+                        <rect fill="currentColor" x="6" y="6" width="52" height="12" />
+                        <rect fill="currentColor" x="6" y="6" width="12" height="52" />
+                        <rect fill="currentColor" x="6" y="46" width="52" height="12" />
+                        <rect fill="currentColor" x="34" y="26" width="12" height="12" />
+                    </svg>
+                    <h1 className="text-base font-medium tracking-tight">Comercium</h1>
                 </Link>
             </SidebarHeader>
             <SidebarContent>
@@ -42,33 +52,44 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<Respo
                     if (hasSubitem) {
                         return (
                             <SidebarGroup key={i.label}>
-                                <SidebarGroupLabel>{i.label}</SidebarGroupLabel>
+                                <SidebarGroupLabel className="px-3 text-[11px] font-medium uppercase tracking-[0.1em] text-muted-foreground">{i.label}</SidebarGroupLabel>
                                 <SidebarGroupContent>
-                                    {i.subitems.map((s) => (
-                                        <SidebarMenuItem key={s.label}>
-                                            <Button variant={"link"}>
-                                                <Link to={s.url} className="flex gap-2 items-center justify-center">
-                                                    {s.icon} {s.label}
-                                                </Link>
-                                            </Button>
-                                        </SidebarMenuItem>
-                                    ))}
+                                    <SidebarMenu className="gap-1">
+                                        {i.subitems.map((s) => {
+                                            const isActive = normalizedPathname === s.url || normalizedPathname.startsWith(`${s.url}/`)
+
+                                            return (
+                                                <SidebarMenuItem key={s.label}>
+                                                    <SidebarMenuButton asChild isActive={isActive} className="h-9 px-3">
+                                                        <Link to={s.url}>
+                                                            {s.icon}
+                                                            <span>{s.label}</span>
+                                                        </Link>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            )
+                                        })}
+                                    </SidebarMenu>
                                 </SidebarGroupContent>
                             </SidebarGroup>
                         )
                     }
 
+                    const isActive = normalizedPathname === i.url || normalizedPathname.startsWith(`${i.url}/`)
+
                     return (
-                        <SidebarGroup key={i.label}>
-                            <SidebarGroupLabel>{i.label}</SidebarGroupLabel>
+                        <SidebarGroup key={i.label} className="py-1">
                             <SidebarGroupContent>
-                                <SidebarMenuItem>
-                                    <Button variant={"link"}>
-                                        <Link to={i.url} className="flex gap-2 items-center justify-center">
-                                            {i.icon} {i.label}
-                                        </Link>
-                                    </Button>
-                                </SidebarMenuItem>
+                                <SidebarMenu>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton asChild isActive={isActive} className="h-9 px-3">
+                                            <Link to={i.url}>
+                                                {i.icon}
+                                                <span>{i.label}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                </SidebarMenu>
                             </SidebarGroupContent>
                         </SidebarGroup>
                     )
@@ -79,11 +100,11 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<Respo
                     <SidebarMenuItem>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton className="h-24 w-full items-center justify-between">
+                                <SidebarMenuButton className="h-16 w-full items-center justify-between px-3">
                                     <div className="flex flex-col">
-                                        <h1 className="font-bold text-2xl">{tenantName}</h1>
-                                        <h2 className="text-muted-foreground">{tenantSlug}</h2>
-                                        <span>{login}</span>
+                                        <h1 className="max-w-48 truncate text-sm font-medium">{tenantName}</h1>
+                                        <h2 className="text-xs text-muted-foreground">{tenantSlug}</h2>
+                                        <span className="text-xs text-muted-foreground">{login}</span>
                                     </div>
                                     <ChevronUp className="ml-auto" />
                                 </SidebarMenuButton>

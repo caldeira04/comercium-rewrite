@@ -26,7 +26,7 @@ function RouteComponent() {
                 <div className='px-4'>
                     <div className='flex items-center'>
                         {!currentCashIsPending && (
-                            <Badge className={currentCash?.closedAt ? "text-red-600 bg-red-600" : "text-green-600 bg-green-600"} />
+                            <Badge className={currentCash?.closedAt ? "bg-[var(--danger-soft)] text-[var(--danger)]" : "bg-[var(--success-soft)] text-[var(--success)]"} />
                         )}
                         <h1 className='p-4 font-bold text-2xl uppercase'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : currentCash?.openedAt ? "aberto" : ""}</h1>
                         {!currentCashIsPending && currentCash && (
@@ -35,13 +35,13 @@ function RouteComponent() {
                     </div>
                     <div>
                         {!currentCashIsPending && currentCash && (
-                            <div className='text-green-600 flex gap-2 items-center'>
+                            <div className='flex items-center gap-2 text-[var(--success)]'>
                                 <span>aberto em <span className='font-bold'>{formatTime(new Date(currentCash.openedAt)).ddMMyy} - {formatTime(new Date(currentCash.openedAt)).hhMM}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.createdBy?.login}</span></span>
                             </div>
                         )}
                         {!currentCashIsPending && currentCash && currentCash.closedAt && (
-                            <div className='text-red-600 flex gap-2 items-center'>
+                            <div className='flex items-center gap-2 text-[var(--danger)]'>
                                 <span>fechado em <span className='font-bold'>{formatTime(new Date(currentCash.closedAt)).ddMMyy} - {formatTime(new Date(currentCash.closedAt)).hhMM}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.closedBy?.login}</span></span>
                             </div>
@@ -86,7 +86,7 @@ function CashDetails({ cash, isOpen }: {
             <div className='w-full flex flex-col h-full gap-4 justify-start'>
                 <h2 className='font-bold text-lg'>detalhes do {isOpen ? "caixa" : "fechamento"}</h2>
                 <div className='text-sm flex flex-col gap-2'>
-                    <div className='flex items-center justify-between'><span>status</span><Badge className={isOpen ? "bg-green-500" : "bg-red-500"}>{isOpen ? "aberto" : "fechado"}</Badge></div>
+                    <div className='flex items-center justify-between'><span>status</span><Badge className={isOpen ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{isOpen ? "aberto" : "fechado"}</Badge></div>
                     <div className='flex items-center justify-between'><span>abertura</span>
                         {cash?.openedAt ? (
                             <span>{formatTime(new Date(cash.openedAt)).ddMMyy} às {formatTime(new Date(cash.openedAt)).hhMM}</span>

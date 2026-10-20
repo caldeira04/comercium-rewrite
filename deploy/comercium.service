@@ -1,0 +1,19 @@
+[Unit]
+Description=Comercium application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=comercium
+WorkingDirectory=/opt/comercium
+EnvironmentFile=/opt/comercium/comercium.env
+Environment=NODE_ENV=production
+Environment=COMERCIUM_WEB_DIR=/opt/comercium/web
+ExecStart=/opt/comercium/comercium
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
