@@ -49,9 +49,12 @@ jobs:
             oraclelinux:9 \
             bash -euo pipefail -s <<'BUILD'
           trap 'chown -R "$WORKSPACE_UID:$WORKSPACE_GID" /workspace' EXIT
-          dnf module enable -y nodejs:20
-          dnf install -y curl unzip tar gzip git gcc gcc-c++ make python3 nodejs npm
-          node -e 'const [major, minor] = process.versions.node.split(".").map(Number); if (!((major === 20 && minor >= 19) || (major === 22 && minor >= 12) || major > 22)) { console.error("Vite needs Node 20.19+ or 22.12+; found " + process.versions.node); process.exit(1) }'
+          dnf install -y curl unzip tar gzip xz git gcc gcc-c++ make python3
+          NODE_VERSION=22.22.2
+          curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-arm64.tar.xz" -o /tmp/node.tar.xz
+          tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+          rm /tmp/node.tar.xz
+          node -e 'if (process.versions.node !== "22.22.2") { console.error("Expected Node 22.22.2 for node-gyp@13; found " + process.versions.node); process.exit(1) }'
           export BUN_INSTALL=/tmp/bun
           curl -fsSL https://bun.sh/install | bash
           export PATH="$BUN_INSTALL/bin:$PATH"
