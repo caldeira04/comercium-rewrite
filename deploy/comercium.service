@@ -9,6 +9,8 @@ User=comercium
 WorkingDirectory=/opt/comercium
 EnvironmentFile=/opt/comercium/comercium.env
 Environment=NODE_ENV=production
+Environment=PORT=3002
+Environment=NITRO_PORT=3003
 Environment=COMERCIUM_WEB_DIR=/opt/comercium/web
 ExecStart=/opt/comercium/comercium
 Restart=on-failure

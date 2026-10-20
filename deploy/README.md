@@ -1,7 +1,7 @@
 # Comercium deployment kit
 #
 # One machine, one process: the compiled single binary serves the API (Elysia,
-# :3000) and the CSR frontend (Nitro bun-preset, :3001). Caddy terminates HTTPS
+# :3002) and the CSR frontend (Nitro bun-preset, :3003). Caddy terminates HTTPS
 # and routes /master/* and /tenant/* to the API, everything else to the frontend,
 # so the browser talks to a single origin (no CORS, Secure Lax cookies work).
 #
