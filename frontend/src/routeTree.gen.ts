@@ -24,6 +24,8 @@ import { Route as SalesListIndexRouteImport } from './routes/sales/list.index'
 import { Route as SalesDailyIndexRouteImport } from './routes/sales/daily.index'
 import { Route as ProductsReportIndexRouteImport } from './routes/products/report.index'
 import { Route as ProductsListIndexRouteImport } from './routes/products/list.index'
+import { Route as FinanceReceivablesIndexRouteImport } from './routes/finance/receivables.index'
+import { Route as FinancePayablesIndexRouteImport } from './routes/finance/payables.index'
 import { Route as CashReportIndexRouteImport } from './routes/cash/report.index'
 import { Route as CashListIndexRouteImport } from './routes/cash/list.index'
 import { Route as CashCurrentIndexRouteImport } from './routes/cash/current.index'
@@ -111,6 +113,16 @@ const ProductsReportIndexRoute = ProductsReportIndexRouteImport.update({
 const ProductsListIndexRoute = ProductsListIndexRouteImport.update({
   id: '/products/list/',
   path: '/products/list/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceReceivablesIndexRoute = FinanceReceivablesIndexRouteImport.update({
+  id: '/finance/receivables/',
+  path: '/finance/receivables/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinancePayablesIndexRoute = FinancePayablesIndexRouteImport.update({
+  id: '/finance/payables/',
+  path: '/finance/payables/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CashReportIndexRoute = CashReportIndexRouteImport.update({
@@ -203,6 +215,8 @@ export interface FileRoutesByFullPath {
   '/cash/current/': typeof CashCurrentIndexRoute
   '/cash/list/': typeof CashListIndexRoute
   '/cash/report/': typeof CashReportIndexRoute
+  '/finance/payables/': typeof FinancePayablesIndexRoute
+  '/finance/receivables/': typeof FinanceReceivablesIndexRoute
   '/products/list/': typeof ProductsListIndexRoute
   '/products/report/': typeof ProductsReportIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
@@ -232,6 +246,8 @@ export interface FileRoutesByTo {
   '/cash/current': typeof CashCurrentIndexRoute
   '/cash/list': typeof CashListIndexRoute
   '/cash/report': typeof CashReportIndexRoute
+  '/finance/payables': typeof FinancePayablesIndexRoute
+  '/finance/receivables': typeof FinanceReceivablesIndexRoute
   '/products/list': typeof ProductsListIndexRoute
   '/products/report': typeof ProductsReportIndexRoute
   '/sales/daily': typeof SalesDailyIndexRoute
@@ -263,6 +279,8 @@ export interface FileRoutesById {
   '/cash/current/': typeof CashCurrentIndexRoute
   '/cash/list/': typeof CashListIndexRoute
   '/cash/report/': typeof CashReportIndexRoute
+  '/finance/payables/': typeof FinancePayablesIndexRoute
+  '/finance/receivables/': typeof FinanceReceivablesIndexRoute
   '/products/list/': typeof ProductsListIndexRoute
   '/products/report/': typeof ProductsReportIndexRoute
   '/sales/daily/': typeof SalesDailyIndexRoute
@@ -295,6 +313,8 @@ export interface FileRouteTypes {
     | '/cash/current/'
     | '/cash/list/'
     | '/cash/report/'
+    | '/finance/payables/'
+    | '/finance/receivables/'
     | '/products/list/'
     | '/products/report/'
     | '/sales/daily/'
@@ -324,6 +344,8 @@ export interface FileRouteTypes {
     | '/cash/current'
     | '/cash/list'
     | '/cash/report'
+    | '/finance/payables'
+    | '/finance/receivables'
     | '/products/list'
     | '/products/report'
     | '/sales/daily'
@@ -354,6 +376,8 @@ export interface FileRouteTypes {
     | '/cash/current/'
     | '/cash/list/'
     | '/cash/report/'
+    | '/finance/payables/'
+    | '/finance/receivables/'
     | '/products/list/'
     | '/products/report/'
     | '/sales/daily/'
@@ -374,6 +398,8 @@ export interface RootRouteChildren {
   CashCurrentIndexRoute: typeof CashCurrentIndexRoute
   CashListIndexRoute: typeof CashListIndexRoute
   CashReportIndexRoute: typeof CashReportIndexRoute
+  FinancePayablesIndexRoute: typeof FinancePayablesIndexRoute
+  FinanceReceivablesIndexRoute: typeof FinanceReceivablesIndexRoute
   ProductsListIndexRoute: typeof ProductsListIndexRoute
   ProductsReportIndexRoute: typeof ProductsReportIndexRoute
   SalesDailyIndexRoute: typeof SalesDailyIndexRoute
@@ -486,6 +512,20 @@ declare module '@tanstack/react-router' {
       path: '/products/list'
       fullPath: '/products/list/'
       preLoaderRoute: typeof ProductsListIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finance/receivables/': {
+      id: '/finance/receivables/'
+      path: '/finance/receivables'
+      fullPath: '/finance/receivables/'
+      preLoaderRoute: typeof FinanceReceivablesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finance/payables/': {
+      id: '/finance/payables/'
+      path: '/finance/payables'
+      fullPath: '/finance/payables/'
+      preLoaderRoute: typeof FinancePayablesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cash/report/': {
@@ -625,6 +665,8 @@ const rootRouteChildren: RootRouteChildren = {
   CashCurrentIndexRoute: CashCurrentIndexRoute,
   CashListIndexRoute: CashListIndexRoute,
   CashReportIndexRoute: CashReportIndexRoute,
+  FinancePayablesIndexRoute: FinancePayablesIndexRoute,
+  FinanceReceivablesIndexRoute: FinanceReceivablesIndexRoute,
   ProductsListIndexRoute: ProductsListIndexRoute,
   ProductsReportIndexRoute: ProductsReportIndexRoute,
   SalesDailyIndexRoute: SalesDailyIndexRoute,

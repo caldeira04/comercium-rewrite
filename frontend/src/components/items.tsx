@@ -1,4 +1,4 @@
-import { BanknoteArrowUpIcon, BanknoteIcon, BotIcon, ChartCandlestickIcon, GaugeIcon, HandCoinsIcon, LandmarkIcon, PackageIcon, PackageOpenIcon, PackageSearchIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, UsersIcon } from "lucide-react"
+import { BanknoteArrowUpIcon, BanknoteIcon, BotIcon, ChartCandlestickIcon, GaugeIcon, HandCoinsIcon, LandmarkIcon, PackageIcon, PackageOpenIcon, PackageSearchIcon, ReceiptTextIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 export const items = [
     {
@@ -73,6 +73,16 @@ export const items = [
         label: "clientes",
         icon: <UsersIcon />,
         url: "/clients"
+    },
+    {
+        label: "contas a receber",
+        icon: <ReceiptTextIcon />,
+        url: "/finance/receivables"
+    },
+    {
+        label: "contas a pagar",
+        icon: <WalletIcon />,
+        url: "/finance/payables"
     },
     {
         label: "configurações",
