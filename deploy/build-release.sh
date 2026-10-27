@@ -25,7 +25,7 @@ if [ "${ID:-}" != "ol" ] || [[ "${VERSION_ID:-}" != 9* ]]; then
 fi
 
 rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR/web" "$OUT_DIR/drizzle"
+mkdir -p "$OUT_DIR/web" "$OUT_DIR/drizzle/migrations"
 
 cd "$REPO_ROOT"
 
@@ -37,7 +37,7 @@ bun build --compile backend/src/index.ts --outfile "$OUT_DIR/comercium"
 
 echo "==> Copying frontend output and migrations"
 cp -r frontend/.output/* "$OUT_DIR/web/"
-cp -r backend/drizzle/migrations/* "$OUT_DIR/drizzle/"
+cp -r backend/drizzle/migrations/* "$OUT_DIR/drizzle/migrations/"
 cp -r backend/knowledge "$OUT_DIR/knowledge"
 
 cd "$OUT_DIR"

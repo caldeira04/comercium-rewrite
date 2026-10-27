@@ -1,7 +1,5 @@
 import path from "node:path"
 import { existsSync, readFileSync } from "node:fs"
-import { createApp } from "./app"
-import { initializeAssistantKnowledgeBase } from "./domain/assistant/AssistantService"
 
 export type { App } from "./app"
 
@@ -48,6 +46,23 @@ function loadLocalEnv() {
 }
 
 loadLocalEnv()
+
+// `comercium --migrate` applies pending migrations to master and every tenant,
+// then exits. App modules are imported lazily below because importing them
+// opens the databases.
+if (process.argv.includes("--migrate")) {
+    const { migrateAllDatabases } = await import("./db/bootstrap")
+    try {
+        migrateAllDatabases()
+        process.exit(0)
+    } catch (error) {
+        console.error("Falha ao migrar bancos:", error)
+        process.exit(1)
+    }
+}
+
+const { createApp } = await import("./app")
+const { initializeAssistantKnowledgeBase } = await import("./domain/assistant/AssistantService")
 
 const port = Number(process.env.PORT ?? 3000)
 const corsOrigin = (process.env.CORS_ORIGIN ?? "http://localhost:5173")

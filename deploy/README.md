@@ -60,12 +60,16 @@
 #   Backups land in /opt/comercium/backups/. Move them off-box (rclone/restic)
 #   for real safety.
 # - Upgrading: rebuild + re-run build-release.sh, scp, then on the VPS:
-#       sudo systemctl stop comercium
-#       sudo tar -xzf /tmp/comercium-release.tar.gz -C /opt/comercium
-#       sudo chmod +x /opt/comercium/comercium
-#       sudo systemctl start comercium
-#   (data/ and backups/ are preserved — the release replaces comercium, web/,
-#    drizzle/, and the versioned help-document directory.)
+#       sudo bash install.sh /tmp/comercium-release.tar.gz
+#   install.sh stops the service, writes backups/pre-deploy-<timestamp>.tar.gz
+#   (data/ + the current release), unpacks the new release, runs
+#   `comercium --migrate` (master + every data/tenants/*.sqlite) as the service
+#   user, and starts the service. If the migration or the start fails, it
+#   restores that backup and restarts the previous release. The last 10
+#   pre-deploy backups are kept.
+# - Migrations live in /opt/comercium/drizzle/migrations/{master,tenant}. Remove
+#   any COMERCIUM_*_MIGRATIONS_DIR overrides from comercium.env that point
+#   elsewhere, or `--migrate` fails (and the deploy rolls back).
 
 ## 6. Automatic deploys on push to main (GitHub Actions)
 #   .github/workflows/deploy.yml builds an ARM64 release and redeploys on every
