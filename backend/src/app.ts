@@ -14,6 +14,11 @@ import payment from "./routes/tenants/payments"
 import stock from "./routes/tenants/stock"
 import categories from "./routes/tenants/categories"
 import assistant from "./routes/tenants/assistant"
+import receivables from "./routes/tenants/receivables"
+import payables from "./routes/tenants/payables"
+import payees from "./routes/tenants/payees"
+import bankAccounts from "./routes/tenants/bankAccounts"
+import expenseCategories from "./routes/tenants/expenseCategories"
 import { AppError } from "./utils/errors"
 import { db } from "@/db/db"
 import { systemError } from "@/db/schema/master/admin"
@@ -111,6 +116,11 @@ export function createApp({ corsOrigin = "http://localhost:5173" }: {
                 .use(stock)
                 .use(categories)
                 .use(assistant)
+                .use(receivables)
+                .use(payables)
+                .use(payees)
+                .use(bankAccounts)
+                .use(expenseCategories)
         )
         .get("/", () => "Hello Elysia")
 }

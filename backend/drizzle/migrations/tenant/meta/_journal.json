@@ -85,6 +85,20 @@
       "when": 1780616405000,
       "tag": "0011_remove_cashid_from_sale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793068285116,
+      "tag": "0012_add_payables",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793068286116,
+      "tag": "0013_seed_expense_categories",
+      "breakpoints": true
     }
   ]
 }

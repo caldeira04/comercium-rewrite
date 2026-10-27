@@ -126,7 +126,8 @@ export async function validateSession(token: string) {
             login: tenantUser.login,
             tenantId: tenantUser.tenantId,
             tenantSlug: tenant.slug,
-            tenantName: tenant.name
+            tenantName: tenant.name,
+            tenantTimezone: tenant.timezone
         })
         .from(session)
         .innerJoin(
