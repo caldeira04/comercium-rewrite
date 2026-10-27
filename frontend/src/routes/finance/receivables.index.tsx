@@ -33,7 +33,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error"
 import { formatCurrency } from "@/utils/finance"
 import { formatPaymentMethod } from "@/utils/formatters"
-import { formatDateTimeInZone, todayInputValue } from "@/utils/time"
+import { formatDateTimeInZone, monthEndInputValue, monthStartInputValue } from "@/utils/time"
 
 export const Route = createFileRoute("/finance/receivables/")({
     component: RouteComponent,
@@ -49,8 +49,8 @@ const statusLabels: Record<string, string> = {
 }
 
 function RouteComponent() {
-    const [startDate, setStartDate] = useState(todayInputValue())
-    const [endDate, setEndDate] = useState(todayInputValue())
+    const [startDate, setStartDate] = useState(monthStartInputValue())
+    const [endDate, setEndDate] = useState(monthEndInputValue())
     const [clientId, setClientId] = useState("all")
     const [status, setStatus] = useState<ReceivableStatusFilter>("paid")
     const [page, setPage] = useState(1)
@@ -114,8 +114,8 @@ function RouteComponent() {
     }
 
     function handleReset() {
-        setStartDate(todayInputValue())
-        setEndDate(todayInputValue())
+        setStartDate(monthStartInputValue())
+        setEndDate(monthEndInputValue())
         setClientId("all")
         setStatus("paid")
         setPage(1)

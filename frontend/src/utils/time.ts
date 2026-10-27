@@ -18,6 +18,14 @@ export function todayInputValue(date = new Date()) {
     return `${year}-${month}-${day}`
 }
 
+export function monthStartInputValue(date = new Date()) {
+    return todayInputValue(new Date(date.getFullYear(), date.getMonth(), 1))
+}
+
+export function monthEndInputValue(date = new Date()) {
+    return todayInputValue(new Date(date.getFullYear(), date.getMonth() + 1, 0))
+}
+
 export function parseSqliteUtc(value: string) {
     return new Date(`${value.replace(" ", "T")}Z`)
 }

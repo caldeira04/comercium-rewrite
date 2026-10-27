@@ -45,7 +45,7 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error"
 import { formatCurrency } from "@/utils/finance"
 import { formatPaymentMethod } from "@/utils/formatters"
-import { formatDateInput, todayInputValue } from "@/utils/time"
+import { formatDateInput, monthEndInputValue, monthStartInputValue } from "@/utils/time"
 import type { Payable } from "@/lib/api-types"
 import { PayableFormDialog } from "@/components/payables/payable-form-dialog"
 import { PayablePaymentDialog } from "@/components/payables/payable-payment-dialog"
@@ -66,8 +66,8 @@ const statusFilterLabels: Record<PayableStatusFilter, string> = {
 }
 
 function RouteComponent() {
-    const [startDate, setStartDate] = useState(todayInputValue())
-    const [endDate, setEndDate] = useState(todayInputValue())
+    const [startDate, setStartDate] = useState(monthStartInputValue())
+    const [endDate, setEndDate] = useState(monthEndInputValue())
     const [payeeId, setPayeeId] = useState("all")
     const [bankAccountId, setBankAccountId] = useState("all")
     const [categoryId, setCategoryId] = useState("all")
@@ -134,8 +134,8 @@ function RouteComponent() {
     }
 
     function handleReset() {
-        setStartDate(todayInputValue())
-        setEndDate(todayInputValue())
+        setStartDate(monthStartInputValue())
+        setEndDate(monthEndInputValue())
         setPayeeId("all")
         setBankAccountId("all")
         setCategoryId("all")
