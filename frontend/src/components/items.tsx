@@ -1,4 +1,4 @@
-import { BanknoteArrowUpIcon, BanknoteIcon, BotIcon, ChartCandlestickIcon, GaugeIcon, HandCoinsIcon, LandmarkIcon, PackageIcon, PackageOpenIcon, PackageSearchIcon, ReceiptTextIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, UsersIcon, WalletIcon } from "lucide-react"
+import { BanknoteArrowUpIcon, BanknoteIcon, BotIcon, ChartCandlestickIcon, CircleDollarSignIcon, GaugeIcon, HandCoinsIcon, LandmarkIcon, PackageIcon, PackageOpenIcon, PackageSearchIcon, ReceiptTextIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, UsersIcon, WalletIcon } from "lucide-react"
 
 export const items = [
     {
@@ -70,19 +70,25 @@ export const items = [
         ]
     },
     {
+        label: "financeiro",
+        icon: <CircleDollarSignIcon />,
+        subitems: [
+            {
+                label: "contas a receber",
+                url: "/finance/receivables",
+                icon: <ReceiptTextIcon />
+            },
+            {
+                label: "contas a pagar",
+                url: "/finance/payables",
+                icon: <WalletIcon />
+            }
+        ]
+    },
+    {
         label: "clientes",
         icon: <UsersIcon />,
         url: "/clients"
-    },
-    {
-        label: "contas a receber",
-        icon: <ReceiptTextIcon />,
-        url: "/finance/receivables"
-    },
-    {
-        label: "contas a pagar",
-        icon: <WalletIcon />,
-        url: "/finance/payables"
     },
     {
         label: "configurações",
