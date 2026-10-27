@@ -45,7 +45,13 @@ Para registrar uma movimentação manual:
 3. No painel lateral, clique em **"movimentar estoque"**.
 4. Selecione o tipo: entrada, saída, ajuste ou transferência.
 5. Informe a quantidade e o motivo.
-6. Confirme.
+6. Se for uma entrada de mercadoria comprada, marque **"esta entrada é uma
+   compra de produtos"**.
+7. Confirme.
+
+Quando a entrada é marcada como compra, o sistema pergunta em seguida se deseja
+**lançar no Contas a Pagar**, com vencimento, parcelas e forma de pagamento
+(veja **Financeiro → Contas a Pagar**).
 
 ### Motivos Comuns
 

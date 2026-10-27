@@ -55,6 +55,13 @@ Tabelas de Alerta:
 - **Margem Negativa**: produtos cujo preço de venda é menor que o preço de
   custo.
 
+## Relatórios Financeiros
+
+As telas de **Financeiro → Contas a Receber** e **Financeiro → Contas a Pagar**
+têm o botão **"exportar PDF"**, que gera um relatório com os filtros aplicados
+e os totais do período (recebido, estornado e líquido no Contas a Receber;
+pendente, vencido e pago no Contas a Pagar). O período padrão é o mês atual.
+
 ## Interpretação dos Dados
 
 - **Diferença de caixa positiva**: sobrou dinheiro no caixa em relação ao

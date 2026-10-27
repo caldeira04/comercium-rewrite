@@ -41,6 +41,10 @@ no caixa atual, vinculada à venda. Isso significa que:
 - O relatório de caixa mostra as entradas por forma de pagamento.
 - Cada pagamento tem uma referência à venda e ao caixa.
 
+Os pagamentos de vendas também aparecem em **Financeiro → Contas a Receber**,
+organizados pela data do pagamento, com filtros por período, cliente e
+situação.
+
 ## Status do Pagamento
 
 Cada pagamento possui um status:

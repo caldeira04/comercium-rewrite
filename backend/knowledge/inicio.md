@@ -54,8 +54,10 @@ contato com o suporte para redefinir sua senha.
 Após o login, você verá a **barra lateral** com os módulos disponíveis:
 
 - **Dashboard** — visão geral do negócio.
+- **Assistente** — tira dúvidas sobre o uso do sistema.
 - **Vendas** — PDV, histórico e relatórios.
 - **Estoque** — catálogo de produtos e relatório de estoque.
 - **Caixa** — gerenciamento de caixa, histórico e relatórios.
+- **Financeiro** — contas a receber e contas a pagar.
 - **Clientes** — cadastro e consulta de clientes.
 - **Configurações** — informações da empresa, usuário e tema.
