@@ -99,6 +99,13 @@
       "when": 1793068286116,
       "tag": "0013_seed_expense_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793139727826,
+      "tag": "0014_add_assistant_conversations",
+      "breakpoints": true
     }
   ]
 }

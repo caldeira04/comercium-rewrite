@@ -23,6 +23,7 @@ This is a Bun workspace with separate frontend and backend packages.
 - `bun run --cwd frontend lint`: run the TanStack ESLint config.
 - `bun run --cwd frontend test`: run Vitest tests.
 - `bun run --cwd backend dev`: run the API in watch mode.
+- `bun run --cwd backend test`: run backend tests with `bun test`.
 - `bun run --cwd backend db:master:migrate` and
   `bun run --cwd backend db:tenant:migrate:all`: apply Drizzle migrations.
 
@@ -38,8 +39,9 @@ variables, and kebab-case filenames when matching current frontend patterns.
 
 Frontend tests use Vitest with Testing Library dependencies available. Place
 tests near covered code as `*.test.ts` or `*.test.tsx`, and run
-`bun run --cwd frontend test`. Backend automated tests are not configured yet;
-`bun run --cwd backend test` is a placeholder that exits with an error.
+`bun run --cwd frontend test`. Backend tests use `bun test` (run
+`bun run --cwd backend test`); they point `COMERCIUM_DATA_DIR` at a temporary
+directory and migrate a throwaway tenant database before importing services.
 
 ## Commit & Pull Request Guidelines
 
