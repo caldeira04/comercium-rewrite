@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, describe, expect, setSystemTime, test } from "bun:test"
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -39,6 +39,8 @@ async function runTool(name: string, args: Record<string, unknown>) {
 }
 
 beforeAll(async () => {
+    // Datas relativas ("hoje", "esse mês") ficam fixas em 27/10/2026, meio-dia em São Paulo
+    setSystemTime(new Date("2026-10-27T15:00:00Z"))
     mkdirSync(path.join(dataDir, "tenants"), { recursive: true })
     const sqlite = new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`), { create: true })
     migrate(drizzle(sqlite), { migrationsFolder: path.resolve(import.meta.dir, "../../../drizzle/migrations/tenant") })
@@ -92,6 +94,7 @@ beforeAll(async () => {
 })
 
 afterAll(() => {
+    setSystemTime()
     rmSync(dataDir, { recursive: true, force: true })
 })
 
@@ -170,6 +173,66 @@ describe("assistant tools", () => {
     test("caixa_atual informa quando não há caixa", async () => {
         expect(await runTool("caixa_atual", {})).toMatchObject({ caixa: null })
     })
+
+    test("sugestao_recompra calcula cobertura pela média de venda", async () => {
+        const result = await runTool("sugestao_recompra", { diasCobertura: 90 })
+
+        expect(result.periodoDaMedia).toEqual({ dataInicial: "2026-09-28", dataFinal: "2026-10-27" })
+        expect(result.produtos).toEqual([
+            { id: 2, nome: "Refrigerante 2L", saldoEstoque: 3, vendaMediaDiaria: 0.07, diasAteAcabar: 45, sugestaoCompra: 3, custoEstimado: 18 },
+        ])
+
+        expect((await runTool("sugestao_recompra", {})).produtos).toEqual([])
+    })
+
+    test("clientes_inativos lista quem não compra há N dias", async () => {
+        const result = await runTool("clientes_inativos", { dias: 20 })
+
+        expect(result.semComprarDesde).toBe("2026-10-07")
+        expect(result.clientes).toEqual([
+            { id: 2, nome: "João Lima", telefone: null, email: null, compras: 1, totalGasto: 20, ultimaCompra: "2026-09-30", diasSemComprar: 27 },
+        ])
+    })
+
+    test("rentabilidade_produtos calcula lucro, margem e retorno sobre estoque", async () => {
+        const result = await runTool("rentabilidade_produtos", { dataInicial: "2026-10-01", dataFinal: "2026-10-31" })
+
+        expect(result.lucroBrutoTotal).toBe(24)
+        expect(result.produtos).toEqual([{
+            id: 1,
+            nome: "Cerveja Lata",
+            quantidadeVendida: 12,
+            faturamento: 60,
+            lucroBruto: 24,
+            margemPercentual: 40,
+            saldoEstoque: 88,
+            capitalEmEstoque: 264,
+            retornoSobreEstoquePercentual: 9.1,
+        }])
+    })
+
+    test("gerar_relatorio devolve o anexo de download com os filtros", async () => {
+        const payables = await runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", situacao: "pagas" })
+
+        expect(payables.quantidadeRegistros).toBe(1)
+        expect(payables.arquivo).toEqual({
+            kind: "payables_pdf",
+            title: "Contas a pagar pagos de 2026-10-01 a 2026-10-31",
+            filters: { startDate: "2026-10-01", endDate: "2026-10-31", status: "paid" },
+            labels: { status: "pagos" },
+        })
+
+        const byPayee = await runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", favorecido: "enel" })
+        expect(byPayee.arquivo.filters.payeeId).toBe("pe1")
+
+        const receivables = await runTool("gerar_relatorio", { tipo: "contas_a_receber", dataInicial: "2026-10-01", dataFinal: "2026-10-31" })
+        expect(receivables.arquivo).toMatchObject({ kind: "receivables_pdf", filters: { status: "paid" } })
+
+        await expect(runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", favorecido: "Light" }))
+            .rejects.toThrow("Não encontrei favorecido")
+        await expect(runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", situacao: "estornados" }))
+            .rejects.toThrow("situacao")
+    })
 })
 
 describe("assistant agent", () => {
@@ -224,11 +287,32 @@ describe("assistant agent", () => {
         const conversation = await modules.agent.getAssistantConversation(TENANT, answer.conversationId, USER_ID)
         expect(conversation.title).toBe("Quanto vendi em outubro?")
         expect(conversation.messages).toEqual([
-            { role: "user", content: "Quanto vendi em outubro?", toolsUsed: [], actions: [] },
-            { role: "assistant", content: "Você faturou R$ 60,00 em outubro.", toolsUsed: [{ name: "resumo_vendas", label: "Vendas" }], actions: [] },
-            { role: "user", content: "E quantas vendas?", toolsUsed: [], actions: [] },
-            { role: "assistant", content: "Foram 2 vendas.", toolsUsed: [], actions: [] },
+            { role: "user", content: "Quanto vendi em outubro?", toolsUsed: [], actions: [], downloads: [], attachments: [] },
+            { role: "assistant", content: "Você faturou R$ 60,00 em outubro.", toolsUsed: [{ name: "resumo_vendas", label: "Vendas" }], actions: [], downloads: [], attachments: [] },
+            { role: "user", content: "E quantas vendas?", toolsUsed: [], actions: [], downloads: [], attachments: [] },
+            { role: "assistant", content: "Foram 2 vendas.", toolsUsed: [], actions: [], downloads: [], attachments: [] },
         ])
+    })
+
+    test("devolve o relatório como download e o mantém na conversa", async () => {
+        const model = scriptedModel([
+            {
+                content: null,
+                toolCalls: [{
+                    id: "report",
+                    type: "function",
+                    function: { name: "gerar_relatorio", arguments: JSON.stringify({ tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31" }) },
+                }],
+            },
+            { content: "Seu relatório está pronto.", toolCalls: [] },
+        ])
+
+        const answer = await modules.agent.runAssistantChat({ ...chatInput, message: "pdf das contas de outubro" }, model.complete)
+        expect(answer.downloads).toHaveLength(1)
+        expect(answer.downloads[0].kind).toBe("payables_pdf")
+
+        const conversation = await modules.agent.getAssistantConversation(TENANT, answer.conversationId, USER_ID)
+        expect(conversation.messages[1].downloads).toEqual(answer.downloads)
     })
 
     test("devolve erros de ferramenta ao modelo em vez de falhar", async () => {
@@ -386,8 +470,17 @@ describe("assistant actions", () => {
         const missing = proposeWith("lancar_conta_a_pagar", { descricao: "Luz", valor: 100, vencimento: "2026-11-10", favorecido: "Light" })
         const second = await modules.agent.runAssistantChat({ ...chatInput, message: "lança luz" }, missing.complete)
 
-        expect(second.actions[0].values.payeeId).toBeNull()
-        expect(second.actions[0].warnings[0]).toContain("Não encontrei favorecido")
+        // Favorecido inexistente é oferecido para criar junto com a conta
+        const [offered] = second.actions
+        expect(offered.values).toMatchObject({ payeeId: null, newPayeeName: "Light" })
+        expect(offered.fields.map((field) => field.key)).toContain("newPayeeName")
+        expect(offered.warnings[0]).toContain("será criado ao confirmar")
+
+        await modules.agent.confirmAssistantAction(decision(offered.id))
+        const created = queryOne<{ payee: string }>(
+            "SELECT payee.name AS payee FROM payable JOIN payee ON payee.id = payable.payee_id WHERE payable.description = 'Luz'",
+        )
+        expect(created?.payee).toBe("Light")
     })
 
     test("valores inválidos mantêm o cartão pendente; recusar encerra a ação", async () => {
@@ -464,5 +557,321 @@ describe("assistant actions", () => {
 
         await expect(modules.agent.confirmAssistantAction(decision(next.actions[0].id))).rejects.toThrow("expirou")
         expect(queryOne<{ status: string }>("SELECT status FROM assistant_action WHERE id = ?", next.actions[0].id)?.status).toBe("expired")
+    })
+})
+
+describe("assistant actions (etapa 2)", () => {
+    const chatInput = {
+        tenantSlug: TENANT,
+        tenantName: "Loja Teste",
+        timeZone: TIME_ZONE,
+        userId: USER_ID,
+    }
+
+    function tenantSqlite() {
+        return new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`))
+    }
+
+    // Linhas cruas do SQLite, comparadas nos testes com toEqual
+    function queryOne(query: string, ...params: (string | number)[]): any {
+        const sqlite = tenantSqlite()
+        try {
+            return sqlite.query(query).get(...params)
+        } finally {
+            sqlite.close()
+        }
+    }
+
+    // Propõe a ação e devolve o cartão, ou o erro devolvido ao modelo
+    async function propose(name: string, args: Record<string, unknown>) {
+        const steps: ChatCompletionResult[] = [
+            { content: null, toolCalls: [{ id: "a", type: "function", function: { name, arguments: JSON.stringify(args) } }] },
+            { content: "Confira o cartão.", toolCalls: [] },
+        ]
+        const requests: ChatCompletionRequest[] = []
+        const answer = await modules.agent.runAssistantChat({ ...chatInput, message: name }, async (request) => {
+            requests.push(structuredClone(request))
+            return steps.shift()!
+        })
+        const toolResult = JSON.parse(requests[1].messages.at(-1)!.content as string)
+
+        return { action: answer.actions[0], error: toolResult.erro as string | undefined }
+    }
+
+    function confirm(actionId: string, values?: Record<string, unknown>) {
+        return modules.agent.confirmAssistantAction({ tenantSlug: TENANT, timeZone: TIME_ZONE, userId: USER_ID, actionId, values })
+    }
+
+    test("sangria exige caixa aberto e registra a movimentação", async () => {
+        expect((await propose("sangria_suprimento", { tipo: "sangria", valor: 50 })).error).toContain("não há caixa aberto")
+
+        const sqlite = tenantSqlite()
+        sqlite.exec("INSERT INTO cash (id, opening_amount) VALUES ('cash1', 10000)")
+        sqlite.close()
+
+        const { action } = await propose("sangria_suprimento", { tipo: "sangria", valor: 500, descricao: "depósito" })
+        expect(action.warnings[0]).toContain("maior que o saldo esperado")
+
+        const confirmed = await confirm(action.id, { amount: 5000 })
+        expect(confirmed.status).toBe("executed")
+        expect(queryOne("SELECT nature, type, amount, description FROM cash_movement WHERE cash_id = 'cash1' AND type = 'drop'"))
+            .toEqual({ nature: "out", type: "drop", amount: 5000, description: "depósito" })
+    })
+
+    test("entrada de estoque registra a movimentação e a conta a pagar", async () => {
+        const { action } = await propose("entrada_estoque", { produto: "cerveja", quantidade: 24, valorTotal: 72, vencimento: "2026-11-15", favorecido: "enel" })
+
+        expect(action.values).toMatchObject({ productId: 1, productName: "Cerveja Lata", quantity: 24, createPayable: true, amount: 7200, payeeId: "pe1" })
+        expect(action.warnings).toEqual([])
+
+        const confirmed = await confirm(action.id)
+        const movement = queryOne("SELECT id, quantity, type FROM stock_movement WHERE id = ?", confirmed.result!.referenceId)
+        expect(movement).toMatchObject({ quantity: 24, type: "in" })
+        expect(queryOne("SELECT amount, due_date, origin FROM payable WHERE stock_movement_id = ?", movement!.id))
+            .toEqual({ amount: 7200, due_date: "2026-11-15", origin: "stock_purchase" })
+
+        // Sem valor, não lança conta, a menos que o usuário marque no cartão
+        const withoutPayable = await propose("entrada_estoque", { produtoId: 3, quantidade: 2 })
+        expect(withoutPayable.action.values.createPayable).toBe(false)
+        expect((await propose("entrada_estoque", { produto: "picanha", quantidade: 1 })).error).toContain("não encontrei o produto")
+    })
+
+    test("alterar_produto mostra o antes e valida o código de barras", async () => {
+        const { action } = await propose("alterar_produto", { produto: "789002", precoVenda: 11.5 })
+
+        expect(action.previousValues).toMatchObject({ sellPrice: 1000 })
+        expect(action.values).toMatchObject({ productId: 2, sellPrice: 1150, buyPrice: 600 })
+
+        await expect(confirm(action.id, { gtin: "789001" })).rejects.toThrow("código de barras")
+        await confirm(action.id)
+        expect(queryOne("SELECT sell_price FROM product WHERE id = 2")).toEqual({ sell_price: 1150 })
+
+        expect((await propose("alterar_produto", { produtoId: 2, precoVenda: 11.5 })).error).toContain("nenhuma alteração")
+    })
+
+    test("editar_cliente altera só o cliente pedido", async () => {
+        const { action } = await propose("editar_cliente", { clienteId: 2, telefone: "11977776666" })
+        expect(action.previousValues).toMatchObject({ phone: null })
+
+        await confirm(action.id)
+        expect(queryOne("SELECT name, phone FROM client WHERE id = 2")).toEqual({ name: "João Lima", phone: "11977776666" })
+
+        expect((await propose("editar_cliente", { clienteId: 0, nome: "X" })).error).toContain("Consumidor Final")
+    })
+
+    test("estornar_baixa volta a conta para pendente", async () => {
+        expect((await propose("estornar_baixa", { contaId: "p3" })).error).toContain("não está paga")
+
+        const { action } = await propose("estornar_baixa", { contaId: "p1" })
+        await confirm(action.id)
+        expect(queryOne("SELECT paid_date FROM payable WHERE id = 'p1'")).toEqual({ paid_date: null })
+    })
+
+    test("cadastra favorecido e categoria de despesa sem duplicar", async () => {
+        expect((await propose("cadastrar_categoria_despesa", { nome: "Energia" })).error).toContain("já existe")
+
+        const category = await propose("cadastrar_categoria_despesa", { nome: "Marketing" })
+        await confirm(category.action.id)
+        expect(queryOne("SELECT name FROM expense_category WHERE name = 'Marketing'")).toEqual({ name: "Marketing" })
+
+        const payee = await propose("cadastrar_favorecido", { nome: "Contador Silva", tipo: "outros" })
+        await confirm(payee.action.id)
+        expect(queryOne("SELECT kind FROM payee WHERE name = 'Contador Silva'")).toEqual({ kind: "other" })
+
+        const duplicated = await propose("cadastrar_favorecido", { nome: "enel" })
+        expect(duplicated.action.warnings[0]).toContain("Já existe")
+    })
+
+    test("altera preços em lote com percentual e terminação", async () => {
+        expect((await propose("alterar_precos_em_lote", { percentual: 5 })).error).toContain("informe categoria")
+
+        const { action } = await propose("alterar_precos_em_lote", { produtoIds: [1, 3], percentual: 10, terminacao: 90 })
+        const rows = action.values.rows as any[]
+
+        // Cerveja 5,00 → 5,50 → 5,90; Vinho 50,00 → 55,00 → 55,90
+        expect(rows.map((row) => [row.name, row.currentPrice, row.newPrice])).toEqual([
+            ["Cerveja Lata", 500, 590],
+            ["Vinho Tinto", 5000, 5590],
+        ])
+
+        // Desmarca o vinho e corrige o preço da cerveja no cartão
+        await expect(confirm(action.id, { rows: [{ include: false }, { include: false }] })).rejects.toThrow("marque pelo menos uma linha")
+        await confirm(action.id, { rows: [{ newPrice: 600 }, { include: false }] })
+
+        expect(queryOne("SELECT sell_price FROM product WHERE id = 1")).toEqual({ sell_price: 600 })
+        expect(queryOne("SELECT sell_price FROM product WHERE id = 3")).toEqual({ sell_price: 5000 })
+    })
+
+    test("cadastra produtos colados em lote, desmarcando os já existentes", async () => {
+        const { action } = await propose("cadastrar_produtos_em_lote", {
+            produtos: [
+                { nome: "Suco Uva 1L", precoVenda: 9.9, precoCusto: 5, categoria: "bebidas" },
+                { nome: "cerveja lata", precoVenda: 5 },
+                { nome: "Suco Laranja 1L", precoVenda: 9.9, codigoBarras: "789100" },
+            ],
+        })
+
+        expect((action.values.rows as any[]).map((row) => row.include)).toEqual([true, false, true])
+        expect(action.warnings[0]).toContain("linhas 2 (cerveja lata)")
+
+        // Lote com erro numa linha não grava nada
+        await expect(confirm(action.id, { rows: [{}, {}, { gtin: "789001" }] })).rejects.toThrow("linha 3: já existe um produto")
+        expect(queryOne("SELECT id FROM product WHERE name = 'Suco Uva 1L'")).toBeNull()
+
+        const confirmed = await confirm(action.id)
+        expect(JSON.parse(confirmed.result!.referenceId)).toHaveLength(2)
+        expect(queryOne("SELECT sell_price, buy_price, category_id FROM product WHERE name = 'Suco Uva 1L'"))
+            .toEqual({ sell_price: 990, buy_price: 500, category_id: 10 })
+    })
+
+    test("lança várias contas numa transação", async () => {
+        const { action } = await propose("lancar_contas_em_lote", {
+            contas: [
+                { descricao: "Aluguel", valor: 2500, vencimento: "2026-11-05", categoria: "aluguel" },
+                { descricao: "Contador", valor: 450, vencimento: "2026-11-15", favorecido: "Contador Silva" },
+            ],
+        })
+
+        expect((action.values.rows as any[])[1].payeeId).not.toBeNull()
+
+        await expect(confirm(action.id, { rows: [{}, { dueDate: "" }] })).rejects.toThrow("linha 2: informe vencimento")
+        expect(queryOne("SELECT id FROM payable WHERE description = 'Aluguel' AND due_date = '2026-11-05'")).toBeNull()
+
+        await confirm(action.id)
+        expect(queryOne("SELECT count(*) AS total FROM payable WHERE due_date IN ('2026-11-05', '2026-11-15') AND description IN ('Aluguel', 'Contador')"))
+            .toEqual({ total: 2 })
+    })
+})
+
+describe("assistant NF-e", () => {
+    const ACCESS_KEY = "35261012345678000199550010000012341000012345"
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe><infNFe Id="NFe${ACCESS_KEY}" versao="4.00">
+    <ide><nNF>1234</nNF><dhEmi>2026-10-20T10:00:00-03:00</dhEmi></ide>
+    <emit><CNPJ>12345678000199</CNPJ><xNome>Distribuidora Bebidas LTDA</xNome><xFant>Distribuidora Sul</xFant></emit>
+    <det nItem="1"><prod><cProd>A1</cProd><cEAN>789003</cEAN><xProd>VINHO TINTO 750ML</xProd><uCom>UN</uCom><qCom>6.0000</qCom><vUnCom>32.5000</vUnCom><vProd>195.00</vProd></prod></det>
+    <det nItem="2"><prod><cProd>B2</cProd><cEAN>SEM GTIN</cEAN><xProd>Espumante Rose</xProd><uCom>CX</uCom><qCom>2.0000</qCom><vUnCom>40.0000</vUnCom><vProd>80.00</vProd><vDesc>5.00</vDesc></prod></det>
+    <total><ICMSTot><vNF>270.00</vNF></ICMSTot></total>
+    <cobr><dup><nDup>001</nDup><dVenc>2026-11-20</dVenc><vDup>135.00</vDup></dup><dup><nDup>002</nDup><dVenc>2026-12-20</dVenc><vDup>135.00</vDup></dup></cobr>
+  </infNFe></NFe>
+  <protNFe><infProt><chNFe>${ACCESS_KEY}</chNFe></infProt></protNFe>
+</nfeProc>`
+
+    function queryOne(query: string, ...params: (string | number)[]): any {
+        const sqlite = new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`))
+        try {
+            return sqlite.query(query).get(...params)
+        } finally {
+            sqlite.close()
+        }
+    }
+
+    async function importWith(attachmentId: string) {
+        const steps: ChatCompletionResult[] = [
+            { content: null, toolCalls: [{ id: "nfe", type: "function", function: { name: "importar_nfe", arguments: JSON.stringify({ anexoId: attachmentId }) } }] },
+            { content: "Confira a nota.", toolCalls: [] },
+        ]
+        const requests: ChatCompletionRequest[] = []
+        const answer = await modules.agent.runAssistantChat({
+            tenantSlug: TENANT,
+            tenantName: "Loja Teste",
+            timeZone: TIME_ZONE,
+            userId: USER_ID,
+            message: "importa essa nota",
+            attachmentId,
+        }, async (request) => {
+            requests.push(structuredClone(request))
+            return steps.shift()!
+        })
+
+        return { answer, requests, error: JSON.parse(requests[1].messages.at(-1)!.content as string).erro as string | undefined }
+    }
+
+    test("lê a NF-e sem IA", async () => {
+        const { parseNfe } = await import("./nfe")
+        const nfe = parseNfe(xml)
+
+        expect(nfe).toMatchObject({
+            accessKey: ACCESS_KEY,
+            number: "1234",
+            issuedAt: "2026-10-20",
+            supplier: { document: "12345678000199", name: "Distribuidora Sul" },
+            total: 27000,
+        })
+        expect(nfe.items.map((item) => [item.ean, item.quantity, item.unitPrice, item.total])).toEqual([
+            ["789003", 6, 3250, 19500],
+            [null, 2, 4000, 7500],
+        ])
+        expect(nfe.installments).toEqual([
+            { number: "001", dueDate: "2026-11-20", amount: 13500 },
+            { number: "002", dueDate: "2026-12-20", amount: 13500 },
+        ])
+
+        expect(() => parseNfe("<nota/>")).toThrow("não parece uma NF-e")
+    })
+
+    test("importa a nota: produtos novos, favorecido, estoque e duplicatas", async () => {
+        const { saveAssistantAttachment } = await import("./attachments")
+        await expect(saveAssistantAttachment(TENANT, USER_ID, new File(["oi"], "foto.png", { type: "image/png" }))).rejects.toThrow("só aceito o XML")
+
+        const attachment = await saveAssistantAttachment(TENANT, USER_ID, new File([xml], "nota-1234.xml", { type: "text/xml" }))
+        const { answer, requests } = await importWith(attachment.id)
+
+        // O modelo recebe o anexoId junto da mensagem
+        expect(requests[0].messages.at(-1)!.content).toContain(`anexoId: ${attachment.id}`)
+
+        const [action] = answer.actions
+        const rows = action.values.rows as any[]
+        expect(rows.map((row) => [row.description, row.productId, row.quantity, row.unitCost])).toEqual([
+            ["VINHO TINTO 750ML", "3", 6, 3250],
+            ["Espumante Rose", "__novo__", 2, 3750],
+        ])
+        expect(action.values).toMatchObject({ payeeId: null, newPayeeName: "Distribuidora Sul", total: 27000 })
+        expect(action.warnings.join(" ")).toContain("Espumante Rose (2 CX)")
+
+        // Produto novo precisa de preço de venda
+        await expect(modules.agent.confirmAssistantAction({ tenantSlug: TENANT, timeZone: TIME_ZONE, userId: USER_ID, actionId: action.id }))
+            .rejects.toThrow("linha 2: informe o preço de venda")
+
+        const confirmed = await modules.agent.confirmAssistantAction({
+            tenantSlug: TENANT,
+            timeZone: TIME_ZONE,
+            userId: USER_ID,
+            actionId: action.id,
+            values: { rows: [{}, { sellPrice: 6990, quantity: 12 }] },
+        })
+        expect(confirmed.status).toBe("executed")
+
+        const payee = queryOne("SELECT id, document FROM payee WHERE name = 'Distribuidora Sul'")
+        expect(payee.document).toBe("12345678000199")
+        expect(queryOne("SELECT buy_price FROM product WHERE id = 3")).toEqual({ buy_price: 3250 })
+        expect(queryOne("SELECT sell_price, buy_price FROM product WHERE name = 'Espumante Rose'")).toEqual({ sell_price: 6990, buy_price: 3750 })
+        expect(queryOne("SELECT count(*) AS total, sum(quantity) AS quantity FROM stock_movement WHERE reason = 'NF-e 1234'"))
+            .toEqual({ total: 2, quantity: 18 })
+        expect(queryOne("SELECT count(*) AS total, sum(amount) AS amount FROM payable WHERE payee_id = ?", payee.id))
+            .toEqual({ total: 2, amount: 27000 })
+
+        // A conversa mostra o anexo e a mesma nota não entra duas vezes
+        const conversation = await modules.agent.getAssistantConversation(TENANT, answer.conversationId, USER_ID)
+        expect(conversation.messages[0].attachments).toEqual([{ id: attachment.id, fileName: "nota-1234.xml" }])
+
+        const again = await saveAssistantAttachment(TENANT, USER_ID, new File([xml], "nota-1234.xml", { type: "text/xml" }))
+        expect((await importWith(again.id)).error).toContain("já foi importada")
+
+        // Excluir a conversa apaga o arquivo
+        const filePath = path.join(dataDir, "attachments", TENANT, attachment.id)
+        expect(await Bun.file(filePath).exists()).toBe(true)
+        await modules.agent.deleteAssistantConversation(TENANT, answer.conversationId, USER_ID)
+        expect(await Bun.file(filePath).exists()).toBe(false)
+    })
+
+    test("anexo de outro usuário ou já usado não serve", async () => {
+        const { saveAssistantAttachment } = await import("./attachments")
+        const attachment = await saveAssistantAttachment(TENANT, "other-user", new File([xml], "nota.xml", { type: "text/xml" }))
+
+        await expect(modules.agent.runAssistantChat({
+            tenantSlug: TENANT, tenantName: "Loja", timeZone: TIME_ZONE, userId: USER_ID, message: "importa", attachmentId: attachment.id,
+        }, async () => ({ content: "ok", toolCalls: [] }))).rejects.toThrow("anexo não encontrado")
     })
 })

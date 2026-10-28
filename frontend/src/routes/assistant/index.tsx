@@ -1,13 +1,32 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react"
+import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import ReactMarkdown from "react-markdown"
 import { toast } from "sonner"
-import { BotIcon, DatabaseIcon, MessageSquareIcon, PlusIcon, SendIcon, SparklesIcon, Trash2Icon } from "lucide-react"
+import {
+    BotIcon,
+    DatabaseIcon,
+    FileTextIcon,
+    MessageSquareIcon,
+    PaperclipIcon,
+    PlusIcon,
+    SendIcon,
+    SparklesIcon,
+    Trash2Icon,
+    XIcon,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { ActionCard } from "@/components/assistant/action-card"
-import { useAssistant, type AssistantAction, type AssistantSource, type AssistantToolUsage } from "@/hooks/use-assistant"
+import { ReportDownload } from "@/components/assistant/report-download"
+import {
+    useAssistant,
+    type AssistantAction,
+    type AssistantAttachment,
+    type AssistantDownload,
+    type AssistantSource,
+    type AssistantToolUsage,
+} from "@/hooks/use-assistant"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +40,8 @@ type AssistantMessage = {
     toolsUsed?: AssistantToolUsage[]
     sources?: AssistantSource[]
     actions?: AssistantAction[]
+    downloads?: AssistantDownload[]
+    attachments?: AssistantAttachment[]
     isError?: boolean
 }
 
@@ -78,8 +99,9 @@ function AssistantMarkdown({ content }: { content: string }) {
 const suggestions = [
     "Quanto vendi esse mês?",
     "Quais contas vencem nos próximos 7 dias?",
-    "Quais produtos estão com estoque baixo?",
-    "O que está parado no estoque há mais de 30 dias?",
+    "O que preciso recomprar essa semana?",
+    "Quais clientes sumiram?",
+    "Me manda o PDF das contas pagas do mês passado",
     "Lança a conta de luz de R$ 320 para dia 10",
     "Como faço para cancelar uma venda?",
 ]
@@ -93,28 +115,34 @@ function AssistantPage() {
         deleteConversation,
         confirmAction,
         rejectAction,
+        uploadAttachment,
+        isUploadingAttachment,
     } = useAssistant()
+    const [attachment, setAttachment] = useState<AssistantAttachment>()
+    const fileInputRef = useRef<HTMLInputElement>(null)
     const [conversationId, setConversationId] = useState<string>()
     const [messages, setMessages] = useState<AssistantMessage[]>([])
     const [draft, setDraft] = useState("")
     const [isLoading, setIsLoading] = useState(false)
 
     async function askAssistant(question: string) {
-        const message = question.trim()
-        if (!message || isLoading) return
+        const pendingAttachment = attachment
+        const message = question.trim() || (pendingAttachment ? "Importe esta nota fiscal." : "")
+        if (!message || isLoading || isUploadingAttachment) return
 
         setDraft("")
+        setAttachment(undefined)
         setIsLoading(true)
         // Uma nova mensagem expira no servidor os cartões ainda pendentes
         setMessages((current) => [
             ...current.map((item) => item.actions?.some((action) => action.status === "proposed")
                 ? { ...item, actions: item.actions.map((action) => action.status === "proposed" ? { ...action, status: "expired" as const } : action) }
                 : item),
-            { role: "user", content: message },
+            { role: "user", content: message, attachments: pendingAttachment ? [pendingAttachment] : [] },
         ])
 
         try {
-            const data = await sendMessage({ message, conversationId })
+            const data = await sendMessage({ message, conversationId, attachmentId: pendingAttachment?.id })
 
             setConversationId(data.conversationId)
             setMessages((current) => [...current, {
@@ -123,6 +151,7 @@ function AssistantPage() {
                 toolsUsed: data.toolsUsed,
                 sources: data.sources,
                 actions: data.actions,
+                downloads: data.downloads,
             }])
         } catch (error) {
             setMessages((current) => [...current, {
@@ -165,10 +194,24 @@ function AssistantPage() {
         return replaceAction(await rejectAction(actionId))
     }
 
+    async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0]
+        event.target.value = ""
+        if (!file) return
+
+        try {
+            const uploaded = await uploadAttachment(file)
+            setAttachment({ id: uploaded.id, fileName: uploaded.fileName })
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, "não foi possível enviar o arquivo"))
+        }
+    }
+
     function startNewConversation() {
         setConversationId(undefined)
         setMessages([])
         setDraft("")
+        setAttachment(undefined)
     }
 
     async function removeConversation(id: string) {
@@ -317,6 +360,22 @@ function AssistantPage() {
                                             ? <div className="space-y-2"><AssistantMarkdown content={message.content} /></div>
                                             : message.content}
                                     </div>
+                                    {message.attachments?.map((item) => (
+                                        <span
+                                            key={item.id}
+                                            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-muted-foreground"
+                                        >
+                                            <FileTextIcon className="size-3" />
+                                            {item.fileName}
+                                        </span>
+                                    ))}
+                                    {(message.downloads?.length ?? 0) > 0 && (
+                                        <div className="flex max-w-[85%] flex-wrap gap-2">
+                                            {message.downloads?.map((download) => (
+                                                <ReportDownload key={download.title} download={download} />
+                                            ))}
+                                        </div>
+                                    )}
                                     {message.actions?.map((action) => (
                                         <ActionCard
                                             key={action.id}
@@ -359,7 +418,41 @@ function AssistantPage() {
                         )}
                     </section>
 
+                    {attachment && (
+                        <div className="flex items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1">
+                                <FileTextIcon className="size-3" />
+                                {attachment.fileName}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Remover anexo"
+                                onClick={() => setAttachment(undefined)}
+                            >
+                                <XIcon />
+                            </Button>
+                        </div>
+                    )}
                     <form className="flex items-end gap-2 border-t pt-4" onSubmit={handleSubmit}>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xml,text/xml,application/xml"
+                            className="hidden"
+                            onChange={(event) => void handleFileChange(event)}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isLoading || isUploadingAttachment}
+                            onClick={() => fileInputRef.current?.click()}
+                            aria-label="Anexar XML de NF-e"
+                            title="Anexar XML de NF-e"
+                        >
+                            <PaperclipIcon />
+                        </Button>
                         <Textarea
                             value={draft}
                             onChange={(event) => setDraft(event.target.value)}
@@ -370,7 +463,11 @@ function AssistantPage() {
                             disabled={isLoading}
                             aria-label="Sua pergunta"
                         />
-                        <Button type="submit" disabled={isLoading || !draft.trim()} aria-label="Enviar pergunta">
+                        <Button
+                            type="submit"
+                            disabled={isLoading || isUploadingAttachment || (!draft.trim() && !attachment)}
+                            aria-label="Enviar pergunta"
+                        >
                             <SendIcon />
                         </Button>
                     </form>

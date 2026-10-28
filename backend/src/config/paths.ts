@@ -21,6 +21,13 @@ export function getTenantDbPath(tenantSlug: string) {
     return path.join(getTenantsDir(), `${tenantSlug}.sqlite`)
 }
 
+// Arquivos anexados no assistente; ficam dentro de data/ para entrar no backup
+export function getTenantAttachmentsDir(tenantSlug: string) {
+    // Valida o identificador do tenant
+    getTenantDbPath(tenantSlug)
+    return path.join(getDataDir(), "attachments", tenantSlug)
+}
+
 export function getTenantMigrationsDir() {
     return path.resolve(process.env.COMERCIUM_TENANT_MIGRATIONS_DIR ?? path.join(process.cwd(), "drizzle", "migrations", "tenant"))
 }

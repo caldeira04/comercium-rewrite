@@ -31,6 +31,11 @@ export const Route = createRootRoute({
                 rel: "stylesheet",
                 href: appCss,
             },
+            // Monograma do design system; o .ico fica para navegadores sem SVG
+            { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+            { rel: "icon", href: "/favicon.ico", sizes: "any" },
+            { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+            { rel: "manifest", href: "/manifest.json" },
         ],
     }),
     notFoundComponent: () => (

@@ -2,11 +2,12 @@ import { and, asc, desc, eq, gte, isNotNull, isNull, lt, like, max, ne, sql } fr
 import { getTenantDb } from "@/db/db"
 import { client, product, sale, saleItem, stockMovement, category } from "@/db/schema/tenant"
 import { getPayables, payableStatuses, type PayableStatus } from "../tenant/payables/PayablesService"
-import { getReceivables } from "../tenant/receivables/ReceivablesService"
+import { getPayees } from "../tenant/payables/PayeesService"
+import { getReceivables, type ReceivableStatusFilter } from "../tenant/receivables/ReceivablesService"
 import { currentCash } from "../tenant/cash/CashService"
 import { AppError } from "../../utils/errors"
 import { isValidDateInput, localDateRangeToUtc, normalizeTimeZone } from "../../utils/dates"
-import { actionToolDefinitions } from "./actions"
+import { actionToolDefinitions, resolveByName } from "./actions"
 
 const GENERIC_PRODUCT_ID = 0
 
@@ -106,6 +107,59 @@ function settledSalesInRange(startUtc: string, endExclusiveUtc: string) {
         isNull(sale.cancelledAt),
         isNull(sale.deletedAt),
     )
+}
+
+function shiftDate(date: string, days: number) {
+    const shifted = new Date(`${date}T12:00:00Z`)
+    shifted.setUTCDate(shifted.getUTCDate() + days)
+    return shifted.toISOString().slice(0, 10)
+}
+
+// Quantidade e faturamento por produto nas vendas finalizadas do período
+async function salesByProduct(tenantSlug: string, startUtc: string, endExclusiveUtc: string) {
+    const db = getTenantDb(tenantSlug)
+    const rows = await db
+        .select({
+            productId: saleItem.productId,
+            quantity: sql<number>`sum(${saleItem.quantity})`,
+            revenue: sql<number>`sum(${saleItem.totalPrice} - coalesce(${saleItem.discount}, 0))`,
+        })
+        .from(saleItem)
+        .innerJoin(sale, eq(saleItem.saleId, sale.id))
+        .where(and(settledSalesInRange(startUtc, endExclusiveUtc), isNull(saleItem.deletedAt)))
+        .groupBy(saleItem.productId)
+
+    return new Map(rows.map((row) => [row.productId, { quantity: Number(row.quantity), revenue: Number(row.revenue) }]))
+}
+
+async function activeProducts(tenantSlug: string) {
+    const db = getTenantDb(tenantSlug)
+    return await db
+        .select({ id: product.id, name: product.name, buyPrice: product.buyPrice, sellPrice: product.sellPrice })
+        .from(product)
+        .where(and(isNull(product.deletedAt), ne(product.id, GENERIC_PRODUCT_ID)))
+}
+
+// Anexo de download devolvido por gerar_relatorio; o frontend gera o PDF
+// com os mesmos endpoints de exportação das telas
+export type AssistantDownload = {
+    kind: "payables_pdf" | "receivables_pdf"
+    title: string
+    filters: { startDate: string, endDate: string, status: string, payeeId?: string }
+    labels: { status: string, payee?: string }
+}
+
+const payableStatusArgs: Record<string, { status: PayableStatus, label: string }> = {
+    pendentes: { status: "pending", label: "pendentes" },
+    pagas: { status: "paid", label: "pagos" },
+    vencidas: { status: "overdue", label: "vencidos" },
+    todas: { status: "all", label: "todos" },
+}
+
+const receivableStatusArgs: Record<string, { status: ReceivableStatusFilter, label: string }> = {
+    recebidos: { status: "paid", label: "recebidos" },
+    estornados: { status: "refunded", label: "estornados" },
+    todos: { status: "all", label: "todos" },
 }
 
 // Mesma regra da tela de produtos: "adjustment" define o saldo absoluto
@@ -567,6 +621,272 @@ export const assistantTools: AssistantTool[] = [
                     ultimaCompra: row.lastPurchaseAt ? utcToLocalDate(row.lastPurchaseAt, context.timeZone) : null,
                 })),
             }
+        },
+    },
+    {
+        name: "sugestao_recompra",
+        label: "Recompra",
+        description: "Sugere o que recomprar: compara a média de venda diária recente com o saldo em estoque e calcula em quantos dias cada produto acaba e quanto comprar para cobrir o período desejado. Valores em reais.",
+        parameters: {
+            type: "object",
+            properties: {
+                diasHistorico: { type: "integer", description: "Quantos dias de vendas usar para a média (7 a 180). Padrão: 30." },
+                diasCobertura: { type: "integer", description: "Para quantos dias o estoque deve durar depois da compra (1 a 90). Padrão: 14." },
+                limite: { type: "integer", description: "Quantos produtos retornar (1 a 100). Padrão: 30." },
+            },
+            additionalProperties: false,
+        },
+        async run(args, context) {
+            const historyDays = intArg(args, "diasHistorico", 30, 7, 180)
+            const coverageDays = intArg(args, "diasCobertura", 14, 1, 90)
+            const limit = intArg(args, "limite", 30, 1, 100)
+            const startDate = shiftDate(context.today, -(historyDays - 1))
+            const { startUtc, endExclusiveUtc } = localDateRangeToUtc(startDate, context.today, context.timeZone)
+
+            const [products, sold, balances] = await Promise.all([
+                activeProducts(context.tenantSlug),
+                salesByProduct(context.tenantSlug, startUtc, endExclusiveUtc),
+                stockBalances(context.tenantSlug),
+            ])
+
+            const suggestions = products
+                .map((row) => {
+                    const dailyAverage = (sold.get(row.id)?.quantity ?? 0) / historyDays
+                    const stock = balances.get(row.id) ?? 0
+                    return {
+                        ...row,
+                        stock,
+                        dailyAverage,
+                        daysLeft: dailyAverage > 0 ? Math.max(stock, 0) / dailyAverage : Infinity,
+                        // Arredonda antes do teto para 2/30 × 90 não virar 6,0000001
+                        toBuy: Math.ceil(Number((dailyAverage * coverageDays - Math.max(stock, 0)).toFixed(6))),
+                    }
+                })
+                .filter((row) => row.dailyAverage > 0 && row.toBuy > 0)
+                .sort((a, b) => a.daysLeft - b.daysLeft)
+
+            return {
+                periodoDaMedia: { dataInicial: startDate, dataFinal: context.today },
+                diasCobertura: coverageDays,
+                observacao: "Média de venda diária no período; sugestão = média × dias de cobertura − saldo. Custo pelo preço de custo atual.",
+                totalEncontrados: suggestions.length,
+                custoEstimadoTotal: reais(suggestions.reduce((sum, row) => sum + row.toBuy * row.buyPrice, 0)),
+                produtos: suggestions.slice(0, limit).map((row) => ({
+                    id: row.id,
+                    nome: row.name,
+                    saldoEstoque: row.stock,
+                    vendaMediaDiaria: Math.round(row.dailyAverage * 100) / 100,
+                    diasAteAcabar: Math.floor(row.daysLeft),
+                    sugestaoCompra: row.toBuy,
+                    custoEstimado: reais(row.toBuy * row.buyPrice),
+                })),
+            }
+        },
+    },
+    {
+        name: "clientes_inativos",
+        label: "Clientes inativos",
+        description: "Clientes que já compraram mas não compram há mais de N dias, ordenados pelo total que gastaram. Valores em reais.",
+        parameters: {
+            type: "object",
+            properties: {
+                dias: { type: "integer", description: "Dias sem comprar para considerar inativo (7 a 730). Padrão: 60." },
+                limite: { type: "integer", description: "Quantos clientes retornar (1 a 50). Padrão: 20." },
+            },
+            additionalProperties: false,
+        },
+        async run(args, context) {
+            const days = intArg(args, "dias", 60, 7, 730)
+            const limit = intArg(args, "limite", 20, 1, 50)
+            const cutoffDate = shiftDate(context.today, -days)
+            const { endExclusiveUtc: cutoffUtc } = localDateRangeToUtc(cutoffDate, cutoffDate, context.timeZone)
+            const db = getTenantDb(context.tenantSlug)
+
+            const lastPurchase = max(sale.settledAt)
+            const rows = await db
+                .select({
+                    id: client.id,
+                    name: client.name,
+                    phone: client.phone,
+                    email: client.email,
+                    purchases: sql<number>`count(${sale.id})`,
+                    spent: sql<number>`sum(${sale.totalAmount})`,
+                    lastPurchaseAt: lastPurchase,
+                })
+                .from(client)
+                .innerJoin(sale, and(
+                    eq(sale.clientId, client.id),
+                    isNotNull(sale.settledAt),
+                    isNull(sale.cancelledAt),
+                    isNull(sale.deletedAt),
+                ))
+                .where(and(isNull(client.deletedAt), ne(client.id, 0)))
+                .groupBy(client.id)
+                .having(lt(lastPurchase, cutoffUtc))
+                .orderBy(desc(sql`sum(${sale.totalAmount})`))
+
+            return {
+                semComprarDesde: cutoffDate,
+                totalEncontrados: rows.length,
+                clientes: rows.slice(0, limit).map((row) => {
+                    const lastDate = utcToLocalDate(row.lastPurchaseAt!, context.timeZone)
+                    return {
+                        id: row.id,
+                        nome: row.name,
+                        telefone: row.phone,
+                        email: row.email,
+                        compras: Number(row.purchases),
+                        totalGasto: reais(row.spent),
+                        ultimaCompra: lastDate,
+                        diasSemComprar: Math.round((Date.parse(context.today) - Date.parse(lastDate)) / 86_400_000),
+                    }
+                }),
+            }
+        },
+    },
+    {
+        name: "rentabilidade_produtos",
+        label: "Rentabilidade",
+        description: "Rentabilidade dos produtos vendidos no período: lucro bruto, margem, giro e retorno sobre o capital parado em estoque. Lucro estimado pelo preço de custo atual. Valores em reais.",
+        parameters: {
+            type: "object",
+            properties: {
+                ...dateRangeProperties,
+                ordenarPor: { type: "string", enum: ["lucro", "margem", "retorno_estoque"], description: "lucro: lucro bruto total. margem: lucro ÷ faturamento. retorno_estoque: lucro ÷ capital parado em estoque. Padrão: lucro." },
+                ordem: { type: "string", enum: ["maiores", "menores"], description: "Padrão: maiores." },
+                limite: { type: "integer", description: "Quantos produtos retornar (1 a 50). Padrão: 15." },
+            },
+            required: ["dataInicial", "dataFinal"],
+            additionalProperties: false,
+        },
+        async run(args, context) {
+            const { startDate, endDate } = dateRangeArgs(args)
+            const orderBy = enumArg(args, "ordenarPor", ["lucro", "margem", "retorno_estoque"] as const, "lucro")
+            const direction = enumArg(args, "ordem", ["maiores", "menores"] as const, "maiores")
+            const limit = intArg(args, "limite", 15, 1, 50)
+            const { startUtc, endExclusiveUtc } = localDateRangeToUtc(startDate, endDate, context.timeZone)
+
+            const [products, sold, balances] = await Promise.all([
+                activeProducts(context.tenantSlug),
+                salesByProduct(context.tenantSlug, startUtc, endExclusiveUtc),
+                stockBalances(context.tenantSlug),
+            ])
+
+            const rows = products
+                .filter((row) => sold.has(row.id))
+                .map((row) => {
+                    const { quantity, revenue } = sold.get(row.id)!
+                    const profit = revenue - row.buyPrice * quantity
+                    const stock = Math.max(balances.get(row.id) ?? 0, 0)
+                    const capital = stock * row.buyPrice
+                    return {
+                        ...row,
+                        quantity,
+                        revenue,
+                        profit,
+                        stock,
+                        capital,
+                        margin: revenue > 0 ? profit / revenue : null,
+                        stockReturn: capital > 0 ? profit / capital : null,
+                    }
+                })
+
+            const sortValue = (row: (typeof rows)[number]) => orderBy === "lucro"
+                ? row.profit
+                : orderBy === "margem" ? row.margin : row.stockReturn
+
+            // Produtos sem margem ou sem estoque ficam no fim em qualquer ordem
+            rows.sort((a, b) => {
+                const left = sortValue(a)
+                const right = sortValue(b)
+                if (left === null) return right === null ? 0 : 1
+                if (right === null) return -1
+                return direction === "maiores" ? right - left : left - right
+            })
+
+            return {
+                periodo: { dataInicial: startDate, dataFinal: endDate },
+                observacao: "Lucro = faturamento − custo atual × quantidade. Retorno sobre estoque = lucro do período ÷ saldo atual × custo.",
+                lucroBrutoTotal: reais(rows.reduce((sum, row) => sum + row.profit, 0)),
+                produtos: rows.slice(0, limit).map((row) => ({
+                    id: row.id,
+                    nome: row.name,
+                    quantidadeVendida: row.quantity,
+                    faturamento: reais(row.revenue),
+                    lucroBruto: reais(row.profit),
+                    margemPercentual: row.margin === null ? null : Math.round(row.margin * 1000) / 10,
+                    saldoEstoque: row.stock,
+                    capitalEmEstoque: reais(row.capital),
+                    retornoSobreEstoquePercentual: row.stockReturn === null ? null : Math.round(row.stockReturn * 1000) / 10,
+                })),
+            }
+        },
+    },
+    {
+        name: "gerar_relatorio",
+        label: "Relatório",
+        description: "Gera um relatório em PDF de contas a pagar ou de contas a receber (recebimentos) num período. O usuário baixa o arquivo por um botão abaixo da resposta; você não precisa repetir os dados.",
+        parameters: {
+            type: "object",
+            properties: {
+                tipo: { type: "string", enum: ["contas_a_pagar", "contas_a_receber"] },
+                ...dateRangeProperties,
+                situacao: {
+                    type: "string",
+                    description: "Contas a pagar: pendentes, pagas, vencidas ou todas (padrão). Contas a receber: recebidos (padrão), estornados ou todos.",
+                },
+                favorecido: { type: "string", description: "Só contas a pagar: nome do favorecido para filtrar." },
+            },
+            required: ["tipo", "dataInicial", "dataFinal"],
+            additionalProperties: false,
+        },
+        async run(args, context) {
+            const type = enumArg(args, "tipo", ["contas_a_pagar", "contas_a_receber"] as const, "contas_a_pagar")
+            const { startDate, endDate } = dateRangeArgs(args)
+            const situation = optionalStringArg(args, "situacao")?.toLowerCase()
+
+            if (type === "contas_a_receber") {
+                const status = receivableStatusArgs[situation ?? "recebidos"]
+                if (!status) {
+                    throw new AppError(`situacao deve ser uma destas: ${Object.keys(receivableStatusArgs).join(", ")}`, 400, "INVALID_TOOL_ARGUMENT")
+                }
+
+                const result = await getReceivables(context.tenantSlug, {
+                    startDate, endDate, status: status.status, pageSize: 1, timeZone: context.timeZone,
+                })
+                const download: AssistantDownload = {
+                    kind: "receivables_pdf",
+                    title: `Contas a receber ${status.label} de ${startDate} a ${endDate}`,
+                    filters: { startDate, endDate, status: status.status },
+                    labels: { status: status.label },
+                }
+
+                return { arquivo: download, quantidadeRegistros: result.summary.count }
+            }
+
+            const status = payableStatusArgs[situation ?? "todas"]
+            if (!status) {
+                throw new AppError(`situacao deve ser uma destas: ${Object.keys(payableStatusArgs).join(", ")}`, 400, "INVALID_TOOL_ARGUMENT")
+            }
+
+            const payeeName = optionalStringArg(args, "favorecido") ?? null
+            const payees = await getPayees(context.tenantSlug)
+            const warnings: string[] = []
+            const payeeId = resolveByName("favorecido", payees, payeeName, warnings)
+            if (warnings.length) throw new AppError(warnings[0], 400, "PAYEE_NOT_FOUND")
+
+            const result = await getPayables(context.tenantSlug, {
+                startDate, endDate, status: status.status, payeeId: payeeId ?? undefined, pageSize: 1, timeZone: context.timeZone,
+            })
+            const payeeLabel = payeeId ? payees.find((payee) => payee.id === payeeId)?.name : undefined
+            const download: AssistantDownload = {
+                kind: "payables_pdf",
+                title: `Contas a pagar ${status.label}${payeeLabel ? ` de ${payeeLabel}` : ""} de ${startDate} a ${endDate}`,
+                filters: { startDate, endDate, status: status.status, ...(payeeId ? { payeeId } : {}) },
+                labels: { status: status.label, ...(payeeLabel ? { payee: payeeLabel } : {}) },
+            }
+
+            return { arquivo: download, quantidadeRegistros: result.summary.count }
         },
     },
 ]

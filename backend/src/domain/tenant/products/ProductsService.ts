@@ -27,6 +27,63 @@ export async function createProduct(tenantSlug: string, data: {
     return newProduct
 }
 
+// Cadastra vários produtos numa transação: ou todos entram, ou nenhum
+export async function createProducts(tenantSlug: string, data: {
+    products: {
+        name: string
+        buyPrice: number
+        sellPrice: number
+        gtin?: string | null
+        categoryId?: number | null
+    }[]
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+
+    return await db.transaction(async (tx) => {
+        return await tx.insert(product).values(data.products.map((item) => ({
+            name: item.name,
+            buyPrice: item.buyPrice,
+            sellPrice: item.sellPrice,
+            gtin: item.gtin ?? null,
+            categoryId: item.categoryId ?? null,
+            createdByUserId: data.userId,
+            updatedByUserId: data.userId,
+        }))).returning()
+    })
+}
+
+// Atualiza preços de vários produtos numa transação
+export async function updateProductPrices(tenantSlug: string, data: {
+    prices: { productId: number, sellPrice?: number, buyPrice?: number }[]
+    userId: string
+}) {
+    const db = getTenantDb(tenantSlug)
+
+    if (data.prices.some((price) => price.productId === 0)) {
+        throw new AppError("não é possível editar o produto genérico", 409, "GENERIC_PRODUCT_IMMUTABLE")
+    }
+
+    return await db.transaction(async (tx) => {
+        const updated: (typeof product.$inferSelect)[] = []
+        for (const price of data.prices) {
+            const [row] = await tx.update(product).set({
+                ...(price.sellPrice !== undefined ? { sellPrice: price.sellPrice } : {}),
+                ...(price.buyPrice !== undefined ? { buyPrice: price.buyPrice } : {}),
+                updatedAt: sql`(CURRENT_TIMESTAMP)`,
+                updatedByUserId: data.userId,
+            })
+                .where(eq(product.id, price.productId))
+                .returning()
+
+            if (!row) throw new AppError("produto não encontrado", 404, "PRODUCT_NOT_FOUND")
+            updated.push(row)
+        }
+
+        return updated
+    })
+}
+
 export async function getProducts(tenantSlug: string, includeDeleted?: boolean) {
     const db = getTenantDb(tenantSlug)
     const conditions = []

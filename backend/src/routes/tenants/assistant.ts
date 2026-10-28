@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia"
 import { checkAssistantRateLimit } from "../../domain/assistant/AssistantService"
+import { MAX_ATTACHMENT_BYTES, saveAssistantAttachment } from "../../domain/assistant/attachments"
 import {
     confirmAssistantAction,
     deleteAssistantConversation,
@@ -14,6 +15,8 @@ import { AppError } from "../../utils/errors"
 const conversationParams = t.Object({
     conversationId: t.String(),
 })
+
+const actionScalar = t.Union([t.String(), t.Number(), t.Boolean(), t.Null()])
 
 const actionParams = t.Object({
     actionId: t.String(),
@@ -34,11 +37,21 @@ const assistant = new Elysia({ prefix: "/assistant" })
             userId: auth.userId,
             message: body.message.trim(),
             conversationId: body.conversationId,
+            attachmentId: body.attachmentId,
         })
     }, {
         body: t.Object({
             message: t.String({ minLength: 1, maxLength: 2000 }),
             conversationId: t.Optional(t.String()),
+            attachmentId: t.Optional(t.String()),
+        }),
+    })
+
+    .post("/attachments", async ({ body, auth }) => {
+        return await saveAssistantAttachment(auth.tenantSlug, auth.userId, body.file)
+    }, {
+        body: t.Object({
+            file: t.File({ maxSize: MAX_ATTACHMENT_BYTES }),
         }),
     })
 
@@ -69,7 +82,10 @@ const assistant = new Elysia({ prefix: "/assistant" })
     }, {
         params: actionParams,
         body: t.Object({
-            values: t.Optional(t.Record(t.String(), t.Union([t.String(), t.Number(), t.Null()]))),
+            values: t.Optional(t.Record(t.String(), t.Union([
+                actionScalar,
+                t.Array(t.Record(t.String(), actionScalar), { maxItems: 50 }),
+            ]))),
         }),
     })
 

@@ -15,12 +15,19 @@ export type AssistantSource = {
 export type AssistantChatPayload = {
     message: string
     conversationId?: string
+    attachmentId?: string
+}
+
+export type AssistantAttachment = {
+    id: string
+    fileName: string
 }
 
 type ChatResponse = NonNullable<Awaited<ReturnType<typeof api.tenant.assistant.chat.post>>["data"]>
 
 export type AssistantAction = ChatResponse["actions"][number]
 export type AssistantActionValues = AssistantAction["values"]
+export type AssistantDownload = ChatResponse["downloads"][number]
 
 export type ConfirmActionPayload = {
     actionId: string
@@ -75,6 +82,14 @@ export function useAssistant() {
         },
     })
 
+    const uploadAttachmentMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const { data, error } = await api.tenant.assistant.attachments.post({ file })
+            if (error) throwApiError(error, "Não foi possível enviar o arquivo.")
+            return data
+        },
+    })
+
     const confirmActionMutation = useMutation({
         mutationFn: async ({ actionId, values }: ConfirmActionPayload) => {
             const { data, error } = await api.tenant.assistant.actions({ actionId }).confirm.post({ values })
@@ -101,6 +116,8 @@ export function useAssistant() {
         fetchConversation,
         sendMessage: sendMessageMutation.mutateAsync,
         deleteConversation: deleteConversationMutation.mutateAsync,
+        uploadAttachment: uploadAttachmentMutation.mutateAsync,
+        isUploadingAttachment: uploadAttachmentMutation.isPending,
         confirmAction: confirmActionMutation.mutateAsync,
         rejectAction: rejectActionMutation.mutateAsync,
     }

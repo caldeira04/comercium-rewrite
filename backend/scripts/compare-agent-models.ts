@@ -99,7 +99,7 @@ type Case = {
     question: string
     // Ferramentas que precisam ser chamadas; null = nenhuma ferramenta de dados
     expectedTools: string[] | null
-    check: (response: string, actions: ProposedAction[]) => { ok: boolean, detail: string }
+    check: (response: string, actions: ProposedAction[], downloads: { filters: Record<string, unknown> }[]) => { ok: boolean, detail: string }
 }
 
 function nextWeekday(from: string, weekday: number) {
@@ -178,6 +178,49 @@ async function buildCases(): Promise<Case[]> {
                 return {
                     ok: values?.amount === 30000 && values?.dueDate === friday && !/(foi lançad|lancei|está lançad)/i.test(response),
                     detail: `esperado cartão com R$ 300,00 e vencimento ${friday}, sem dizer que já lançou`,
+                }
+            },
+        },
+        {
+            id: "recompra",
+            question: "O que preciso recomprar essa semana?",
+            expectedTools: ["sugestao_recompra"],
+            check: (response) => ({ ok: /\d/.test(response), detail: "deve listar sugestões com números" }),
+        },
+        {
+            id: "pdf-contas-pagas",
+            question: "Me manda o PDF das contas pagas do mês passado.",
+            expectedTools: ["gerar_relatorio"],
+            check: (_response, _actions, downloads) => {
+                const filters = downloads[0]?.filters
+                return {
+                    ok: filters?.status === "paid" && filters?.startDate === previousMonth.dataInicial && filters?.endDate === previousMonth.dataFinal,
+                    detail: `esperado PDF de pagas de ${previousMonth.dataInicial} a ${previousMonth.dataFinal}`,
+                }
+            },
+        },
+        {
+            id: "lista-produtos",
+            question: "Cadastra esses produtos: Água mineral 500ml venda 3,50 custo 1,20; Gelo 5kg venda 12,00 custo 6,00",
+            expectedTools: ["cadastrar_produtos_em_lote"],
+            check: (_response, actions) => {
+                const rows = (actions[0]?.values.rows ?? []) as { sellPrice?: number, buyPrice?: number }[]
+                return {
+                    ok: rows.length === 2 && rows[0]?.sellPrice === 350 && rows[1]?.buyPrice === 600,
+                    detail: "esperado um cartão em lote com 2 produtos e preços em centavos",
+                }
+            },
+        },
+        {
+            id: "contas-em-lote",
+            question: "Lança o aluguel de R$ 2.500 para dia 5 do mês que vem e a internet de R$ 120 para dia 10 do mês que vem.",
+            expectedTools: ["lancar_contas_em_lote"],
+            check: (_response, actions) => {
+                const rows = (actions[0]?.values.rows ?? []) as { amount?: number, dueDate?: string }[]
+                const next = monthRange(1).dataInicial.slice(0, 8)
+                return {
+                    ok: rows.length === 2 && rows[0]?.amount === 250000 && rows[0]?.dueDate === `${next}05` && rows[1]?.dueDate === `${next}10`,
+                    detail: `esperado lote com aluguel em ${next}05 e internet em ${next}10`,
                 }
             },
         },
@@ -277,7 +320,7 @@ async function runCase(model: string, testCase: Case, run: number): Promise<Case
         const toolsOk = testCase.expectedTools === null
             ? result.actions.length === 0
             : testCase.expectedTools.every((name) => toolsUsed.includes(name))
-        const check = testCase.check(result.response, result.actions)
+        const check = testCase.check(result.response, result.actions, result.downloads)
 
         return {
             model, caseId: testCase.id, run, toolsOk, answerOk: check.ok, toolsUsed, detail: check.detail,

@@ -18,7 +18,11 @@ estornar pagamento de venda, venda pelo chat e fechar caixa.
 | 2 | Ações simples + melhorias no cartão | baixo | não |
 | 3 | Cartão em lote: preços, produtos colados, várias contas | médio | não |
 | 4 | Anexos e XML de NF-e | médio | sim (`assistant_attachment`) |
-| 5 | Foto/PDF de boleto | médio | não (usa a da etapa 4) |
+| 5 | Foto/PDF de boleto (adiada) | médio | não (usa a da etapa 4) |
+
+**Situação:** etapas 1 a 4 implementadas. A etapa 5 ficou para depois. A
+migração `0016` reúne a tabela `assistant_attachment` (etapa 4) e a coluna
+`assistant_action.previous_values` (etapa 2, para o "antes → depois").
 
 Cada etapa vai para produção sozinha. As etapas 1, 2 e 3 não dependem
 umas das outras. A 4 usa o cartão em lote da 3, e a 5 usa os anexos da 4.
@@ -102,13 +106,16 @@ marcadas.
 
 ### Anexos no chat
 
-- Botão de anexo no chat. Aceita XML, PDF, JPG e PNG, até 5 MB, um
-  arquivo por mensagem.
+- Botão de anexo no chat. Por enquanto aceita só XML (até 5 MB, um arquivo
+  por mensagem); PDF e imagens entram com a etapa 5.
 - `POST /tenant/assistant/attachments` (multipart) grava o arquivo em
   `<data>/tenants/<tenant>/attachments/<id>` e uma linha em
   `assistant_attachment` (`id`, `conversation_id`, `file_name`,
   `mime_type`, `size`, `sha256`, auditoria). O chat recebe
-  `attachmentId` junto da mensagem.
+  `attachmentId` junto da mensagem, e o modelo vê o `anexoId` numa nota
+  anexada à mensagem do usuário.
+- Excluir a conversa apaga os arquivos dela. Anexo enviado e nunca usado
+  numa mensagem é apagado depois de um dia.
 - Os arquivos ficam fora do banco. O backup do deploy precisa passar a
   incluir a pasta `attachments`.
 
@@ -127,7 +134,10 @@ marcadas.
   e a conta a pagar sai das duplicatas (uma parcela por duplicata).
 - Evita nota duplicada: guarda a chave de acesso da NF-e e avisa se ela
   já foi importada.
-- Precisa de uma dependência para ler XML (ex.: `fast-xml-parser`).
+- Usa a dependência `fast-xml-parser` (5.2.5).
+- O cartão nasce incompleto de propósito: produtos novos chegam sem preço
+  de venda. Por isso esta ação não roda a validação completa na proposta
+  (`checkOnPropose: false`); ela roda na confirmação.
 
 ## Etapa 5 — Foto ou PDF de boleto
 
@@ -161,12 +171,9 @@ marcadas.
   de produtos e o PDF de contas pagas do mês passado.
 - Teste manual de cada cartão novo no navegador, com uma cópia dos dados.
 
-## Decisões pendentes
+## Decisões tomadas
 
-1. Ordem das etapas: começar pelas análises e relatórios (etapa 1), que
-   são só leitura, ou pelas ações (etapa 2)?
-2. Podemos adicionar `fast-xml-parser` (ou outra biblioteca) para o XML?
-3. Anexos: por quanto tempo guardar os arquivos? (Sugestão: enquanto a
-   conversa existir; ao excluir a conversa, apagar os arquivos.)
-4. Etapa 5: qual modelo de visão usar? Vale rodar o script de comparação
-   com algumas fotos reais de boleto antes de escolher.
+- Etapas 1 a 4 nesta fase, na ordem; etapa 5 depois.
+- `fast-xml-parser` liberado.
+- Anexos guardados enquanto a conversa existir.
+- Modelo de visão para boletos: escolher quando a etapa 5 começar.

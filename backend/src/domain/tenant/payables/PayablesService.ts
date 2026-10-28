@@ -295,6 +295,17 @@ export async function createPayable(tenantSlug: string, data: CreatePayableInput
     return { payables: inserted, groupId }
 }
 
+// Lança várias contas numa transação: ou todas entram, ou nenhuma
+export async function createPayables(tenantSlug: string, items: CreatePayableInput[]) {
+    const db = getTenantDb(tenantSlug)
+    const prepared: (typeof payable.$inferInsert)[] = []
+    for (const item of items) {
+        prepared.push(...(await preparePayableRows(db, item)).rows)
+    }
+
+    return await db.transaction(async (tx) => await tx.insert(payable).values(prepared).returning())
+}
+
 function buildBaseConditions(filters: PayableFilters) {
     if (!isValidDateInput(filters.startDate) || !isValidDateInput(filters.endDate)) {
         throw new AppError("data inválida", 400, "INVALID_DATE")
