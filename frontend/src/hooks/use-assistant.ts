@@ -17,6 +17,16 @@ export type AssistantChatPayload = {
     conversationId?: string
 }
 
+type ChatResponse = NonNullable<Awaited<ReturnType<typeof api.tenant.assistant.chat.post>>["data"]>
+
+export type AssistantAction = ChatResponse["actions"][number]
+export type AssistantActionValues = AssistantAction["values"]
+
+export type ConfirmActionPayload = {
+    actionId: string
+    values: AssistantActionValues
+}
+
 const conversationsKey = ["assistant-conversations"]
 
 export function useAssistant() {
@@ -65,11 +75,33 @@ export function useAssistant() {
         },
     })
 
+    const confirmActionMutation = useMutation({
+        mutationFn: async ({ actionId, values }: ConfirmActionPayload) => {
+            const { data, error } = await api.tenant.assistant.actions({ actionId }).confirm.post({ values })
+            if (error) throwApiError(error, "Não foi possível executar a ação.")
+            return data
+        },
+        // A ação pode ter criado ou alterado contas, clientes ou produtos
+        onSuccess: () => {
+            queryClient.invalidateQueries()
+        },
+    })
+
+    const rejectActionMutation = useMutation({
+        mutationFn: async (actionId: string) => {
+            const { data, error } = await api.tenant.assistant.actions({ actionId }).reject.post()
+            if (error) throwApiError(error, "Não foi possível cancelar a ação.")
+            return data
+        },
+    })
+
     return {
         conversations: conversationsQuery.data ?? [],
         isLoadingConversations: conversationsQuery.isLoading,
         fetchConversation,
         sendMessage: sendMessageMutation.mutateAsync,
         deleteConversation: deleteConversationMutation.mutateAsync,
+        confirmAction: confirmActionMutation.mutateAsync,
+        rejectAction: rejectActionMutation.mutateAsync,
     }
 }

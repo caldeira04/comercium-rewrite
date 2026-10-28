@@ -6,6 +6,7 @@ import { getReceivables } from "../tenant/receivables/ReceivablesService"
 import { currentCash } from "../tenant/cash/CashService"
 import { AppError } from "../../utils/errors"
 import { isValidDateInput, localDateRangeToUtc, normalizeTimeZone } from "../../utils/dates"
+import { actionToolDefinitions } from "./actions"
 
 const GENERIC_PRODUCT_ID = 0
 
@@ -426,6 +427,7 @@ export const assistantTools: AssistantTool[] = [
                 totalDoFiltro: { quantidade: summary.count, valor: reais(summary.total) },
                 contasListadas: result.rows.length,
                 contas: result.rows.map((row) => ({
+                    id: row.id,
                     descricao: row.description,
                     valor: reais(row.amount),
                     vencimento: row.dueDate,
@@ -583,5 +585,5 @@ export function assistantToolDefinitions() {
             description: tool.description,
             parameters: tool.parameters,
         },
-    }))
+    })).concat(actionToolDefinitions())
 }

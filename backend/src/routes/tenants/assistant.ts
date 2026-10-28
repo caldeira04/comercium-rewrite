@@ -1,9 +1,11 @@
 import { Elysia, t } from "elysia"
 import { checkAssistantRateLimit } from "../../domain/assistant/AssistantService"
 import {
+    confirmAssistantAction,
     deleteAssistantConversation,
     getAssistantConversation,
     listAssistantConversations,
+    rejectAssistantAction,
     runAssistantChat,
 } from "../../domain/assistant/AssistantAgent"
 import { authPlugin } from "../../utils/elysia"
@@ -11,6 +13,10 @@ import { AppError } from "../../utils/errors"
 
 const conversationParams = t.Object({
     conversationId: t.String(),
+})
+
+const actionParams = t.Object({
+    actionId: t.String(),
 })
 
 const assistant = new Elysia({ prefix: "/assistant" })
@@ -41,7 +47,7 @@ const assistant = new Elysia({ prefix: "/assistant" })
     })
 
     .get("/conversations/:conversationId", async ({ params, auth }) => {
-        return await getAssistantConversation(auth.tenantSlug, params.conversationId, auth.userId)
+        return await getAssistantConversation(auth.tenantSlug, params.conversationId, auth.userId, auth.tenantTimezone)
     }, {
         params: conversationParams,
     })
@@ -50,6 +56,32 @@ const assistant = new Elysia({ prefix: "/assistant" })
         return await deleteAssistantConversation(auth.tenantSlug, params.conversationId, auth.userId)
     }, {
         params: conversationParams,
+    })
+
+    .post("/actions/:actionId/confirm", async ({ params, body, auth }) => {
+        return await confirmAssistantAction({
+            tenantSlug: auth.tenantSlug,
+            timeZone: auth.tenantTimezone,
+            userId: auth.userId,
+            actionId: params.actionId,
+            values: body.values,
+        })
+    }, {
+        params: actionParams,
+        body: t.Object({
+            values: t.Optional(t.Record(t.String(), t.Union([t.String(), t.Number(), t.Null()]))),
+        }),
+    })
+
+    .post("/actions/:actionId/reject", async ({ params, auth }) => {
+        return await rejectAssistantAction({
+            tenantSlug: auth.tenantSlug,
+            timeZone: auth.tenantTimezone,
+            userId: auth.userId,
+            actionId: params.actionId,
+        })
+    }, {
+        params: actionParams,
     })
 
 export default assistant

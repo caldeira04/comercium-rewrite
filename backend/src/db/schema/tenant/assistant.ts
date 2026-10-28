@@ -34,6 +34,36 @@ export const assistantMessage = sqliteTable("assistant_message", {
     index("assistant_message_conversation_idx").on(table.conversationId),
 ])
 
+// Ação proposta pelo assistente; só é executada quando o usuário confirma.
+// Também serve de registro de auditoria das ações feitas pela IA.
+export const assistantAction = sqliteTable("assistant_action", {
+    id: text("id").primaryKey().$default(() => crypto.randomUUID()),
+
+    conversationId: text("conversation_id").notNull().references(() => assistantConversation.id, { onDelete: "cascade" }),
+    // Mensagem "tool" com o resultado da proposta
+    messageId: text("message_id").notNull(),
+    type: text("type").notNull(),
+    status: text("status", {
+        enum: ["proposed", "executing", "executed", "rejected", "expired", "failed"]
+    }).notNull().default("proposed"),
+
+    // Valores propostos (JSON); depois da decisão, os valores confirmados
+    values: text("values").notNull(),
+    warnings: text("warnings"),
+    expiresAt: text("expires_at").notNull(),
+
+    decidedAt: text("decided_at"),
+    decidedByUserId: text("decided_by_user_id"),
+    resultReferenceType: text("result_reference_type"),
+    resultReferenceId: text("result_reference_id"),
+    error: text("error"),
+
+    ...auditing(),
+    ...timestamps()
+}, (table) => [
+    index("assistant_action_conversation_idx").on(table.conversationId),
+])
+
 export const assistantConversationRelations = relations(assistantConversation, ({ many }) => ({
     messages: many(assistantMessage)
 }))

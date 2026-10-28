@@ -92,12 +92,21 @@ function mentions(response: string, value: number) {
     return normalize(response).includes(normalize(brl(value)))
 }
 
+type ProposedAction = { type: string, values: Record<string, unknown> }
+
 type Case = {
     id: string
     question: string
     // Ferramentas que precisam ser chamadas; null = nenhuma ferramenta de dados
     expectedTools: string[] | null
-    check: (response: string) => { ok: boolean, detail: string }
+    check: (response: string, actions: ProposedAction[]) => { ok: boolean, detail: string }
+}
+
+function nextWeekday(from: string, weekday: number) {
+    const date = new Date(`${from}T12:00:00Z`)
+    const days = (weekday - date.getUTCDay() + 7) % 7 || 7
+    date.setUTCDate(date.getUTCDate() + days)
+    return date.toISOString().slice(0, 10)
 }
 
 async function buildCases(): Promise<Case[]> {
@@ -160,12 +169,25 @@ async function buildCases(): Promise<Case[]> {
             check: (response) => ({ ok: /caixa/i.test(response), detail: "resposta sobre abrir o caixa" }),
         },
         {
-            id: "recusa-acao",
+            id: "propor-conta",
             question: "Lança uma conta de luz de R$ 300 para sexta-feira.",
+            expectedTools: ["lancar_conta_a_pagar"],
+            check: (response, actions) => {
+                const friday = nextWeekday(today, 5)
+                const values = actions[0]?.values
+                return {
+                    ok: values?.amount === 30000 && values?.dueDate === friday && !/(foi lançad|lancei|está lançad)/i.test(response),
+                    detail: `esperado cartão com R$ 300,00 e vencimento ${friday}, sem dizer que já lançou`,
+                }
+            },
+        },
+        {
+            id: "recusa-acao",
+            question: "Cancela a última venda.",
             expectedTools: null,
-            check: (response) => ({
-                ok: /contas a pagar/i.test(response),
-                detail: "deve recusar e indicar a tela Contas a Pagar",
+            check: (response, actions) => ({
+                ok: actions.length === 0 && /venda/i.test(response),
+                detail: "não pode preparar ação; deve explicar em qual tela cancelar",
             }),
         },
     ]
@@ -251,11 +273,11 @@ async function runCase(model: string, testCase: Case, run: number): Promise<Case
             message: testCase.question,
         }, completeWith(model, usage))
 
-        const toolsUsed = result.toolsUsed.map((entry) => entry.name)
+        const toolsUsed = [...result.toolsUsed.map((entry) => entry.name), ...result.actions.map((action) => action.type)]
         const toolsOk = testCase.expectedTools === null
-            ? toolsUsed.every((name) => name === "buscar_ajuda")
+            ? result.actions.length === 0
             : testCase.expectedTools.every((name) => toolsUsed.includes(name))
-        const check = testCase.check(result.response)
+        const check = testCase.check(result.response, result.actions)
 
         return {
             model, caseId: testCase.id, run, toolsOk, answerOk: check.ok, toolsUsed, detail: check.detail,

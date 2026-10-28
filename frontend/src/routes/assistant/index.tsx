@@ -6,7 +6,8 @@ import { BotIcon, DatabaseIcon, MessageSquareIcon, PlusIcon, SendIcon, SparklesI
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
-import { useAssistant, type AssistantSource, type AssistantToolUsage } from "@/hooks/use-assistant"
+import { ActionCard } from "@/components/assistant/action-card"
+import { useAssistant, type AssistantAction, type AssistantSource, type AssistantToolUsage } from "@/hooks/use-assistant"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +20,7 @@ type AssistantMessage = {
     content: string
     toolsUsed?: AssistantToolUsage[]
     sources?: AssistantSource[]
+    actions?: AssistantAction[]
     isError?: boolean
 }
 
@@ -78,11 +80,20 @@ const suggestions = [
     "Quais contas vencem nos próximos 7 dias?",
     "Quais produtos estão com estoque baixo?",
     "O que está parado no estoque há mais de 30 dias?",
+    "Lança a conta de luz de R$ 320 para dia 10",
     "Como faço para cancelar uma venda?",
 ]
 
 function AssistantPage() {
-    const { conversations, isLoadingConversations, fetchConversation, sendMessage, deleteConversation } = useAssistant()
+    const {
+        conversations,
+        isLoadingConversations,
+        fetchConversation,
+        sendMessage,
+        deleteConversation,
+        confirmAction,
+        rejectAction,
+    } = useAssistant()
     const [conversationId, setConversationId] = useState<string>()
     const [messages, setMessages] = useState<AssistantMessage[]>([])
     const [draft, setDraft] = useState("")
@@ -94,7 +105,13 @@ function AssistantPage() {
 
         setDraft("")
         setIsLoading(true)
-        setMessages((current) => [...current, { role: "user", content: message }])
+        // Uma nova mensagem expira no servidor os cartões ainda pendentes
+        setMessages((current) => [
+            ...current.map((item) => item.actions?.some((action) => action.status === "proposed")
+                ? { ...item, actions: item.actions.map((action) => action.status === "proposed" ? { ...action, status: "expired" as const } : action) }
+                : item),
+            { role: "user", content: message },
+        ])
 
         try {
             const data = await sendMessage({ message, conversationId })
@@ -105,6 +122,7 @@ function AssistantPage() {
                 content: data.response,
                 toolsUsed: data.toolsUsed,
                 sources: data.sources,
+                actions: data.actions,
             }])
         } catch (error) {
             setMessages((current) => [...current, {
@@ -130,6 +148,21 @@ function AssistantPage() {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    function replaceAction(updated: AssistantAction) {
+        setMessages((current) => current.map((message) => message.actions?.some((action) => action.id === updated.id)
+            ? { ...message, actions: message.actions.map((action) => action.id === updated.id ? updated : action) }
+            : message))
+        return updated
+    }
+
+    async function handleConfirmAction(actionId: string, values: AssistantAction["values"]) {
+        return replaceAction(await confirmAction({ actionId, values }))
+    }
+
+    async function handleRejectAction(actionId: string) {
+        return replaceAction(await rejectAction(actionId))
     }
 
     function startNewConversation() {
@@ -220,7 +253,7 @@ function AssistantPage() {
                             <div>
                                 <CardTitle>Assistente Comercium</CardTitle>
                                 <CardDescription>
-                                    Pergunte sobre suas vendas, estoque, contas e caixa, ou tire dúvidas de uso.
+                                    Pergunte sobre vendas, estoque, contas e caixa, peça lançamentos ou tire dúvidas de uso.
                                 </CardDescription>
                             </div>
                         </div>
@@ -249,7 +282,7 @@ function AssistantPage() {
                                 <div>
                                     <h2 className="text-lg font-semibold">Como posso ajudar?</h2>
                                     <p className="text-sm text-muted-foreground">
-                                        Eu consulto os dados da sua loja para responder. Por enquanto só leio informações; não altero nada.
+                                        Eu consulto os dados da sua loja para responder. Também preparo lançamentos de contas, baixas e cadastros de clientes e produtos, mas nada é gravado sem a sua confirmação.
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap justify-center gap-2">
@@ -284,6 +317,14 @@ function AssistantPage() {
                                             ? <div className="space-y-2"><AssistantMarkdown content={message.content} /></div>
                                             : message.content}
                                     </div>
+                                    {message.actions?.map((action) => (
+                                        <ActionCard
+                                            key={action.id}
+                                            action={action}
+                                            onConfirm={(values) => handleConfirmAction(action.id, values)}
+                                            onReject={() => handleRejectAction(action.id)}
+                                        />
+                                    ))}
                                     {((message.toolsUsed?.length ?? 0) > 0 || (message.sources?.length ?? 0) > 0) && (
                                         <div className="flex max-w-[85%] flex-wrap gap-2">
                                             {message.toolsUsed
