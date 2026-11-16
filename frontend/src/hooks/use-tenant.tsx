@@ -47,6 +47,8 @@ export function useTenant(tenantId?: string) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tenant"] })
+            // O fuso do tenant vem da sessão; recarrega para refletir a troca
+            queryClient.invalidateQueries({ queryKey: ["auth", "me"] })
         }
     })
 

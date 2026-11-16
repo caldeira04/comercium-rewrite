@@ -1,12 +1,31 @@
 import { closeCash, createCash, createCashMovement, currentCash, getCashes } from "@/domain/tenant/cash/CashService"
 import { authPlugin } from "@/utils/elysia"
+import { dateRangeQuery } from "../../utils/reportFilters"
+import { AppError } from "../../utils/errors"
 import Elysia, { t } from "elysia"
+
+function parseCashStatus(value?: string) {
+    if (!value || value === "all") return undefined
+    if (value === "open" || value === "closed") return value
+
+    throw new AppError("situação inválida", 400, "INVALID_STATUS")
+}
 
 const cash = new Elysia({ prefix: "/cash" })
     .use(authPlugin)
 
-    .get("/", async ({ auth }) => {
-        return await getCashes(auth.tenantSlug)
+    .get("/", async ({ auth, query }) => {
+        return await getCashes(auth.tenantSlug, {
+            startDate: query.startDate,
+            endDate: query.endDate,
+            status: parseCashStatus(query.status),
+            timeZone: auth.tenantTimezone,
+        })
+    }, {
+        query: t.Object({
+            ...dateRangeQuery,
+            status: t.Optional(t.String()),
+        })
     })
 
     .get("/current", async ({ auth }) => {

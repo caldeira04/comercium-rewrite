@@ -1,8 +1,7 @@
 import { getTenantDb } from "@/db/db"
 import { client, payment, sale } from "@/db/schema/tenant"
 import { and, count, desc, eq, gte, isNull, lt, sum, type SQL } from "drizzle-orm"
-import { AppError } from "../../../utils/errors"
-import { isValidDateInput, localDateRangeToUtc, normalizeTimeZone } from "../../../utils/dates"
+import { assertDateRange, localDateRangeToUtc, normalizeTimeZone } from "../../../utils/dates"
 
 export type ReceivableStatusFilter = "paid" | "refunded" | "all"
 export type ReceivableClientFilter = number | "none" | undefined
@@ -22,13 +21,7 @@ const MAX_PAGE_SIZE = 100
 const EXPORT_LIMIT = 5000
 
 function buildConditions(filters: ReceivableFilters, timeZone: string) {
-    if (!isValidDateInput(filters.startDate) || !isValidDateInput(filters.endDate)) {
-        throw new AppError("data inválida", 400, "INVALID_DATE")
-    }
-
-    if (filters.startDate > filters.endDate) {
-        throw new AppError("a data inicial não pode ser posterior à data final", 400, "INVALID_DATE_RANGE")
-    }
+    assertDateRange(filters.startDate, filters.endDate)
 
     const { startUtc, endExclusiveUtc } = localDateRangeToUtc(filters.startDate, filters.endDate, timeZone)
 

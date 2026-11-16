@@ -2,7 +2,7 @@ import { getTenantDb } from "@/db/db"
 import { bankAccount, expenseCategory, payable, payee } from "@/db/schema/tenant"
 import { and, asc, count, eq, gte, inArray, isNotNull, isNull, lt, lte, sum, type SQL } from "drizzle-orm"
 import { AppError } from "../../../utils/errors"
-import { addMonthsClamped, isValidDateInput, normalizeTimeZone, todayInTimeZone } from "../../../utils/dates"
+import { addMonthsClamped, assertDateRange, isValidDateInput, normalizeTimeZone, todayInTimeZone } from "../../../utils/dates"
 
 const DEFAULT_PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 100
@@ -307,13 +307,7 @@ export async function createPayables(tenantSlug: string, items: CreatePayableInp
 }
 
 function buildBaseConditions(filters: PayableFilters) {
-    if (!isValidDateInput(filters.startDate) || !isValidDateInput(filters.endDate)) {
-        throw new AppError("data inválida", 400, "INVALID_DATE")
-    }
-
-    if (filters.startDate > filters.endDate) {
-        throw new AppError("a data inicial não pode ser posterior à data final", 400, "INVALID_DATE_RANGE")
-    }
+    assertDateRange(filters.startDate, filters.endDate)
 
     const conditions: SQL[] = [
         isNull(payable.deletedAt),

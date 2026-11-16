@@ -1,6 +1,7 @@
 import { db as masterDb, getTenantDb } from "@/db/db"
 import { cash, cashMovement } from "@/db/schema/tenant"
-import { desc, eq, sql } from "drizzle-orm"
+import { desc, eq, sql, type SQL } from "drizzle-orm"
+import { resolveDateRangeFilter } from "../../../utils/dates"
 
 type PaymentMethod =
     | "cash"
@@ -220,10 +221,32 @@ export async function currentCash(tenantSlug: string) {
 
 }
 
-export async function getCashes(tenantSlug: string) {
+export type CashFilters = {
+    startDate?: string
+    endDate?: string
+    status?: "open" | "closed"
+    timeZone?: string | null
+}
+
+export async function getCashes(tenantSlug: string, filters: CashFilters = {}) {
     const db = getTenantDb(tenantSlug)
+    // O período considera a data de abertura do caixa.
+    const range = resolveDateRangeFilter(filters, filters.timeZone)
 
     const cashes = await db.query.cash.findMany({
+        where: (cash, { and, gte, isNotNull, isNull, lt }) => {
+            const conditions: SQL[] = []
+
+            if (range) {
+                conditions.push(gte(cash.createdAt, range.startUtc))
+                conditions.push(lt(cash.createdAt, range.endExclusiveUtc))
+            }
+
+            if (filters.status === "open") conditions.push(isNull(cash.closedAt))
+            if (filters.status === "closed") conditions.push(isNotNull(cash.closedAt))
+
+            return and(...conditions)
+        },
         orderBy: [desc(cash.createdAt)],
         columns: {
             actualClosingAmount: true,

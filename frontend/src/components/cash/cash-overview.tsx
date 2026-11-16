@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatCashMovementType } from '@/utils/formatters'
 import { formatCurrency } from '@/utils/finance'
-import { formatSqliteUtc } from "@/utils/time"
+import { useFormatDateTime } from "@/hooks/use-tenant-timezone"
 import { cn } from '@/lib/utils'
 import type { CurrentCash } from '@/lib/api-types'
 import { ArrowDown, ArrowUp, Banknote, ClockIcon, CreditCard, EllipsisIcon, Wallet, WalletCards } from 'lucide-react'
@@ -156,6 +156,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
 function CashMovementsTable({ cash }: {
     cash: NonNullable<CurrentCash>
 }) {
+    const formatDateTime = useFormatDateTime()
     return (
         <div className="rounded-xl border bg-card text-card-foreground">
             <Table>
@@ -182,7 +183,7 @@ function CashMovementsTable({ cash }: {
                                 className="transition-colors hover:bg-muted/50"
                             >
                                 <TableCell className="font-medium text-muted-foreground">
-                                    {formatSqliteUtc(item.createdAt).hhMM}
+                                    {formatDateTime(item.createdAt).time}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">

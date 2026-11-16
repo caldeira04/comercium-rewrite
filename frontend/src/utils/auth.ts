@@ -6,6 +6,7 @@ export type ResponseUser = {
     tenantSlug: string
     login: string
     tenantName: string
+    tenantTimezone?: string
     impersonatedByAdminId?: string | null
 }
 

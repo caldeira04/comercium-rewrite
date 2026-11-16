@@ -13,11 +13,11 @@ import {
 } from "@/domain/tenant/payables/PayablesService"
 import { AppError } from "../../utils/errors"
 import { authPlugin } from "@/utils/elysia"
+import { requiredDateRangeQuery } from "../../utils/reportFilters"
 import Elysia, { t } from "elysia"
 
 const payablesQuery = t.Object({
-    startDate: t.String(),
-    endDate: t.String(),
+    ...requiredDateRangeQuery,
     payeeId: t.Optional(t.String()),
     bankAccountId: t.Optional(t.String()),
     categoryId: t.Optional(t.String()),

@@ -1,34 +1,20 @@
 import {
     exportReceivables,
     getReceivables,
-    type ReceivableClientFilter,
     type ReceivableStatusFilter,
 } from "@/domain/tenant/receivables/ReceivablesService"
 import { AppError } from "../../utils/errors"
+import { parseClientId, requiredDateRangeQuery } from "../../utils/reportFilters"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
 const receivablesQuery = t.Object({
-    startDate: t.String(),
-    endDate: t.String(),
+    ...requiredDateRangeQuery,
     clientId: t.Optional(t.String()),
     status: t.Optional(t.String()),
     page: t.Optional(t.String()),
     pageSize: t.Optional(t.String()),
 })
-
-function parseClientId(value?: string): ReceivableClientFilter {
-    if (!value || value === "all") return undefined
-    if (value === "none") return "none"
-
-    const clientId = Number(value)
-
-    if (!Number.isInteger(clientId) || clientId < 0) {
-        throw new AppError("cliente inválido", 400, "INVALID_CLIENT")
-    }
-
-    return clientId
-}
 
 function parseStatus(value?: string): ReceivableStatusFilter {
     if (!value || value === "paid") return "paid"

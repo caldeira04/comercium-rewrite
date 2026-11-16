@@ -9,7 +9,10 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { useCash } from "@/hooks/use-cash"
+import { useCashList } from "@/hooks/use-cash"
+import { useReportFilters } from "@/hooks/use-report-filters"
+import { useTenantDates } from "@/hooks/use-tenant-timezone"
+import { CASH_STATUS_OPTIONS, FilterSelect, ReportFilters } from "@/components/report-filters"
 import { formatCurrency, translatePaymentMethod } from "@/utils/finance"
 
 export const Route = createFileRoute("/cash/report/")({
@@ -17,7 +20,14 @@ export const Route = createFileRoute("/cash/report/")({
 })
 
 function RouteComponent() {
-    const { cashes, cashesIsPending, cashesIsError } = useCash()
+    const { monthStart, monthEnd } = useTenantDates()
+    const { filters, invalidRange, setFilter, setFilters, reset } = useReportFilters({
+        startDate: monthStart,
+        endDate: monthEnd,
+        status: "all",
+    })
+    const cashesQuery = useCashList(filters, { enabled: !invalidRange })
+    const cashes = invalidRange ? undefined : cashesQuery.data
     const totalInflow = cashes?.reduce((total, cash) => total + cash.amounts.inflow, 0) ?? 0
     const totalOutflow = cashes?.reduce((total, cash) => total + cash.amounts.outflow, 0) ?? 0
     const totalDifference = cashes?.reduce((total, cash) => total + (cash.amounts.difference ?? 0), 0) ?? 0
@@ -25,13 +35,28 @@ function RouteComponent() {
     const paymentRows = getPaymentRows(cashes ?? [])
 
     return (
-        <div className="flex h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
             <div>
                 <h1 className="text-2xl font-bold uppercase">relatório de caixas</h1>
-                <p className="text-muted-foreground">entradas, saídas, pagamentos e diferenças de fechamento</p>
+                <p className="text-muted-foreground">entradas, saídas, pagamentos e diferenças dos caixas abertos no período</p>
             </div>
-            {cashesIsPending && <Spinner />}
-            {cashesIsError && <span>ocorreu um erro ao buscar os caixas</span>}
+            <ReportFilters
+                startDate={filters.startDate}
+                endDate={filters.endDate}
+                onPeriodChange={setFilters}
+                invalidRange={invalidRange}
+                onReset={reset}
+            >
+                <FilterSelect
+                    label="situação"
+                    className="w-36"
+                    value={filters.status}
+                    onChange={(value) => setFilter("status", value)}
+                    options={CASH_STATUS_OPTIONS}
+                />
+            </ReportFilters>
+            {!invalidRange && cashesQuery.isPending && <Spinner />}
+            {!invalidRange && cashesQuery.isError && <span>ocorreu um erro ao buscar os caixas</span>}
             {cashes && (
                 <>
                     <div className="grid grid-cols-4 gap-4">
@@ -77,7 +102,7 @@ function Metric({ label, value }: { label: string, value: string }) {
     return <Card><CardContent><p className="text-sm uppercase text-muted-foreground">{label}</p><p className="text-2xl font-bold">{value}</p></CardContent></Card>
 }
 
-function getPaymentRows(cashes: NonNullable<ReturnType<typeof useCash>["cashes"]>) {
+function getPaymentRows(cashes: NonNullable<ReturnType<typeof useCashList>["data"]>) {
     const rows = new Map<"cash" | "pix" | "debit" | "credit" | "voucher", { method: "cash" | "pix" | "debit" | "credit" | "voucher", amount: number, salesCount: number }>()
 
     cashes.forEach((cash) => {

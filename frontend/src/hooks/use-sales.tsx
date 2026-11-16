@@ -1,10 +1,41 @@
 import { api } from "@/lib/api"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
 import { throwApiError } from "@/lib/api-error"
 
-export function useSales({ includeDeleted = false }: {
+export type SalesListFilters = {
+    startDate?: string
+    endDate?: string
+    /** "all", "none" (sem cliente) ou o id do cliente */
+    clientId?: string
+    /** "all" ou a forma de pagamento */
+    paymentMethod?: string
+}
+
+function withoutAll(filters: Record<string, string | undefined>) {
+    return Object.fromEntries(
+        Object.entries(filters).filter(([, value]) => value !== undefined && value !== "all"),
+    ) as Record<string, string>
+}
+
+// Lista de vendas filtrada no backend. O período é interpretado no fuso do tenant.
+export function useSalesList(filters: SalesListFilters = {}, options: { enabled?: boolean } = {}) {
+    return useQuery({
+        queryKey: ["sales", filters],
+        queryFn: async () => {
+            const { data, error } = await api.tenant.sales.get({ query: withoutAll(filters) })
+            if (error) throwApiError(error)
+            return data
+        },
+        placeholderData: keepPreviousData,
+        enabled: options.enabled ?? true,
+    })
+}
+
+export function useSales({ includeDeleted = false, loadSales = true }: {
     includeDeleted?: boolean
+    /** Desligue quando a tela só usa a venda atual ou as mutações. */
+    loadSales?: boolean
 } = {}) {
 
     const currentSaleQuery = useQuery({
@@ -21,10 +52,11 @@ export function useSales({ includeDeleted = false }: {
     const salesQuery = useQuery({
         queryKey: ["sales"],
         queryFn: async () => {
-            const { data, error } = await api.tenant.sales.get()
+            const { data, error } = await api.tenant.sales.get({ query: {} })
             if (error) throwApiError(error)
             return data
-        }
+        },
+        enabled: loadSales,
     })
 
     const createSaleMutation = useMutation({

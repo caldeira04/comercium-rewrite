@@ -5,10 +5,10 @@ import { Spinner } from "@/components/ui/spinner"
 import { Metric } from "@/components/metric"
 import { useCash } from "@/hooks/use-cash"
 import { useProducts } from "@/hooks/use-products"
-import { useSales } from "@/hooks/use-sales"
+import { useSales, useSalesList } from "@/hooks/use-sales"
+import { useTenantDates } from "@/hooks/use-tenant-timezone"
 import { formatCurrency } from "@/utils/finance"
 import type { Product } from "@/lib/api-types"
-import { formatSqliteUtc } from "@/utils/time"
 
 export const Route = createFileRoute("/dashboard/")({
     component: RouteComponent,
@@ -16,11 +16,13 @@ export const Route = createFileRoute("/dashboard/")({
 
 function RouteComponent() {
     const { currentCash, currentCashIsPending, currentCashIsError } = useCash()
-    const { currentSale, sales, salesIsPending } = useSales()
+    const { currentSale } = useSales({ loadSales: false })
     const { products, productsIsPending } = useProducts()
 
-    const today = new Date().toLocaleDateString("pt-BR")
-    const todaySales = sales?.filter((sale) => formatSqliteUtc(sale.createdAt).ddMMyy === today) ?? []
+    // "Hoje" é o dia corrente no fuso do tenant; o backend filtra pelo mesmo fuso
+    const { today } = useTenantDates()
+    const { data: todaySalesData, isPending: salesIsPending } = useSalesList({ startDate: today, endDate: today })
+    const todaySales = todaySalesData ?? []
     const todayTotal = todaySales.reduce((total, sale) => total + sale.totalAmount, 0)
     const lowStockProducts = products?.filter((product) => getProductStock(product) <= 0) ?? []
     const currentSaleItems = currentSale?.saleItem ?? []

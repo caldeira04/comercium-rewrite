@@ -1,19 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import { DownloadIcon, MoreHorizontalIcon, PlusIcon, RotateCcwIcon, Settings2Icon } from "lucide-react"
+import { DownloadIcon, MoreHorizontalIcon, PlusIcon, Settings2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import {
     Table,
@@ -45,7 +36,10 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error"
 import { formatCurrency } from "@/utils/finance"
 import { formatPaymentMethod } from "@/utils/formatters"
-import { formatDateInput, monthEndInputValue, monthStartInputValue } from "@/utils/time"
+import { formatDateInput } from "@/utils/time"
+import { parseReferenceFilter, useReportFilters } from "@/hooks/use-report-filters"
+import { useTenantDates } from "@/hooks/use-tenant-timezone"
+import { FilterSelect, ReportFilters } from "@/components/report-filters"
 import type { Payable } from "@/lib/api-types"
 import { PayableFormDialog } from "@/components/payables/payable-form-dialog"
 import { PayablePaymentDialog } from "@/components/payables/payable-payment-dialog"
@@ -66,13 +60,17 @@ const statusFilterLabels: Record<PayableStatusFilter, string> = {
 }
 
 function RouteComponent() {
-    const [startDate, setStartDate] = useState(monthStartInputValue())
-    const [endDate, setEndDate] = useState(monthEndInputValue())
-    const [payeeId, setPayeeId] = useState("all")
-    const [bankAccountId, setBankAccountId] = useState("all")
-    const [categoryId, setCategoryId] = useState("all")
-    const [status, setStatus] = useState<PayableStatusFilter>("all")
-    const [page, setPage] = useState(1)
+    const { monthStart, monthEnd } = useTenantDates()
+    const { filters, page, invalidRange, setFilter, setFilters, setPage, reset } = useReportFilters({
+        startDate: monthStart,
+        endDate: monthEnd,
+        payeeId: "all",
+        bankAccountId: "all",
+        categoryId: "all",
+        status: "all",
+    })
+    const { startDate, endDate, payeeId, bankAccountId, categoryId } = filters
+    const status = filters.status as PayableStatusFilter
 
     const [formOpen, setFormOpen] = useState(false)
     const [editing, setEditing] = useState<Payable | null>(null)
@@ -90,14 +88,9 @@ function RouteComponent() {
     const deleteMutation = useDeletePayable()
     const reverseMutation = useReversePayable()
 
-    const invalidRange = startDate > endDate
-    const parsedPayeeId = payeeId === "all" ? undefined : payeeId === "none" ? "none" as const : payeeId
-    const parsedBankAccountId = bankAccountId === "all"
-        ? undefined
-        : bankAccountId === "none" ? "none" as const : bankAccountId
-    const parsedCategoryId = categoryId === "all"
-        ? undefined
-        : categoryId === "none" ? "none" as const : categoryId
+    const parsedPayeeId = parseReferenceFilter(payeeId)
+    const parsedBankAccountId = parseReferenceFilter(bankAccountId)
+    const parsedCategoryId = parseReferenceFilter(categoryId)
 
     const payablesQuery = usePayables(
         {
@@ -127,21 +120,6 @@ function RouteComponent() {
         : bankAccountId === "none"
             ? "não informada"
             : bankAccounts?.find((account) => account.id === bankAccountId)?.name ?? "selecionada"
-
-    function handleFilter(apply: () => void) {
-        apply()
-        setPage(1)
-    }
-
-    function handleReset() {
-        setStartDate(monthStartInputValue())
-        setEndDate(monthEndInputValue())
-        setPayeeId("all")
-        setBankAccountId("all")
-        setCategoryId("all")
-        setStatus("all")
-        setPage(1)
-    }
 
     function openCreate() {
         setEditing(null)
@@ -258,109 +236,63 @@ function RouteComponent() {
                 </div>
             </div>
 
-            <div className="flex flex-wrap items-end gap-2">
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="startDate">data inicial</Label>
-                    <Input
-                        id="startDate"
-                        className="w-40"
-                        type="date"
-                        value={startDate}
-                        max={endDate}
-                        onChange={(event) => handleFilter(() => setStartDate(event.target.value))}
-                    />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="endDate">data final</Label>
-                    <Input
-                        id="endDate"
-                        className="w-40"
-                        type="date"
-                        value={endDate}
-                        min={startDate}
-                        onChange={(event) => handleFilter(() => setEndDate(event.target.value))}
-                    />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>favorecido</Label>
-                    <Select value={payeeId} onValueChange={(value) => handleFilter(() => setPayeeId(value))}>
-                        <SelectTrigger className="w-48">
-                            <SelectValue placeholder="todos os favorecidos" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">todos os favorecidos</SelectItem>
-                            <SelectItem value="none">não informado</SelectItem>
-                            {payees?.map((payee) => (
-                                <SelectItem key={payee.id} value={payee.id}>
-                                    {payee.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>conta bancária</Label>
-                    <Select value={bankAccountId} onValueChange={(value) => handleFilter(() => setBankAccountId(value))}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder="todas as contas" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">todas as contas</SelectItem>
-                            <SelectItem value="none">não informada</SelectItem>
-                            {bankAccounts?.map((account) => (
-                                <SelectItem key={account.id} value={account.id}>
-                                    {account.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>categoria</Label>
-                    <Select value={categoryId} onValueChange={(value) => handleFilter(() => setCategoryId(value))}>
-                        <SelectTrigger className="w-44">
-                            <SelectValue placeholder="todas as categorias" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">todas as categorias</SelectItem>
-                            <SelectItem value="none">sem categoria</SelectItem>
-                            {expenseCategories?.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                    {category.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>situação</Label>
-                    <Select value={status} onValueChange={(value) => handleFilter(() => setStatus(value as PayableStatusFilter))}>
-                        <SelectTrigger className="w-36">
-                            <SelectValue placeholder="situação" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">todos</SelectItem>
-                            <SelectItem value="pending">pendentes</SelectItem>
-                            <SelectItem value="overdue">vencidos</SelectItem>
-                            <SelectItem value="paid">pagos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button variant="outline" onClick={handleReset}>
-                    <RotateCcwIcon />
-                    limpar
-                </Button>
-                <Button disabled={exportMutation.isPending || invalidRange} onClick={handleExport}>
-                    <DownloadIcon />
-                    {exportMutation.isPending ? "gerando..." : "exportar PDF"}
-                </Button>
-            </div>
-
-            {invalidRange && (
-                <p className="text-sm text-destructive">
-                    a data inicial deve ser anterior ou igual à data final
-                </p>
-            )}
+            <ReportFilters
+                startDate={startDate}
+                endDate={endDate}
+                onPeriodChange={setFilters}
+                invalidRange={invalidRange}
+                onReset={reset}
+                actions={
+                    <Button disabled={exportMutation.isPending || invalidRange} onClick={handleExport}>
+                        <DownloadIcon />
+                        {exportMutation.isPending ? "gerando..." : "exportar PDF"}
+                    </Button>
+                }
+            >
+                <FilterSelect
+                    label="favorecido"
+                    className="w-48"
+                    value={payeeId}
+                    onChange={(value) => setFilter("payeeId", value)}
+                    options={[
+                        { value: "all", label: "todos os favorecidos" },
+                        { value: "none", label: "não informado" },
+                        ...(payees ?? []).map((item) => ({ value: item.id, label: item.name })),
+                    ]}
+                />
+                <FilterSelect
+                    label="conta bancária"
+                    value={bankAccountId}
+                    onChange={(value) => setFilter("bankAccountId", value)}
+                    options={[
+                        { value: "all", label: "todas as contas" },
+                        { value: "none", label: "não informada" },
+                        ...(bankAccounts ?? []).map((item) => ({ value: item.id, label: item.name })),
+                    ]}
+                />
+                <FilterSelect
+                    label="categoria"
+                    value={categoryId}
+                    onChange={(value) => setFilter("categoryId", value)}
+                    options={[
+                        { value: "all", label: "todas as categorias" },
+                        { value: "none", label: "sem categoria" },
+                        ...(expenseCategories ?? []).map((item) => ({ value: item.id, label: item.name })),
+                    ]}
+                />
+                <FilterSelect
+                    label="situação"
+                    className="w-36"
+                    value={status}
+                    onChange={(value) => setFilter("status", value)}
+                    options={[
+                        { value: "all", label: "todos" },
+                        { value: "pending", label: "pendentes" },
+                        { value: "overdue", label: "vencidos" },
+                        { value: "paid", label: "pagos" },
+                    ]}
+                />
+            </ReportFilters>
 
             {isPending && <Spinner />}
             {isError && <p className="text-muted-foreground">ocorreu um erro ao buscar os lançamentos</p>}

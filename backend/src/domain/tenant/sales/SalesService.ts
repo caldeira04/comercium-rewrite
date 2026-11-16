@@ -1,18 +1,27 @@
 import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
-import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
-import { cash } from "@/db/schema/tenant";
+import { cash, payment } from "@/db/schema/tenant";
+import { resolveDateRangeFilter } from "../../../utils/dates";
 import { AppError } from "../../../utils/errors";
 
 const GENERIC_PRODUCT_ID = 0
 
-export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
+export type PaymentMethod = (typeof payment.paymentMethod.enumValues)[number]
+
+export type SalesFilters = {
+    includeDeleted?: boolean
+    startDate?: string
+    endDate?: string
+    clientId?: number | "none"
+    paymentMethod?: PaymentMethod
+    timeZone?: string | null
+}
+
+export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
     const db = getTenantDb(tenantSlug)
-    const conditions = []
-    if (!includeDeleted) {
-        conditions.push(isNull(sale.deletedAt))
-    }
+    const range = resolveDateRangeFilter(filters, filters.timeZone)
 
     const sales = await db.query.sale.findMany({
         columns: {
@@ -21,10 +30,33 @@ export async function getSales(tenantSlug: string, includeDeleted?: boolean) {
             settledAt: true,
             totalAmount: true
         },
-        where: includeDeleted
-            ? undefined
-            : (sale, { isNull }) =>
-                isNull(sale.deletedAt),
+        where: (sale, { and, eq, gte, inArray, isNull, lt }) => {
+            const conditions: SQL[] = []
+
+            if (!filters.includeDeleted) conditions.push(isNull(sale.deletedAt))
+
+            if (range) {
+                conditions.push(gte(sale.createdAt, range.startUtc))
+                conditions.push(lt(sale.createdAt, range.endExclusiveUtc))
+            }
+
+            if (filters.clientId === "none") {
+                conditions.push(isNull(sale.clientId))
+            } else if (typeof filters.clientId === "number") {
+                conditions.push(eq(sale.clientId, filters.clientId))
+            }
+
+            if (filters.paymentMethod) {
+                conditions.push(inArray(
+                    sale.id,
+                    db.select({ saleId: payment.saleId })
+                        .from(payment)
+                        .where(eq(payment.paymentMethod, filters.paymentMethod)),
+                ))
+            }
+
+            return and(...conditions)
+        },
         orderBy: [desc(sale.createdAt)],
         with: {
             client: {

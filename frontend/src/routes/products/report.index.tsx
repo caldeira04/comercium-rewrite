@@ -10,6 +10,9 @@ import {
 } from "@/components/ui/table"
 import { Spinner } from "@/components/ui/spinner"
 import { useProducts } from "@/hooks/use-products"
+import { useCategories } from "@/hooks/use-categories"
+import { useReportFilters } from "@/hooks/use-report-filters"
+import { FilterSelect, ReportFilters } from "@/components/report-filters"
 import type { Product } from "@/lib/api-types"
 import { formatCurrency } from "@/utils/finance"
 
@@ -18,7 +21,10 @@ export const Route = createFileRoute("/products/report/")({
 })
 
 function RouteComponent() {
-    const { products, productsIsPending, productsIsError } = useProducts()
+    const { products: allProducts, productsIsPending, productsIsError } = useProducts()
+    const { categories } = useCategories()
+    const { filters, setFilter, reset } = useReportFilters({ categoryId: "all", stock: "all" })
+    const products = allProducts?.filter((product) => matchesFilters(product, filters))
     const totalProducts = products?.length ?? 0
     const stockValue = products?.reduce((total, product) => total + getProductStock(product) * product.buyPrice, 0) ?? 0
     const saleValue = products?.reduce((total, product) => total + getProductStock(product) * product.sellPrice, 0) ?? 0
@@ -29,8 +35,34 @@ function RouteComponent() {
         <div className="flex h-screen w-full flex-col gap-4 self-start overflow-hidden p-4">
             <div>
                 <h1 className="text-2xl font-bold uppercase">relatório de estoque</h1>
-                <p className="text-muted-foreground">valorização, alertas e margem dos produtos cadastrados</p>
+                <p className="text-muted-foreground">valorização, alertas e margem dos produtos cadastrados (posição atual)</p>
             </div>
+            <ReportFilters onReset={reset}>
+                <FilterSelect
+                    label="categoria"
+                    className="w-56"
+                    value={filters.categoryId}
+                    onChange={(value) => setFilter("categoryId", value)}
+                    options={[
+                        { value: "all", label: "todas as categorias" },
+                        { value: "none", label: "sem categoria" },
+                        ...(categories ?? []).map((category) => ({
+                            value: String(category.id),
+                            label: category.name ?? "sem nome",
+                        })),
+                    ]}
+                />
+                <FilterSelect
+                    label="estoque"
+                    value={filters.stock}
+                    onChange={(value) => setFilter("stock", value)}
+                    options={[
+                        { value: "all", label: "todos" },
+                        { value: "available", label: "com estoque" },
+                        { value: "empty", label: "sem estoque" },
+                    ]}
+                />
+            </ReportFilters>
             {productsIsPending && <Spinner />}
             {productsIsError && <span>ocorreu um erro ao buscar os produtos</span>}
             {products && (
@@ -97,6 +129,18 @@ function ProductSummaryTable({ products }: { products: Product[] }) {
             </Table>
         </div>
     )
+}
+
+function matchesFilters(product: Product, filters: { categoryId: string, stock: string }) {
+    if (filters.categoryId === "none" && product.category) return false
+    if (filters.categoryId !== "all" && filters.categoryId !== "none"
+        && String(product.category?.id) !== filters.categoryId) return false
+
+    const stock = getProductStock(product)
+    if (filters.stock === "available" && stock <= 0) return false
+    if (filters.stock === "empty" && stock > 0) return false
+
+    return true
 }
 
 function getProductStock(product: Product) {

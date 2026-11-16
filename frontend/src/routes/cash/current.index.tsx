@@ -1,5 +1,5 @@
 import { Spinner } from '@/components/ui/spinner'
-import { formatSqliteUtc } from "@/utils/time"
+import { useFormatDateTime } from "@/hooks/use-tenant-timezone"
 import { Card, CardContent } from '@/components/ui/card'
 import { useCash } from '@/hooks/use-cash'
 import { createFileRoute } from '@tanstack/react-router'
@@ -16,6 +16,7 @@ export const Route = createFileRoute('/cash/current/')({
 })
 
 function RouteComponent() {
+    const formatDateTime = useFormatDateTime()
     const { currentCash, currentCashIsPending } = useCash()
 
     const isOpen = currentCash?.status === "open"
@@ -36,13 +37,13 @@ function RouteComponent() {
                     <div>
                         {!currentCashIsPending && currentCash && (
                             <div className='flex items-center gap-2 text-[var(--success)]'>
-                                <span>aberto em <span className='font-bold'>{formatSqliteUtc(currentCash.openedAt).ddMMyy} - {formatSqliteUtc(currentCash.openedAt).hhMM}</span></span>
+                                <span>aberto em <span className='font-bold'>{formatDateTime(currentCash.openedAt).date} - {formatDateTime(currentCash.openedAt).time}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.createdBy?.login}</span></span>
                             </div>
                         )}
                         {!currentCashIsPending && currentCash && currentCash.closedAt && (
                             <div className='flex items-center gap-2 text-[var(--danger)]'>
-                                <span>fechado em <span className='font-bold'>{formatSqliteUtc(currentCash.closedAt).ddMMyy} - {formatSqliteUtc(currentCash.closedAt).hhMM}</span></span>
+                                <span>fechado em <span className='font-bold'>{formatDateTime(currentCash.closedAt).date} - {formatDateTime(currentCash.closedAt).time}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.closedBy?.login}</span></span>
                             </div>
                         )}
@@ -81,6 +82,7 @@ function CashDetails({ cash, isOpen }: {
     cash: CurrentCash
     isOpen: boolean
 }) {
+    const formatDateTime = useFormatDateTime()
     return (
         <div className='p-4 border-muted border rounded-xl w-full flex items-center justify-start h-screen'>
             <div className='w-full flex flex-col h-full gap-4 justify-start'>
@@ -89,7 +91,7 @@ function CashDetails({ cash, isOpen }: {
                     <div className='flex items-center justify-between'><span>status</span><Badge className={isOpen ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{isOpen ? "aberto" : "fechado"}</Badge></div>
                     <div className='flex items-center justify-between'><span>abertura</span>
                         {cash?.openedAt ? (
-                            <span>{formatSqliteUtc(cash.openedAt).ddMMyy} às {formatSqliteUtc(cash.openedAt).hhMM}</span>
+                            <span>{formatDateTime(cash.openedAt).date} às {formatDateTime(cash.openedAt).time}</span>
                         ) : (
                             <span>-</span>
                         )}

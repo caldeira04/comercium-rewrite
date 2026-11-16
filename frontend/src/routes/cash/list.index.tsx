@@ -11,30 +11,56 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { useCash } from "@/hooks/use-cash"
+import { useCashList } from "@/hooks/use-cash"
 import type { CashListItem } from "@/lib/api-types"
 import { formatCurrency } from "@/utils/finance"
-import { formatSqliteUtc } from "@/utils/time"
+import { useReportFilters } from "@/hooks/use-report-filters"
+import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
+import { CASH_STATUS_OPTIONS, FilterSelect, ReportFilters } from "@/components/report-filters"
 
 export const Route = createFileRoute("/cash/list/")({
     component: RouteComponent,
 })
 
 function RouteComponent() {
-    const { cashes, cashesIsPending, cashesIsError } = useCash()
-    const [selectedCash, setSelectedCash] = useState<CashListItem | null>(null)
+    const formatDateTime = useFormatDateTime()
+    const { monthStart, monthEnd } = useTenantDates()
+    const { filters, invalidRange, setFilter, setFilters, reset } = useReportFilters({
+        startDate: monthStart,
+        endDate: monthEnd,
+        status: "all",
+    })
+    const cashesQuery = useCashList(filters, { enabled: !invalidRange })
+    const cashes = invalidRange ? undefined : cashesQuery.data
+    const [selectedCashId, setSelectedCashId] = useState<string | null>(null)
+    const selectedCash = cashes?.find((cash) => cash.id === selectedCashId) ?? null
 
     return (
         <div className="flex h-screen w-full gap-4 self-start p-4">
-            <div className="flex w-full flex-col gap-4">
+            <div className="flex w-full min-w-0 flex-col gap-4">
                 <div>
                     <h1 className="text-2xl font-bold uppercase">histórico de caixas</h1>
                     <p className="text-muted-foreground">aberturas, fechamentos e diferenças por caixa</p>
                 </div>
-                {cashesIsPending && <Spinner />}
-                {cashesIsError && <span>ocorreu um erro ao buscar os caixas</span>}
+                <ReportFilters
+                    startDate={filters.startDate}
+                    endDate={filters.endDate}
+                    onPeriodChange={setFilters}
+                    invalidRange={invalidRange}
+                    onReset={reset}
+                >
+                    <FilterSelect
+                        label="situação"
+                        className="w-36"
+                        value={filters.status}
+                        onChange={(value) => setFilter("status", value)}
+                        options={CASH_STATUS_OPTIONS}
+                    />
+                </ReportFilters>
+                {!invalidRange && cashesQuery.isPending && <Spinner />}
+                {!invalidRange && cashesQuery.isError && <span>ocorreu um erro ao buscar os caixas</span>}
                 {cashes && cashes.length === 0 && (
-                    <Card><CardContent className="text-center text-muted-foreground">nenhum caixa registrado</CardContent></Card>
+                    <Card><CardContent className="text-center text-muted-foreground">nenhum caixa encontrado para os filtros selecionados</CardContent></Card>
                 )}
                 {cashes && cashes.length > 0 && (
                     <Table>
@@ -52,11 +78,11 @@ function RouteComponent() {
                         </TableHeader>
                         <TableBody>
                             {cashes.map((cash) => (
-                                <TableRow key={cash.id} className="cursor-pointer" onClick={() => setSelectedCash(cash)}>
+                                <TableRow key={cash.id} className="cursor-pointer" onClick={() => setSelectedCashId(cash.id)}>
                                     <TableCell className="font-medium">{cash.id.split("-")[0]}</TableCell>
                                     <TableCell><Badge className={cash.status === "open" ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{cash.status === "open" ? "aberto" : "fechado"}</Badge></TableCell>
-                                    <TableCell>{formatSqliteUtc(cash.openedAt).ddMMyy}</TableCell>
-                                    <TableCell>{cash.closedAt ? formatSqliteUtc(cash.closedAt).ddMMyy : "-"}</TableCell>
+                                    <TableCell>{formatDateTime(cash.openedAt).date}</TableCell>
+                                    <TableCell>{cash.closedAt ? formatDateTime(cash.closedAt).date : "-"}</TableCell>
                                     <TableCell>{cash.users.createdBy?.login ?? "sistema"}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.expectedClosing)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.actualClosing ?? 0)}</TableCell>

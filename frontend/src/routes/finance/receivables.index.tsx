@@ -1,19 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
-import { DownloadIcon, RotateCcwIcon } from "lucide-react"
+import { DownloadIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import {
     Table,
@@ -33,7 +23,10 @@ import {
 import { getApiErrorMessage } from "@/lib/api-error"
 import { formatCurrency } from "@/utils/finance"
 import { formatPaymentMethod } from "@/utils/formatters"
-import { formatDateTimeInZone, monthEndInputValue, monthStartInputValue } from "@/utils/time"
+import { formatDateTimeInZone } from "@/utils/time"
+import { useReportFilters } from "@/hooks/use-report-filters"
+import { useTenantDates } from "@/hooks/use-tenant-timezone"
+import { FilterSelect, ReportFilters, clientOptions } from "@/components/report-filters"
 
 export const Route = createFileRoute("/finance/receivables/")({
     component: RouteComponent,
@@ -49,16 +42,19 @@ const statusLabels: Record<string, string> = {
 }
 
 function RouteComponent() {
-    const [startDate, setStartDate] = useState(monthStartInputValue())
-    const [endDate, setEndDate] = useState(monthEndInputValue())
-    const [clientId, setClientId] = useState("all")
-    const [status, setStatus] = useState<ReceivableStatusFilter>("paid")
-    const [page, setPage] = useState(1)
+    const { monthStart, monthEnd } = useTenantDates()
+    const { filters, page, invalidRange, setFilter, setFilters, setPage, reset } = useReportFilters({
+        startDate: monthStart,
+        endDate: monthEnd,
+        clientId: "all",
+        status: "paid",
+    })
+    const { startDate, endDate, clientId } = filters
+    const status = filters.status as ReceivableStatusFilter
 
     const { clients } = useClients()
     const { mutateAsync: exportReceivables, isPending: exportIsPending } = useExportReceivables()
 
-    const invalidRange = startDate > endDate
     const parsedClientId = clientId === "all"
         ? undefined
         : clientId === "none"
@@ -92,34 +88,6 @@ function RouteComponent() {
         : status === "refunded"
             ? "estornados"
             : "todos"
-
-    function handleStartDate(value: string) {
-        setStartDate(value)
-        setPage(1)
-    }
-
-    function handleEndDate(value: string) {
-        setEndDate(value)
-        setPage(1)
-    }
-
-    function handleClient(value: string) {
-        setClientId(value)
-        setPage(1)
-    }
-
-    function handleStatus(value: string) {
-        setStatus(value as ReceivableStatusFilter)
-        setPage(1)
-    }
-
-    function handleReset() {
-        setStartDate(monthStartInputValue())
-        setEndDate(monthEndInputValue())
-        setClientId("all")
-        setStatus("paid")
-        setPage(1)
-    }
 
     async function handleExport() {
         if (invalidRange) {
@@ -168,77 +136,41 @@ function RouteComponent() {
                 <p className="text-muted-foreground">recebimentos por data de pagamento</p>
             </div>
 
-            <div className="flex flex-wrap items-end gap-2">
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="startDate">data inicial</Label>
-                    <Input
-                        id="startDate"
-                        className="w-40"
-                        type="date"
-                        value={startDate}
-                        max={endDate}
-                        onChange={(event) => handleStartDate(event.target.value)}
-                    />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label htmlFor="endDate">data final</Label>
-                    <Input
-                        id="endDate"
-                        className="w-40"
-                        type="date"
-                        value={endDate}
-                        min={startDate}
-                        onChange={(event) => handleEndDate(event.target.value)}
-                    />
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>cliente</Label>
-                    <Select value={clientId} onValueChange={handleClient}>
-                        <SelectTrigger className="w-56">
-                            <SelectValue placeholder="todos os clientes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">todos os clientes</SelectItem>
-                            <SelectItem value="none">não informado</SelectItem>
-                            {clients?.map((client) => (
-                                <SelectItem key={client.id} value={String(client.id)}>
-                                    {client.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <Label>situação</Label>
-                    <Select value={status} onValueChange={handleStatus}>
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder="situação" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="paid">recebidos</SelectItem>
-                            <SelectItem value="refunded">estornados</SelectItem>
-                            <SelectItem value="all">todos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button variant="outline" onClick={handleReset}>
-                    <RotateCcwIcon />
-                    limpar
-                </Button>
-                <Button
-                    disabled={exportIsPending || invalidRange}
-                    onClick={handleExport}
-                >
-                    <DownloadIcon />
-                    {exportIsPending ? "gerando..." : "exportar PDF"}
-                </Button>
-            </div>
-
-            {invalidRange && (
-                <p className="text-sm text-destructive">
-                    a data inicial deve ser anterior ou igual à data final
-                </p>
-            )}
+            <ReportFilters
+                startDate={startDate}
+                endDate={endDate}
+                onPeriodChange={setFilters}
+                invalidRange={invalidRange}
+                onReset={reset}
+                actions={
+                    <Button
+                        disabled={exportIsPending || invalidRange}
+                        onClick={handleExport}
+                    >
+                        <DownloadIcon />
+                        {exportIsPending ? "gerando..." : "exportar PDF"}
+                    </Button>
+                }
+            >
+                <FilterSelect
+                    label="cliente"
+                    className="w-56"
+                    value={clientId}
+                    onChange={(value) => setFilter("clientId", value)}
+                    options={clientOptions(clients)}
+                />
+                <FilterSelect
+                    label="situação"
+                    className="w-40"
+                    value={status}
+                    onChange={(value) => setFilter("status", value)}
+                    options={[
+                        { value: "paid", label: "recebidos" },
+                        { value: "refunded", label: "estornados" },
+                        { value: "all", label: "todos" },
+                    ]}
+                />
+            </ReportFilters>
 
             {isPending && <Spinner />}
             {isError && <p className="text-muted-foreground">ocorreu um erro ao buscar os lançamentos</p>}

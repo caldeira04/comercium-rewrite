@@ -1,22 +1,39 @@
-import { addProductToSale, cancelSale, createSale, currentSale, getSales, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
+import { addProductToSale, cancelSale, createSale, currentSale, getSales, type PaymentMethod, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
+import { dateRangeQuery, parseClientId } from "../../utils/reportFilters";
+import { AppError } from "../../utils/errors";
 import Elysia, { t } from "elysia";
+
+const PAYMENT_METHODS = ["cash", "pix", "debit", "credit", "voucher"] as const satisfies readonly PaymentMethod[]
+
+function parsePaymentMethod(value?: string) {
+    if (!value || value === "all") return undefined
+
+    const method = PAYMENT_METHODS.find((entry) => entry === value)
+    if (!method) throw new AppError("forma de pagamento inválida", 400, "INVALID_PAYMENT_METHOD")
+
+    return method
+}
 
 const sales = new Elysia({ prefix: "/sales" })
     .use(authPlugin)
 
     .get("/", async ({ auth, query }) => {
-        const includeDeleted = query.includeDeleted === "true"
-
-        const sales = await getSales(auth.tenantSlug, includeDeleted)
-
-        return sales
+        return await getSales(auth.tenantSlug, {
+            includeDeleted: query.includeDeleted === "true",
+            startDate: query.startDate,
+            endDate: query.endDate,
+            clientId: parseClientId(query.clientId),
+            paymentMethod: parsePaymentMethod(query.paymentMethod),
+            timeZone: auth.tenantTimezone,
+        })
     }, {
-        query: t.Partial(
-            t.Object({
-                includeDeleted: t.String()
-            })
-        )
+        query: t.Object({
+            ...dateRangeQuery,
+            includeDeleted: t.Optional(t.String()),
+            clientId: t.Optional(t.String()),
+            paymentMethod: t.Optional(t.String()),
+        })
     })
 
     .get("/current", async ({ auth, query }) => {

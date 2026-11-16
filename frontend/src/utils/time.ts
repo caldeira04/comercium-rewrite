@@ -30,13 +30,36 @@ export function parseSqliteUtc(value: string) {
     return new Date(`${value.replace(" ", "T")}Z`)
 }
 
-// Timestamps do banco vêm como "YYYY-MM-DD HH:MM:SS" em UTC (CURRENT_TIMESTAMP
-// do SQLite). `new Date(value)` puro interpretaria como horário local.
-export function formatSqliteUtc(value: string) {
-    return formatTime(parseSqliteUtc(value))
+export const DEFAULT_TIME_ZONE = "America/Sao_Paulo"
+
+// Dia corrente (YYYY-MM-DD) em um fuso específico, independente do navegador.
+export function todayInTimeZone(timeZone = DEFAULT_TIME_ZONE, now = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(now)
+    const values = new Map(parts.map((part) => [part.type, part.value]))
+
+    return `${values.get("year")}-${values.get("month")}-${values.get("day")}`
 }
 
-export function formatDateTimeInZone(value: string | null, timeZone = "America/Sao_Paulo") {
+export function monthRangeInTimeZone(timeZone = DEFAULT_TIME_ZONE, now = new Date()) {
+    const [year, month] = todayInTimeZone(timeZone, now).split("-").map(Number)
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+    const prefix = `${year}-${String(month).padStart(2, "0")}`
+
+    return {
+        monthStart: `${prefix}-01`,
+        monthEnd: `${prefix}-${String(lastDay).padStart(2, "0")}`,
+    }
+}
+
+// Timestamps do banco vêm como "YYYY-MM-DD HH:MM:SS" em UTC (CURRENT_TIMESTAMP
+// do SQLite); `new Date(value)` puro interpretaria como horário local. Use
+// `useFormatDateTime` nas telas para formatar no fuso do tenant.
+export function formatDateTimeInZone(value: string | null, timeZone = DEFAULT_TIME_ZONE) {
     if (!value) return { date: "-", time: "" }
 
     const parsed = parseSqliteUtc(value)

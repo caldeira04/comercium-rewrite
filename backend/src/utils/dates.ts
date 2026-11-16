@@ -1,3 +1,5 @@
+import { AppError } from "./errors"
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const FALLBACK_TIME_ZONE = "America/Sao_Paulo"
 
@@ -82,6 +84,34 @@ export function localDateRangeToUtc(startDate: string, endDate: string, timeZone
         startUtc: toSqliteUtc(localMidnightToUtc(startDate, zone)),
         endExclusiveUtc: toSqliteUtc(localMidnightToUtc(addDays(endDate, 1), zone)),
     }
+}
+
+export function assertDateRange(startDate: string, endDate: string) {
+    if (!isValidDateInput(startDate) || !isValidDateInput(endDate)) {
+        throw new AppError("data inválida", 400, "INVALID_DATE")
+    }
+
+    if (startDate > endDate) {
+        throw new AppError("a data inicial não pode ser posterior à data final", 400, "INVALID_DATE_RANGE")
+    }
+}
+
+// Filtro de período compartilhado pelos relatórios: datas locais do tenant
+// (YYYY-MM-DD) viram um intervalo UTC [início, fim) comparável com os
+// timestamps do banco. Sem datas, não há filtro de período.
+export function resolveDateRangeFilter(
+    filters: { startDate?: string, endDate?: string },
+    timeZone?: string | null,
+) {
+    if (!filters.startDate && !filters.endDate) return null
+
+    if (!filters.startDate || !filters.endDate) {
+        throw new AppError("informe a data inicial e a data final", 400, "INVALID_DATE_RANGE")
+    }
+
+    assertDateRange(filters.startDate, filters.endDate)
+
+    return localDateRangeToUtc(filters.startDate, filters.endDate, timeZone)
 }
 
 export function todayInTimeZone(timeZone?: string | null) {

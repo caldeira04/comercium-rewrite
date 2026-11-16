@@ -1,5 +1,9 @@
 import { Spinner } from "@/components/ui/spinner"
-import { useSales } from "@/hooks/use-sales"
+import { useSales, useSalesList } from "@/hooks/use-sales"
+import { useClients } from "@/hooks/use-clients"
+import { useReportFilters } from "@/hooks/use-report-filters"
+import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
+import { FilterSelect, PAYMENT_METHOD_OPTIONS, ReportFilters, clientOptions } from "@/components/report-filters"
 import { usePayments } from "@/hooks/use-payments"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
@@ -19,38 +23,72 @@ import { formatPaymentMethod } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { toast } from "sonner"
 import type { SaleListItem, Sales } from "@/lib/api-types"
-import { formatSqliteUtc } from "@/utils/time"
 
 export const Route = createFileRoute('/sales/list/')({
     component: RouteComponent,
 })
 
 function RouteComponent() {
-    const { sales, salesIsPending, salesIsError } = useSales()
-    const [selectedSale, setSelectedSale] = useState<SaleListItem | null>(null)
+    const { monthStart, monthEnd } = useTenantDates()
+    const { filters, invalidRange, setFilter, setFilters, reset } = useReportFilters({
+        startDate: monthStart,
+        endDate: monthEnd,
+        clientId: "all",
+        paymentMethod: "all",
+    })
+    const { clients } = useClients()
+    const salesQuery = useSalesList(filters, { enabled: !invalidRange })
+    const sales = invalidRange ? undefined : salesQuery.data
+    const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+    const selectedSale = sales?.find((sale) => sale.id === selectedSaleId) ?? null
 
     return (
         <div className="flex h-screen w-full gap-4 self-start p-4">
-            <div className="flex w-full flex-col gap-4">
+            <div className="flex w-full min-w-0 flex-col gap-4">
                 <div className="flex w-full items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold uppercase">histórico de vendas</h1>
                         <p className="text-muted-foreground">vendas registradas, itens e pagamentos</p>
                     </div>
                 </div>
-                {salesIsPending && (
+                <ReportFilters
+                    startDate={filters.startDate}
+                    endDate={filters.endDate}
+                    onPeriodChange={setFilters}
+                    invalidRange={invalidRange}
+                    onReset={reset}
+                >
+                    <FilterSelect
+                        label="cliente"
+                        className="w-56"
+                        value={filters.clientId}
+                        onChange={(value) => setFilter("clientId", value)}
+                        options={clientOptions(clients)}
+                    />
+                    <FilterSelect
+                        label="forma de pagamento"
+                        value={filters.paymentMethod}
+                        onChange={(value) => setFilter("paymentMethod", value)}
+                        options={PAYMENT_METHOD_OPTIONS}
+                    />
+                </ReportFilters>
+                {!invalidRange && salesQuery.isPending && (
                     <Spinner />
                 )}
-                {salesIsError && (
+                {!invalidRange && salesQuery.isError && (
                     <span>ocorreu um erro ao buscar os dados</span>
                 )}
                 {sales && sales.length === 0 && (
                     <Card>
-                        <CardContent className="text-center text-muted-foreground">nenhuma venda registrada</CardContent>
+                        <CardContent className="text-center text-muted-foreground">
+                            nenhuma venda encontrada para os filtros selecionados
+                        </CardContent>
                     </Card>
                 )}
                 {sales && sales.length > 0 && (
-                    <SalesTable sales={sales} onSelect={(sale) => setSelectedSale(sale)} />
+                    <div className="min-h-0 flex-1 overflow-auto">
+                        <SalesTable sales={sales} onSelect={(sale) => setSelectedSaleId(sale.id)} />
+                    </div>
                 )}
             </div>
             <div className="w-[420px] shrink-0">
@@ -66,9 +104,10 @@ interface SalesTableProps {
 }
 
 function SalesTable({ sales, onSelect }: SalesTableProps) {
+    const formatDateTime = useFormatDateTime()
 
     return (
-        <Table className='min-h-full'>
+        <Table>
             <TableHeader>
                 <TableRow>
                     <TableHead className="w-[100px]">ID</TableHead>
@@ -83,7 +122,7 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
                 {sales.map((s) => (
                         <TableRow key={s.id} onClick={() => onSelect(s)} className='cursor-pointer'>
                         <TableCell className="font-medium">{s.id.split("-")[0]}</TableCell>
-                        <TableCell>{formatSqliteUtc(s.createdAt).ddMMyy}</TableCell>
+                        <TableCell>{formatDateTime(s.createdAt).date}</TableCell>
                         <TableCell>{s.client?.name ?? "-"}</TableCell>
                         <TableCell>{s.saleItem.length}</TableCell>
                         <TableCell>{formatCurrency(s.payment.reduce((total, payment) => total + payment.amount, 0))}</TableCell>
@@ -112,7 +151,8 @@ function SaleDetails({ sale }: { sale?: SaleListItem | null }) {
 }
 
 function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
-    const { cancelSale, cancelSaleIsPending } = useSales()
+    const formatDateTime = useFormatDateTime()
+    const { cancelSale, cancelSaleIsPending } = useSales({ loadSales: false })
     const { refundPayment, refundPaymentIsPending } = usePayments()
     const paidAmount = sale.payment.reduce((total, payment) => total + payment.amount, 0)
     const pendingAmount = sale.totalAmount - paidAmount
@@ -145,7 +185,7 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
         <>
             <div>
                 <h2 className="text-xl font-bold">venda #{sale.id.split("-")[0]}</h2>
-                <p className="text-muted-foreground">{formatSqliteUtc(sale.createdAt).ddMMyy}</p>
+                <p className="text-muted-foreground">{formatDateTime(sale.createdAt).date} às {formatDateTime(sale.createdAt).time}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
                 <Metric label="cliente" value={sale.client?.name ?? "não informado"} />

@@ -1,9 +1,37 @@
 import { api } from "@/lib/api"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@/lib/queryClient"
 import { throwApiError } from "@/lib/api-error"
 
-export function useCash() {
+export type CashListFilters = {
+    startDate?: string
+    endDate?: string
+    /** "all", "open" ou "closed" */
+    status?: string
+}
+
+// Lista de caixas filtrada no backend; o período considera a data de abertura
+// no fuso do tenant.
+export function useCashList(filters: CashListFilters = {}, options: { enabled?: boolean } = {}) {
+    return useQuery({
+        queryKey: ["cash", filters],
+        queryFn: async () => {
+            const query = Object.fromEntries(
+                Object.entries(filters).filter(([, value]) => value !== undefined && value !== "all"),
+            ) as Record<string, string>
+            const { data, error } = await api.tenant.cash.get({ query })
+            if (error) throwApiError(error)
+            return data
+        },
+        placeholderData: keepPreviousData,
+        enabled: options.enabled ?? true,
+    })
+}
+
+export function useCash({ loadCashes = false }: {
+    /** Carrega o histórico completo de caixas, sem filtros. */
+    loadCashes?: boolean
+} = {}) {
 
     const currentCashQuery = useQuery({
         queryKey: ["currentCash"],
@@ -17,10 +45,11 @@ export function useCash() {
     const cashesQuery = useQuery({
         queryKey: ["cash"],
         queryFn: async () => {
-            const { data, error } = await api.tenant.cash.get()
+            const { data, error } = await api.tenant.cash.get({ query: {} })
             if (error) throwApiError(error)
             return data
-        }
+        },
+        enabled: loadCashes,
     })
 
     const createCashMutation = useMutation({

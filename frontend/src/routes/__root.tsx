@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes"
 import AppSidebar from "@/components/sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner"
+import { TenantTimeZoneProvider } from "@/hooks/use-tenant-timezone"
 import { loaderCredentials } from "@/utils/auth"
 import { useQuery } from "@tanstack/react-query"
 
@@ -102,6 +103,7 @@ function RootComponent() {
                             />
                         )}
 
+                        <TenantTimeZoneProvider timeZone={user?.tenantTimezone}>
                         <TooltipProvider>
                             <div className={`relative flex min-h-svh min-w-0 flex-1 flex-col ${!isSidebarVisible ? "items-center justify-center" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
                                 {user?.impersonatedByAdminId && (
@@ -110,6 +112,7 @@ function RootComponent() {
                                 <Outlet />
                             </div>
                         </TooltipProvider>
+                        </TenantTimeZoneProvider>
                         <Toaster />
                     </div>
                 </SidebarProvider>
