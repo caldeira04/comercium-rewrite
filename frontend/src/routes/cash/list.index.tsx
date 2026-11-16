@@ -14,7 +14,7 @@ import {
 import { useCash } from "@/hooks/use-cash"
 import type { CashListItem } from "@/lib/api-types"
 import { formatCurrency } from "@/utils/finance"
-import { formatTime } from "@/utils/time"
+import { formatSqliteUtc } from "@/utils/time"
 
 export const Route = createFileRoute("/cash/list/")({
     component: RouteComponent,
@@ -55,8 +55,8 @@ function RouteComponent() {
                                 <TableRow key={cash.id} className="cursor-pointer" onClick={() => setSelectedCash(cash)}>
                                     <TableCell className="font-medium">{cash.id.split("-")[0]}</TableCell>
                                     <TableCell><Badge className={cash.status === "open" ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{cash.status === "open" ? "aberto" : "fechado"}</Badge></TableCell>
-                                    <TableCell>{formatTime(new Date(cash.openedAt)).ddMMyy}</TableCell>
-                                    <TableCell>{cash.closedAt ? formatTime(new Date(cash.closedAt)).ddMMyy : "-"}</TableCell>
+                                    <TableCell>{formatSqliteUtc(cash.openedAt).ddMMyy}</TableCell>
+                                    <TableCell>{cash.closedAt ? formatSqliteUtc(cash.closedAt).ddMMyy : "-"}</TableCell>
                                     <TableCell>{cash.users.createdBy?.login ?? "sistema"}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.expectedClosing)}</TableCell>
                                     <TableCell className="text-right">{formatCurrency(cash.amounts.actualClosing ?? 0)}</TableCell>

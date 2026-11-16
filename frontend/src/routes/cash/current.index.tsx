@@ -1,5 +1,5 @@
 import { Spinner } from '@/components/ui/spinner'
-import { formatTime } from "@/utils/time"
+import { formatSqliteUtc } from "@/utils/time"
 import { Card, CardContent } from '@/components/ui/card'
 import { useCash } from '@/hooks/use-cash'
 import { createFileRoute } from '@tanstack/react-router'
@@ -36,13 +36,13 @@ function RouteComponent() {
                     <div>
                         {!currentCashIsPending && currentCash && (
                             <div className='flex items-center gap-2 text-[var(--success)]'>
-                                <span>aberto em <span className='font-bold'>{formatTime(new Date(currentCash.openedAt)).ddMMyy} - {formatTime(new Date(currentCash.openedAt)).hhMM}</span></span>
+                                <span>aberto em <span className='font-bold'>{formatSqliteUtc(currentCash.openedAt).ddMMyy} - {formatSqliteUtc(currentCash.openedAt).hhMM}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.createdBy?.login}</span></span>
                             </div>
                         )}
                         {!currentCashIsPending && currentCash && currentCash.closedAt && (
                             <div className='flex items-center gap-2 text-[var(--danger)]'>
-                                <span>fechado em <span className='font-bold'>{formatTime(new Date(currentCash.closedAt)).ddMMyy} - {formatTime(new Date(currentCash.closedAt)).hhMM}</span></span>
+                                <span>fechado em <span className='font-bold'>{formatSqliteUtc(currentCash.closedAt).ddMMyy} - {formatSqliteUtc(currentCash.closedAt).hhMM}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.closedBy?.login}</span></span>
                             </div>
                         )}
@@ -89,7 +89,7 @@ function CashDetails({ cash, isOpen }: {
                     <div className='flex items-center justify-between'><span>status</span><Badge className={isOpen ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{isOpen ? "aberto" : "fechado"}</Badge></div>
                     <div className='flex items-center justify-between'><span>abertura</span>
                         {cash?.openedAt ? (
-                            <span>{formatTime(new Date(cash.openedAt)).ddMMyy} às {formatTime(new Date(cash.openedAt)).hhMM}</span>
+                            <span>{formatSqliteUtc(cash.openedAt).ddMMyy} às {formatSqliteUtc(cash.openedAt).hhMM}</span>
                         ) : (
                             <span>-</span>
                         )}

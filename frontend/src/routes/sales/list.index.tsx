@@ -19,7 +19,7 @@ import { formatPaymentMethod } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { toast } from "sonner"
 import type { SaleListItem, Sales } from "@/lib/api-types"
-import { formatTime } from "@/utils/time"
+import { formatSqliteUtc } from "@/utils/time"
 
 export const Route = createFileRoute('/sales/list/')({
     component: RouteComponent,
@@ -83,7 +83,7 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
                 {sales.map((s) => (
                         <TableRow key={s.id} onClick={() => onSelect(s)} className='cursor-pointer'>
                         <TableCell className="font-medium">{s.id.split("-")[0]}</TableCell>
-                        <TableCell>{formatTime(new Date(s.createdAt)).ddMMyy}</TableCell>
+                        <TableCell>{formatSqliteUtc(s.createdAt).ddMMyy}</TableCell>
                         <TableCell>{s.client?.name ?? "-"}</TableCell>
                         <TableCell>{s.saleItem.length}</TableCell>
                         <TableCell>{formatCurrency(s.payment.reduce((total, payment) => total + payment.amount, 0))}</TableCell>
@@ -145,7 +145,7 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
         <>
             <div>
                 <h2 className="text-xl font-bold">venda #{sale.id.split("-")[0]}</h2>
-                <p className="text-muted-foreground">{formatTime(new Date(sale.createdAt)).ddMMyy}</p>
+                <p className="text-muted-foreground">{formatSqliteUtc(sale.createdAt).ddMMyy}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
                 <Metric label="cliente" value={sale.client?.name ?? "não informado"} />

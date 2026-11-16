@@ -8,6 +8,7 @@ import { useProducts } from "@/hooks/use-products"
 import { useSales } from "@/hooks/use-sales"
 import { formatCurrency } from "@/utils/finance"
 import type { Product } from "@/lib/api-types"
+import { formatSqliteUtc } from "@/utils/time"
 
 export const Route = createFileRoute("/dashboard/")({
     component: RouteComponent,
@@ -19,7 +20,7 @@ function RouteComponent() {
     const { products, productsIsPending } = useProducts()
 
     const today = new Date().toLocaleDateString("pt-BR")
-    const todaySales = sales?.filter((sale) => new Date(sale.createdAt).toLocaleDateString("pt-BR") === today) ?? []
+    const todaySales = sales?.filter((sale) => formatSqliteUtc(sale.createdAt).ddMMyy === today) ?? []
     const todayTotal = todaySales.reduce((total, sale) => total + sale.totalAmount, 0)
     const lowStockProducts = products?.filter((product) => getProductStock(product) <= 0) ?? []
     const currentSaleItems = currentSale?.saleItem ?? []

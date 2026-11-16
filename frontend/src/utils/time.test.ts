@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatTime, monthEndInputValue, monthStartInputValue } from "@/utils/time"
+import { formatSqliteUtc, formatTime, monthEndInputValue, monthStartInputValue } from "@/utils/time"
 
 describe("formatTime", () => {
     it("returns pt-BR date components", () => {
@@ -18,5 +18,13 @@ describe("month input values", () => {
         expect(monthEndInputValue(new Date("2026-02-14T15:30:00"))).toBe("2026-02-28")
         expect(monthEndInputValue(new Date("2028-02-14T15:30:00"))).toBe("2028-02-29")
         expect(monthEndInputValue(new Date("2026-12-31T23:00:00"))).toBe("2026-12-31")
+    })
+})
+
+describe("formatSqliteUtc", () => {
+    it("treats database timestamps as UTC, not local time", () => {
+        const expected = formatTime(new Date("2026-11-17T00:30:00Z"))
+
+        expect(formatSqliteUtc("2026-11-17 00:30:00")).toEqual(expected)
     })
 })

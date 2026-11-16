@@ -30,6 +30,12 @@ export function parseSqliteUtc(value: string) {
     return new Date(`${value.replace(" ", "T")}Z`)
 }
 
+// Timestamps do banco vêm como "YYYY-MM-DD HH:MM:SS" em UTC (CURRENT_TIMESTAMP
+// do SQLite). `new Date(value)` puro interpretaria como horário local.
+export function formatSqliteUtc(value: string) {
+    return formatTime(parseSqliteUtc(value))
+}
+
 export function formatDateTimeInZone(value: string | null, timeZone = "America/Sao_Paulo") {
     if (!value) return { date: "-", time: "" }
 
