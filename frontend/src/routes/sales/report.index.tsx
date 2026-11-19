@@ -50,7 +50,7 @@ function RouteComponent() {
     const clientFilterOptions = clientOptions(clients)
     const salesQuery = useSalesList({ ...periodOrCash(filters), clientId: filters.clientId }, { enabled: !invalidRange })
     const sales = invalidRange ? undefined : salesQuery.data
-    const { totalSold, totalPaid, averageTicket } = summarizeSales(sales ?? [])
+    const { totalProfit, totalSold, totalPaid, averageTicket } = summarizeSales(sales ?? [])
     const productRows = getTopProducts(sales ?? [])
     const clientRows = getTopClients(sales ?? [])
 
@@ -95,8 +95,9 @@ function RouteComponent() {
             {!invalidRange && salesQuery.isError && <span>ocorreu um erro ao buscar as vendas</span>}
             {sales && (
                 <>
-                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3 xl:grid-cols-5">
                         <Metric label="vendas" value={String(sales.length)} />
+                        <Metric label="lucro bruto" value={formatCurrency(totalProfit)} />
                         <Metric label="total vendido" value={formatCurrency(totalSold)} />
                         <Metric label="total pago" value={formatCurrency(totalPaid)} />
                         <Metric label="ticket médio" value={formatCurrency(averageTicket)} />
@@ -105,7 +106,7 @@ function RouteComponent() {
                         <Card>
                             <CardContent>
                                 <h2 className="mb-4 font-bold">produtos mais vendidos</h2>
-                                <ReportTable rows={productRows} amountLabel="faturamento" />
+                                <ReportTable rows={productRows} amountLabel="faturamento" showProfit />
                             </CardContent>
                         </Card>
                         <Card>
@@ -132,7 +133,9 @@ function Metric({ label, value }: { label: string, value: string }) {
     )
 }
 
-function ReportTable({ rows, amountLabel }: { rows: Array<{ name: string, quantity: number, amount: number }>, amountLabel: string }) {
+type ReportTableRow = { name: string, quantity: number, amount: number, profit?: number | null }
+
+function ReportTable({ rows, amountLabel, showProfit = false }: { rows: ReportTableRow[], amountLabel: string, showProfit?: boolean }) {
     if (rows.length === 0) return <p className="text-muted-foreground">sem dados para exibir</p>
 
     return (
@@ -141,6 +144,7 @@ function ReportTable({ rows, amountLabel }: { rows: Array<{ name: string, quanti
                 <TableRow>
                     <TableHead>nome</TableHead>
                     <TableHead className="text-right">qtd.</TableHead>
+                    {showProfit && <TableHead className="text-right">lucro</TableHead>}
                     <TableHead className="text-right">{amountLabel}</TableHead>
                 </TableRow>
             </TableHeader>
@@ -149,6 +153,11 @@ function ReportTable({ rows, amountLabel }: { rows: Array<{ name: string, quanti
                     <TableRow key={row.name}>
                         <TableCell>{row.name}</TableCell>
                         <TableCell className="text-right">{row.quantity}</TableCell>
+                        {showProfit && (
+                            <TableCell className="text-right">
+                                {row.profit == null ? "—" : formatCurrency(row.profit)}
+                            </TableCell>
+                        )}
                         <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
                     </TableRow>
                 ))}

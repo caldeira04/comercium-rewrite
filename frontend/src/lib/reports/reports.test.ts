@@ -16,15 +16,18 @@ const sales = [
         client: { id: 1, name: "Maria" },
         payment: [{ amount: 1600, status: "paid" }],
         saleItem: [
-            { quantity: 2, totalPrice: 1200, product: { id: 10, name: "Coca" } },
-            { quantity: 4, totalPrice: 400, product: { id: 11, name: "Pão" } },
+            { quantity: 2, totalPrice: 1200, discount: 200, product: { id: 10, name: "Coca", buyPrice: 300 } },
+            { quantity: 4, totalPrice: 400, product: { id: 11, name: "Pão", buyPrice: 50 } },
         ],
     },
     {
-        totalAmount: 600,
+        totalAmount: 900,
         client: null,
-        payment: [{ amount: 600, status: "refunded" }],
-        saleItem: [{ quantity: 1, totalPrice: 600, product: { id: 10, name: "Coca" } }],
+        payment: [{ amount: 900, status: "refunded" }],
+        saleItem: [
+            { quantity: 1, totalPrice: 600, product: { id: 10, name: "Coca", buyPrice: 300 } },
+            { quantity: 1, totalPrice: 300, product: { id: 0, name: "Avulso", buyPrice: 0 } },
+        ],
     },
 ] as unknown as NonNullable<Sales>
 
@@ -37,12 +40,13 @@ function product(overrides: Partial<StockReportProduct>): StockReportProduct {
 }
 
 describe("relatório de vendas", () => {
-    it("soma produtos e ignora pagamentos estornados no total pago", () => {
+    it("soma produtos com lucro e ignora pagamentos estornados no total pago", () => {
         expect(getTopProducts(sales)).toEqual([
-            { name: "Coca", quantity: 3, amount: 1800 },
-            { name: "Pão", quantity: 4, amount: 400 },
+            { name: "Coca", quantity: 3, amount: 1600, profit: 700 },
+            { name: "Pão", quantity: 4, amount: 400, profit: 200 },
+            { name: "Avulso", quantity: 1, amount: 300, profit: null },
         ])
-        expect(summarizeSales(sales)).toEqual({ count: 2, totalSold: 2200, totalPaid: 1600, averageTicket: 1100 })
+        expect(summarizeSales(sales)).toEqual({ count: 2, totalProfit: 900, totalSold: 2500, totalPaid: 1600, averageTicket: 1250 })
     })
 
     it("o CSV traz o ranking completo com participação", () => {
@@ -50,7 +54,8 @@ describe("relatório de vendas", () => {
 
         expect(report.fileName).toBe("relatorio-de-vendas_2026-11-01_2026-11-30")
         expect(report.filters).toEqual(context.filters)
-        expect(report.csv.rows[0]).toEqual(["Coca", 3, "18,00", 81.82])
+        expect(report.csv.rows[0]).toEqual(["Coca", 3, "7,00", "16,00", 64])
+        expect(report.csv.rows[2]).toEqual(["Avulso", 1, "", "3,00", 12])
     })
 })
 

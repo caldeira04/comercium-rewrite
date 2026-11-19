@@ -121,7 +121,8 @@ export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
                     product: {
                         columns: {
                             id: true,
-                            name: true
+                            name: true,
+                            buyPrice: true
                         }
                     }
                 }
