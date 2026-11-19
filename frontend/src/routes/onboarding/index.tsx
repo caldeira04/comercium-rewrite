@@ -96,7 +96,7 @@ function RouteComponent() {
     })
 
     return (
-        <Card className='min-w-2/4'>
+        <Card className='w-full max-w-2xl'>
             <CardHeader>
                 <CardTitle>
                     <h1>Configurar Comercium</h1>
@@ -238,6 +238,7 @@ function RouteComponent() {
                 <Button
                     form="onboarding-form"
                     type='submit'
+                    className="w-full sm:w-auto"
                 >
                     Configurar e Começar
                 </Button>

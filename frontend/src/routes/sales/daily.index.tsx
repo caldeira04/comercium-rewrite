@@ -37,6 +37,8 @@ import NewPaymentDialog from "@/components/new-payment-dialog";
 import { PdvHotkeys } from "@/components/sales/pdv-hotkeys";
 import type { CurrentSale, CurrentSaleItem, Product } from "@/lib/api-types";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { useIsDesktop } from "@/hooks/use-media-query";
+import { PdvSmallScreen } from "@/components/sales/pdv-small-screen";
 
 type SaleItemSelection =
     | { mode: "add"; productId: string }
@@ -52,6 +54,15 @@ export const Route = createFileRoute("/sales/daily/")({
 });
 
 function RouteComponent() {
+    const isDesktop = useIsDesktop();
+
+    // O PDV depende de teclado e tela larga; em telas menores mostra um aviso
+    if (!isDesktop) return <PdvSmallScreen />;
+
+    return <PdvPage />;
+}
+
+function PdvPage() {
     const [showDeletedItems, setShowDeletedItems] = useState(false);
     const {
         currentSale,

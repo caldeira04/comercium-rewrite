@@ -72,7 +72,7 @@ export default function NewProductDialog() {
                     <DialogTitle>novo produto</DialogTitle>
                     <DialogDescription>cadastre o item para venda e controle de estoque</DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="col-span-2 flex flex-col gap-2">
                         <Label htmlFor="name">nome</Label>
                         <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />

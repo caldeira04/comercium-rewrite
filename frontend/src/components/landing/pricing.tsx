@@ -11,14 +11,14 @@ import {
 export default function Pricing() {
 
     return (
-        <div className="border-1 rounded-2xl w-full">
+        <div className="w-full overflow-x-auto rounded-2xl border-1">
             <Table className="w-full">
                 <TableHeader>
-                    <TableRow className="h-24">
-                        <TableHead className="text-center font-bold text-2xl uppercase">
+                    <TableRow className="h-16 md:h-24">
+                        <TableHead className="text-center text-lg font-bold whitespace-normal uppercase md:text-2xl">
                             plano básico
                         </TableHead>
-                        <TableHead className="text-center font-bold text-2xl uppercase">
+                        <TableHead className="text-center text-lg font-bold whitespace-normal uppercase md:text-2xl">
                             plano fiscal
                         </TableHead>
                     </TableRow>
@@ -42,7 +42,7 @@ export default function Pricing() {
                     </TableRow>
                 </TableBody>
                 <TableFooter>
-                    <TableRow className="text-center h-20 bg-muted font-bold text-xl">
+                    <TableRow className="text-center h-20 bg-muted font-bold text-base md:text-xl">
                         <TableCell>R$ 49/mês</TableCell>
                         <TableCell>R$ 119/mês</TableCell>
                     </TableRow>

@@ -46,14 +46,14 @@ export function ReportFilters({
 
     return (
         <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-end gap-2">
+            <div className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap">
                 {hasPeriod && (
                     <>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <Label htmlFor={`${id}-start`}>data inicial</Label>
                             <Input
                                 id={`${id}-start`}
-                                className="w-40"
+                                className="w-full sm:w-40"
                                 type="date"
                                 value={startDate}
                                 max={endDate}
@@ -61,11 +61,11 @@ export function ReportFilters({
                                 onChange={(event) => onPeriodChange?.({ startDate: event.target.value })}
                             />
                         </div>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <Label htmlFor={`${id}-end`}>data final</Label>
                             <Input
                                 id={`${id}-end`}
-                                className="w-40"
+                                className="w-full sm:w-40"
                                 type="date"
                                 value={endDate}
                                 min={startDate}
@@ -104,10 +104,10 @@ type FilterSelectProps = {
 
 export function FilterSelect({ label, value, onChange, options, className }: FilterSelectProps) {
     return (
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
             <Label>{label}</Label>
             <Select value={value} onValueChange={onChange}>
-                <SelectTrigger className={cn("w-44", className)}>
+                <SelectTrigger className={cn("w-full sm:w-44", className)}>
                     <SelectValue placeholder={label} />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,7 +206,7 @@ export function CashFilterSelect({ value, onChange }: { value: string, onChange:
     return (
         <FilterSelect
             label="caixa"
-            className="w-72"
+            className="sm:w-72"
             value={value}
             onChange={onChange}
             options={[

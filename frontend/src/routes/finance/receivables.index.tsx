@@ -160,9 +160,9 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:min-h-screen md:p-4">
             <div>
-                <h1 className="text-2xl font-bold uppercase">contas a receber</h1>
+                <h1 className="text-xl font-bold uppercase md:text-2xl">contas a receber</h1>
                 <p className="text-muted-foreground">recebimentos por data de pagamento</p>
             </div>
 
@@ -184,14 +184,14 @@ function RouteComponent() {
                 <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="cliente"
-                    className="w-56"
+                    className="sm:w-56"
                     value={clientId}
                     onChange={(value) => setFilter("clientId", value)}
                     options={clientOptions(clients)}
                 />
                 <FilterSelect
                     label="situação"
-                    className="w-40"
+                    className="sm:w-40"
                     value={status}
                     onChange={(value) => setFilter("status", value)}
                     options={[
@@ -207,7 +207,7 @@ function RouteComponent() {
 
             {data && (
                 <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                         <SummaryCard label="lançamentos" value={String(data.summary.count)} />
                         <SummaryCard label="recebido" value={formatCurrency(data.summary.received)} />
                         <SummaryCard label="estornado" value={formatCurrency(data.summary.refunded)} />
@@ -323,8 +323,8 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
     return (
         <Card>
             <CardContent>
-                <p className="text-sm uppercase text-muted-foreground">{label}</p>
-                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-xs uppercase text-muted-foreground md:text-sm">{label}</p>
+                <p className="truncate text-lg font-bold tabular-nums md:text-2xl">{value}</p>
             </CardContent>
         </Card>
     )

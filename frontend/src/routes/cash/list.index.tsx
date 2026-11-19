@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { DetailPanel } from "@/components/detail-panel"
 import { useState } from "react"
 import { ArrowDownLeftIcon, ArrowUpRightIcon, LockIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -61,10 +62,10 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex h-screen w-full gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:p-4 lg:h-screen lg:flex-row">
             <div className="flex w-full min-w-0 flex-col gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold uppercase">histórico de caixas</h1>
+                    <h1 className="text-xl font-bold uppercase md:text-2xl">histórico de caixas</h1>
                     <p className="text-muted-foreground">aberturas, fechamentos e diferenças por caixa</p>
                 </div>
                 <ReportFilters
@@ -77,7 +78,7 @@ function RouteComponent() {
                 >
                     <FilterSelect
                         label="situação"
-                        className="w-36"
+                        className="sm:w-36"
                         value={filters.status}
                         onChange={(value) => setFilter("status", value)}
                         options={CASH_STATUS_OPTIONS}
@@ -96,10 +97,10 @@ function RouteComponent() {
                                     <TableHead className="w-[70px]">nº</TableHead>
                                     <TableHead>status</TableHead>
                                     <TableHead>abertura</TableHead>
-                                    <TableHead>fechamento</TableHead>
-                                    <TableHead>operador</TableHead>
-                                    <TableHead className="text-right">esperado</TableHead>
-                                    <TableHead className="text-right">contado</TableHead>
+                                    <TableHead className="hidden md:table-cell">fechamento</TableHead>
+                                    <TableHead className="hidden md:table-cell">operador</TableHead>
+                                    <TableHead className="hidden md:table-cell text-right">esperado</TableHead>
+                                    <TableHead className="hidden md:table-cell text-right">contado</TableHead>
                                     <TableHead className="text-right">diferença</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -113,10 +114,10 @@ function RouteComponent() {
                                         <TableCell className="font-medium tabular-nums">{cash.number}</TableCell>
                                         <TableCell><Badge className={cash.status === "open" ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-[var(--danger-soft)] text-[var(--danger)]"}>{cash.status === "open" ? "aberto" : "fechado"}</Badge></TableCell>
                                         <TableCell>{formatDateTime(cash.openedAt).date}</TableCell>
-                                        <TableCell>{cash.closedAt ? formatDateTime(cash.closedAt).date : "-"}</TableCell>
-                                        <TableCell>{cash.users.createdBy?.login ?? "sistema"}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(cash.amounts.expectedClosing)}</TableCell>
-                                        <TableCell className="text-right">{formatCurrency(cash.amounts.actualClosing ?? 0)}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{cash.closedAt ? formatDateTime(cash.closedAt).date : "-"}</TableCell>
+                                        <TableCell className="hidden md:table-cell">{cash.users.createdBy?.login ?? "sistema"}</TableCell>
+                                        <TableCell className="hidden md:table-cell text-right">{formatCurrency(cash.amounts.expectedClosing)}</TableCell>
+                                        <TableCell className="hidden md:table-cell text-right">{formatCurrency(cash.amounts.actualClosing ?? 0)}</TableCell>
                                         <TableCell className={cash.amounts.difference && cash.amounts.difference < 0 ? "text-right text-[var(--danger)]" : "text-right text-[var(--success)]"}>{formatCurrency(cash.amounts.difference ?? 0)}</TableCell>
                                     </TableRow>
                                 ))}
@@ -125,9 +126,9 @@ function RouteComponent() {
                     </div>
                 )}
             </div>
-            <div className="flex w-[400px] shrink-0 flex-col">
+            <DetailPanel className="flex w-[400px] flex-col" title="detalhes do caixa" open={!!selectedCash} onClose={() => setSelectedCashId(null)}>
                 <CashDetails cash={selectedCash} />
-            </div>
+            </DetailPanel>
         </div>
     )
 }

@@ -238,18 +238,18 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:min-h-screen md:p-4">
             <div className="flex flex-wrap items-end justify-between gap-2">
                 <div>
-                    <h1 className="text-2xl font-bold uppercase">contas a pagar</h1>
+                    <h1 className="text-xl font-bold uppercase md:text-2xl">contas a pagar</h1>
                     <p className="text-muted-foreground">despesas por data de vencimento</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setRegistryOpen(true)}>
+                <div className="flex w-full gap-2 sm:w-auto">
+                    <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setRegistryOpen(true)}>
                         <Settings2Icon />
                         cadastros
                     </Button>
-                    <Button onClick={openCreate}>
+                    <Button className="flex-1 sm:flex-none" onClick={openCreate}>
                         <PlusIcon />
                         novo lançamento
                     </Button>
@@ -272,7 +272,7 @@ function RouteComponent() {
             >
                 <FilterSelect
                     label="favorecido"
-                    className="w-48"
+                    className="sm:w-48"
                     value={payeeId}
                     onChange={(value) => setFilter("payeeId", value)}
                     options={[
@@ -303,7 +303,7 @@ function RouteComponent() {
                 />
                 <FilterSelect
                     label="situação"
-                    className="w-36"
+                    className="sm:w-36"
                     value={status}
                     onChange={(value) => setFilter("status", value)}
                     options={[
@@ -320,7 +320,7 @@ function RouteComponent() {
 
             {data && (
                 <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
                         <SummaryCard label="lançamentos" value={String(data.summary.count)} />
                         <SummaryCard label="total filtrado" value={formatCurrency(data.summary.total)} />
                         <SummaryCard label="pendente" value={formatCurrency(data.summary.pending.amount)} />
@@ -512,8 +512,8 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
     return (
         <Card>
             <CardContent>
-                <p className="text-sm uppercase text-muted-foreground">{label}</p>
-                <p className="text-2xl font-bold">{value}</p>
+                <p className="text-xs uppercase text-muted-foreground md:text-sm">{label}</p>
+                <p className="truncate text-lg font-bold tabular-nums md:text-2xl">{value}</p>
             </CardContent>
         </Card>
     )

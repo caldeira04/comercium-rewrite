@@ -29,14 +29,15 @@ function RouteComponent() {
     const currentSaleTotal = currentSaleItems.reduce((total, item) => total + item.totalPrice - (item.discount ?? 0), 0)
 
     return (
-        <main className="flex min-h-svh w-full flex-col gap-6 self-start p-4 md:p-6">
+        <main className="flex w-full flex-col gap-4 self-start p-3 md:min-h-svh md:gap-6 md:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold uppercase">dashboard</h1>
+                    <h1 className="text-xl font-bold uppercase md:text-2xl">dashboard</h1>
                     <p className="text-muted-foreground">visão operacional do ERP local</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button asChild><Link to="/sales/daily">abrir PDV</Link></Button>
+                    <Button asChild className="hidden lg:inline-flex"><Link to="/sales/daily">abrir PDV</Link></Button>
+                    <Button asChild variant="outline" className="lg:hidden"><Link to="/assistant">abrir assistente</Link></Button>
                     <Button asChild variant="secondary"><Link to="/cash/current">gerenciar caixa</Link></Button>
                 </div>
             </div>
@@ -48,7 +49,7 @@ function RouteComponent() {
                     </CardContent>
                 </Card>
             )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <Metric
                     label="caixa atual"
                     value={currentCash ? currentCash.status === "open" ? "aberto" : "fechado" : "sem caixa"}

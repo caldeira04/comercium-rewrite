@@ -19,12 +19,12 @@ export function CatalogTable({ products, onSelect }: {
                 <TableRow>
                     <TableHead className="w-[90px]">ID</TableHead>
                     <TableHead>produto</TableHead>
-                    <TableHead>categoria</TableHead>
-                    <TableHead>GTIN</TableHead>
+                    <TableHead className="hidden md:table-cell">categoria</TableHead>
+                    <TableHead className="hidden lg:table-cell">GTIN</TableHead>
                     <TableHead className="text-right">estoque</TableHead>
-                    <TableHead className="text-right">custo</TableHead>
+                    <TableHead className="hidden md:table-cell text-right">custo</TableHead>
                     <TableHead className="text-right">venda</TableHead>
-                    <TableHead className="text-right">margem</TableHead>
+                    <TableHead className="hidden md:table-cell text-right">margem</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -40,12 +40,12 @@ export function CatalogTable({ products, onSelect }: {
                         >
                             <TableCell className="font-medium">{product.id}</TableCell>
                             <TableCell>{product.name}</TableCell>
-                            <TableCell>{product.category?.name ?? "-"}</TableCell>
-                            <TableCell>{product.gtin ?? "-"}</TableCell>
+                            <TableCell className="hidden md:table-cell">{product.category?.name ?? "-"}</TableCell>
+                            <TableCell className="hidden lg:table-cell">{product.gtin ?? "-"}</TableCell>
                             <TableCell className={stock <= 0 ? "text-right font-bold text-[var(--danger)]" : "text-right"}>{stock}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(product.buyPrice)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-right">{formatCurrency(product.buyPrice)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(product.sellPrice)}</TableCell>
-                            <TableCell className={margin < 0 ? "text-right text-[var(--danger)]" : "text-right text-[var(--success)]"}>{formatCurrency(margin)}</TableCell>
+                            <TableCell className={margin < 0 ? "hidden md:table-cell text-right text-[var(--danger)]" : "hidden md:table-cell text-right text-[var(--success)]"}>{formatCurrency(margin)}</TableCell>
                         </TableRow>
                     )
                 })}

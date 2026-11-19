@@ -64,9 +64,9 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:min-h-screen md:p-4">
             <div>
-                <h1 className="text-2xl font-bold uppercase">relatório de caixas</h1>
+                <h1 className="text-xl font-bold uppercase md:text-2xl">relatório de caixas</h1>
                 <p className="text-muted-foreground">entradas, saídas, pagamentos e diferenças dos caixas abertos no período</p>
             </div>
             <ReportFilters
@@ -81,7 +81,7 @@ function RouteComponent() {
                 <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="situação"
-                    className="w-36"
+                    className="sm:w-36"
                     value={filters.status}
                     onChange={(value) => setFilter("status", value)}
                     options={CASH_STATUS_OPTIONS}
@@ -91,13 +91,13 @@ function RouteComponent() {
             {!invalidRange && cashesQuery.isError && <span>ocorreu um erro ao buscar os caixas</span>}
             {cashes && (
                 <>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
                         <Metric label="caixas" value={String(cashes.length)} />
                         <Metric label="fechados" value={String(closedCashes)} />
                         <Metric label="entradas" value={formatCurrency(totalInflow)} />
                         <Metric label="saídas" value={formatCurrency(totalOutflow)} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
                         <Metric label="saldo líquido" value={formatCurrency(totalInflow - totalOutflow)} />
                         <Metric label="diferença acumulada" value={formatCurrency(totalDifference)} />
                     </div>

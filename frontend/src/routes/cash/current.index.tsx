@@ -22,27 +22,27 @@ function RouteComponent() {
     const isOpen = currentCash?.status === "open"
 
     return (
-        <div className='p-2 gap-2 w-full flex self-start h-screen'>
-            <div className='w-full flex flex-col gap-4'>
-                <div className='px-4'>
-                    <div className='flex items-center'>
+        <div className='flex w-full flex-col gap-2 self-start p-2 lg:h-screen lg:flex-row'>
+            <div className='flex w-full min-w-0 flex-col gap-4'>
+                <div className='px-2 md:px-4'>
+                    <div className='flex flex-wrap items-center'>
                         {!currentCashIsPending && (
                             <Badge className={currentCash?.closedAt ? "bg-[var(--danger-soft)] text-[var(--danger)]" : "bg-[var(--success-soft)] text-[var(--success)]"} />
                         )}
-                        <h1 className='p-4 font-bold text-2xl uppercase'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : currentCash?.openedAt ? "aberto" : ""}</h1>
+                        <h1 className='p-2 text-xl font-bold uppercase md:p-4 md:text-2xl'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : currentCash?.openedAt ? "aberto" : ""}</h1>
                         {!currentCashIsPending && currentCash && (
                             <Badge variant={"secondary"}>nº {currentCash.number}</Badge>
                         )}
                     </div>
                     <div>
                         {!currentCashIsPending && currentCash && (
-                            <div className='flex items-center gap-2 text-[var(--success)]'>
+                            <div className='flex flex-wrap items-center gap-x-2 text-sm text-[var(--success)] md:text-base'>
                                 <span>aberto em <span className='font-bold'>{formatDateTime(currentCash.openedAt).date} - {formatDateTime(currentCash.openedAt).time}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.createdBy?.login}</span></span>
                             </div>
                         )}
                         {!currentCashIsPending && currentCash && currentCash.closedAt && (
-                            <div className='flex items-center gap-2 text-[var(--danger)]'>
+                            <div className='flex flex-wrap items-center gap-x-2 text-sm text-[var(--danger)] md:text-base'>
                                 <span>fechado em <span className='font-bold'>{formatDateTime(currentCash.closedAt).date} - {formatDateTime(currentCash.closedAt).time}</span></span>
                                 <span>por <span className='font-bold'>{currentCash.users.closedBy?.login}</span></span>
                             </div>
@@ -52,7 +52,7 @@ function RouteComponent() {
                 {/* detalhes e tabela de itens */}
                 {!currentCashIsPending && !currentCash && (
                     <Card>
-                        <CardContent className="flex items-center justify-between">
+                        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2 className="font-bold">nenhum caixa encontrado</h2>
                                 <p className="text-muted-foreground">abra um caixa para iniciar as vendas do dia</p>
@@ -66,7 +66,7 @@ function RouteComponent() {
                 )}
             </div>
             {/* barra lateral direita */}
-            <div className='w-1/4 max-w-1/4'>
+            <div className='order-first w-full lg:order-none lg:w-1/4 lg:max-w-1/4'>
                 {currentCashIsPending && (
                     <Spinner />
                 )}
@@ -84,7 +84,7 @@ function CashDetails({ cash, isOpen }: {
 }) {
     const formatDateTime = useFormatDateTime()
     return (
-        <div className='p-4 border-muted border rounded-xl w-full flex items-center justify-start h-screen'>
+        <div className='flex w-full items-center justify-start rounded-xl border border-muted p-4 lg:h-screen'>
             <div className='w-full flex flex-col h-full gap-4 justify-start'>
                 <h2 className='font-bold text-lg'>detalhes do {isOpen ? "caixa" : "fechamento"}</h2>
                 <div className='text-sm flex flex-col gap-2'>

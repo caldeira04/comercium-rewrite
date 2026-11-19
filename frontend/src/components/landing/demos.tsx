@@ -24,7 +24,7 @@ export function DashboardDemo() {
                     <Button disabled variant="secondary">gerenciar caixa</Button>
                 </div>
             </div>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
                 <Metric
                     label="caixa atual"
                     value={cash.status === "open" ? "aberto" : "fechado"}
@@ -46,7 +46,7 @@ export function DashboardDemo() {
                     detail={`${productsCount} produtos cadastrados`}
                 />
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
                 <Card>
                     <CardContent>
                         <h2 className="mb-3 font-bold">atalhos</h2>

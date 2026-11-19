@@ -1,4 +1,5 @@
 import { Spinner } from "@/components/ui/spinner"
+import { DetailPanel } from "@/components/detail-panel"
 import { useSales, useSalesList } from "@/hooks/use-sales"
 import { useClients } from "@/hooks/use-clients"
 import { periodOrCash, useReportFilters } from "@/hooks/use-report-filters"
@@ -83,11 +84,11 @@ function RouteComponent() {
     const selectedSale = sales?.find((sale) => sale.id === selectedSaleId) ?? null
 
     return (
-        <div className="flex h-screen w-full gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:p-4 lg:h-screen lg:flex-row">
             <div className="flex w-full min-w-0 flex-col gap-4">
                 <div className="flex w-full items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold uppercase">histórico de vendas</h1>
+                        <h1 className="text-xl font-bold uppercase md:text-2xl">histórico de vendas</h1>
                         <p className="text-muted-foreground">vendas registradas, itens e pagamentos</p>
                     </div>
                 </div>
@@ -103,7 +104,7 @@ function RouteComponent() {
                     <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                     <FilterSelect
                         label="cliente"
-                        className="w-56"
+                        className="sm:w-56"
                         value={filters.clientId}
                         onChange={(value) => setFilter("clientId", value)}
                         options={clientFilterOptions}
@@ -134,9 +135,9 @@ function RouteComponent() {
                     </div>
                 )}
             </div>
-            <div className="w-[420px] shrink-0">
+            <DetailPanel className="w-[420px]" title="detalhes da venda" open={!!selectedSale} onClose={() => setSelectedSaleId(null)}>
                 <SaleDetails sale={selectedSale} />
-            </div>
+            </DetailPanel>
         </div>
     )
 }
@@ -156,9 +157,9 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
                     <TableHead className="w-[80px]">nº</TableHead>
                     <TableHead>data</TableHead>
                     <TableHead>cliente</TableHead>
-                    <TableHead>caixa</TableHead>
-                    <TableHead>itens</TableHead>
-                    <TableHead>pago</TableHead>
+                    <TableHead className="hidden md:table-cell">caixa</TableHead>
+                    <TableHead className="hidden md:table-cell">itens</TableHead>
+                    <TableHead className="hidden md:table-cell">pago</TableHead>
                     <TableHead className="text-right">total</TableHead>
                 </TableRow>
             </TableHeader>
@@ -168,9 +169,9 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
                         <TableCell className="font-medium tabular-nums">{s.number}</TableCell>
                         <TableCell>{formatDateTime(s.createdAt).date}</TableCell>
                         <TableCell>{s.client?.name ?? "-"}</TableCell>
-                        <TableCell className="tabular-nums">{s.cash ? formatRecordNumber(s.cash.number) : "-"}</TableCell>
-                        <TableCell>{s.saleItem.length}</TableCell>
-                        <TableCell>{formatCurrency(salePaidAmount(s))}</TableCell>
+                        <TableCell className="hidden md:table-cell tabular-nums">{s.cash ? formatRecordNumber(s.cash.number) : "-"}</TableCell>
+                        <TableCell className="hidden md:table-cell">{s.saleItem.length}</TableCell>
+                        <TableCell className="hidden md:table-cell">{formatCurrency(salePaidAmount(s))}</TableCell>
                         <TableCell className="text-right">{formatCurrency(s.totalAmount)}</TableCell>
                     </TableRow>
                 ))}

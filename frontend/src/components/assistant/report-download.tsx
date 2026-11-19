@@ -49,9 +49,19 @@ export function ReportDownload({ download }: { download: AssistantDownload }) {
     }
 
     return (
-        <Button type="button" variant="outline" size="sm" disabled={isPending} onClick={() => void handleDownload()}>
+        <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="max-w-full"
+            title={download.title}
+            disabled={isPending}
+            onClick={() => void handleDownload()}
+        >
             <FileDownIcon />
-            {isPending ? `Gerando ${formatLabel}…` : `Baixar ${formatLabel}: ${download.title}`}
+            <span className="truncate">
+                {isPending ? `Gerando ${formatLabel}…` : `Baixar ${formatLabel}: ${download.title}`}
+            </span>
         </Button>
     )
 }

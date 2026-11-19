@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import ReactMarkdown from "react-markdown"
 import { toast } from "sonner"
@@ -6,6 +6,7 @@ import {
     BotIcon,
     DatabaseIcon,
     FileTextIcon,
+    HistoryIcon,
     MessageSquareIcon,
     PaperclipIcon,
     PlusIcon,
@@ -17,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ActionCard } from "@/components/assistant/action-card"
 import { ReportDownload } from "@/components/assistant/report-download"
 import {
@@ -124,6 +126,14 @@ function AssistantPage() {
     const [messages, setMessages] = useState<AssistantMessage[]>([])
     const [draft, setDraft] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+    const messagesRef = useRef<HTMLElement>(null)
+
+    // Mantém a última mensagem visível; no celular a área de chat é pequena
+    useEffect(() => {
+        const element = messagesRef.current
+        if (element) element.scrollTo({ top: element.scrollHeight, behavior: "smooth" })
+    }, [messages, isLoading])
 
     async function askAssistant(question: string) {
         const pendingAttachment = attachment
@@ -165,6 +175,7 @@ function AssistantPage() {
     }
 
     async function openConversation(id: string) {
+        setIsHistoryOpen(false)
         if (isLoading || id === conversationId) return
 
         setIsLoading(true)
@@ -208,6 +219,7 @@ function AssistantPage() {
     }
 
     function startNewConversation() {
+        setIsHistoryOpen(false)
         setConversationId(undefined)
         setMessages([])
         setDraft("")
@@ -231,14 +243,73 @@ function AssistantPage() {
     }
 
     function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+        // Em telas de toque o Enter quebra a linha; o envio fica no botão
+        const isTouch = window.matchMedia("(pointer: coarse)").matches
+        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && !isTouch) {
             event.preventDefault()
             void askAssistant(draft)
         }
     }
 
+    const conversationList = (
+        <>
+            {isLoadingConversations ? (
+                <p className="px-2 text-xs text-muted-foreground">Carregando…</p>
+            ) : conversations.length === 0 ? (
+                <p className="px-2 text-xs text-muted-foreground">Suas conversas aparecem aqui.</p>
+            ) : (
+                conversations.map((conversation) => (
+                    <div
+                        key={conversation.id}
+                        className={cn(
+                            "group flex items-center gap-1 rounded-md text-sm hover:bg-muted",
+                            conversation.id === conversationId && "bg-muted"
+                        )}
+                    >
+                        <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2.5 text-left md:py-1.5"
+                            disabled={isLoading}
+                            onClick={() => void openConversation(conversation.id)}
+                            title={conversation.title}
+                        >
+                            <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate">{conversation.title}</span>
+                        </button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"
+                            aria-label={`Excluir conversa ${conversation.title}`}
+                            onClick={() => void removeConversation(conversation.id)}
+                        >
+                            <Trash2Icon />
+                        </Button>
+                    </div>
+                ))
+            )}
+        </>
+    )
+
     return (
-        <main className="flex min-h-screen w-full gap-4 p-4">
+        <main className="flex h-[calc(100dvh-3rem)] w-full gap-4 md:h-dvh md:p-4">
+            <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+                <SheetContent side="left" className="w-[85%] gap-2 p-3 pt-12">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Conversas</SheetTitle>
+                        <SheetDescription>Histórico de conversas com o assistente</SheetDescription>
+                    </SheetHeader>
+                    <Button type="button" variant="outline" disabled={isLoading} onClick={startNewConversation}>
+                        <PlusIcon />
+                        Nova conversa
+                    </Button>
+                    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+                        {conversationList}
+                    </div>
+                </SheetContent>
+            </Sheet>
+
             <Card className="hidden w-64 shrink-0 flex-col md:flex">
                 <CardHeader className="border-b">
                     <Button type="button" variant="outline" size="sm" disabled={isLoading} onClick={startNewConversation}>
@@ -247,80 +318,56 @@ function AssistantPage() {
                     </Button>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col gap-1 overflow-y-auto pt-2">
-                    {isLoadingConversations ? (
-                        <p className="px-2 text-xs text-muted-foreground">Carregando…</p>
-                    ) : conversations.length === 0 ? (
-                        <p className="px-2 text-xs text-muted-foreground">Suas conversas aparecem aqui.</p>
-                    ) : (
-                        conversations.map((conversation) => (
-                            <div
-                                key={conversation.id}
-                                className={cn(
-                                    "group flex items-center gap-1 rounded-md text-sm hover:bg-muted",
-                                    conversation.id === conversationId && "bg-muted"
-                                )}
-                            >
-                                <button
-                                    type="button"
-                                    className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left"
-                                    disabled={isLoading}
-                                    onClick={() => void openConversation(conversation.id)}
-                                    title={conversation.title}
-                                >
-                                    <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="truncate">{conversation.title}</span>
-                                </button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                                    aria-label={`Excluir conversa ${conversation.title}`}
-                                    onClick={() => void removeConversation(conversation.id)}
-                                >
-                                    <Trash2Icon />
-                                </Button>
-                            </div>
-                        ))
-                    )}
+                    {conversationList}
                 </CardContent>
             </Card>
 
-            <Card className="mx-auto flex w-full max-w-4xl flex-1 flex-col">
-                <CardHeader className="border-b">
+            <Card className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-0 rounded-none border-0 py-0 md:gap-4 md:rounded-xl md:border md:py-5">
+                <CardHeader className="border-b px-3 py-2 md:px-5 md:py-0">
                     <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="hidden rounded-lg bg-primary/10 p-2 text-primary sm:block">
                                 <BotIcon className="size-6" />
                             </div>
                             <div>
                                 <CardTitle>Assistente Comercium</CardTitle>
-                                <CardDescription>
+                                <CardDescription className="hidden sm:block">
                                     Pergunte sobre vendas, estoque, contas e caixa, peça lançamentos ou tire dúvidas de uso.
                                 </CardDescription>
                             </div>
                         </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="md:hidden"
-                            disabled={messages.length === 0 || isLoading}
-                            onClick={startNewConversation}
-                        >
-                            <PlusIcon />
-                            Nova
-                        </Button>
+                        <div className="flex shrink-0 gap-2 md:hidden">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label="Conversas anteriores"
+                                onClick={() => setIsHistoryOpen(true)}
+                            >
+                                <HistoryIcon />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label="Nova conversa"
+                                disabled={messages.length === 0 || isLoading}
+                                onClick={startNewConversation}
+                            >
+                                <PlusIcon />
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
 
-                <CardContent className="flex flex-1 flex-col gap-4 overflow-hidden pt-4">
+                <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:gap-4 md:px-5 md:pt-4 md:pb-0">
                     <section
+                        ref={messagesRef}
                         aria-live="polite"
-                        className="flex min-h-80 flex-1 flex-col gap-4 overflow-y-auto"
+                        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
                     >
                         {messages.length === 0 && !isLoading ? (
-                            <div className="m-auto flex max-w-xl flex-col items-center gap-4 py-8 text-center">
+                            <div className="m-auto flex max-w-xl flex-col items-center gap-4 py-4 text-center md:py-8">
                                 <SparklesIcon className="size-8 text-primary" />
                                 <div>
                                     <h2 className="text-lg font-semibold">Como posso ajudar?</h2>
@@ -335,6 +382,7 @@ function AssistantPage() {
                                             type="button"
                                             variant="outline"
                                             size="sm"
+                                            className="h-auto max-w-full py-1.5 whitespace-normal"
                                             onClick={() => void askAssistant(suggestion)}
                                         >
                                             {suggestion}
@@ -350,7 +398,7 @@ function AssistantPage() {
                                 >
                                     <div
                                         className={cn(
-                                            "max-w-[85%] rounded-xl px-4 py-3 text-sm",
+                                            "max-w-[92%] min-w-0 rounded-xl px-3 py-2.5 text-sm wrap-break-word md:max-w-[85%] md:px-4 md:py-3",
                                             message.role === "user" && "whitespace-pre-wrap bg-primary text-primary-foreground",
                                             message.role === "assistant" && !message.isError && "bg-muted",
                                             message.isError && "border border-destructive/40 bg-destructive/10 text-destructive"
@@ -370,7 +418,7 @@ function AssistantPage() {
                                         </span>
                                     ))}
                                     {(message.downloads?.length ?? 0) > 0 && (
-                                        <div className="flex max-w-[85%] flex-wrap gap-2">
+                                        <div className="flex max-w-[92%] flex-wrap gap-2 md:max-w-[85%]">
                                             {message.downloads?.map((download) => (
                                                 <ReportDownload key={download.title} download={download} />
                                             ))}
@@ -385,7 +433,7 @@ function AssistantPage() {
                                         />
                                     ))}
                                     {((message.toolsUsed?.length ?? 0) > 0 || (message.sources?.length ?? 0) > 0) && (
-                                        <div className="flex max-w-[85%] flex-wrap gap-2">
+                                        <div className="flex max-w-[92%] flex-wrap gap-2 md:max-w-[85%]">
                                             {message.toolsUsed
                                                 ?.filter((tool) => tool.name !== "buscar_ajuda")
                                                 .map((tool) => (
@@ -460,6 +508,8 @@ function AssistantPage() {
                             placeholder="Pergunte algo sobre a sua loja..."
                             maxLength={2000}
                             rows={2}
+                            enterKeyHint="enter"
+                            className="max-h-40 min-h-11 md:min-h-16"
                             disabled={isLoading}
                             aria-label="Sua pergunta"
                         />
@@ -471,7 +521,7 @@ function AssistantPage() {
                             <SendIcon />
                         </Button>
                     </form>
-                    <p className="text-center text-xs text-muted-foreground">
+                    <p className="hidden text-center text-xs text-muted-foreground md:block">
                         As perguntas e os dados consultados são enviados ao provedor de IA configurado, e as conversas ficam salvas no Comercium.
                         O assistente pode cometer erros; confira informações importantes no sistema.
                     </p>

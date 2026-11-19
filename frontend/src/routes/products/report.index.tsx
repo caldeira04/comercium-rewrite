@@ -92,9 +92,9 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:min-h-screen md:p-4">
             <div>
-                <h1 className="text-2xl font-bold uppercase">relatório de estoque</h1>
+                <h1 className="text-xl font-bold uppercase md:text-2xl">relatório de estoque</h1>
                 <p className="text-muted-foreground">movimentação no período, valorização e alertas ({positionLabel})</p>
             </div>
             <ReportFilters
@@ -109,7 +109,7 @@ function RouteComponent() {
                 <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="categoria"
-                    className="w-56"
+                    className="sm:w-56"
                     value={filters.categoryId}
                     onChange={(value) => setFilter("categoryId", value)}
                     options={categoryOptions}
@@ -125,7 +125,7 @@ function RouteComponent() {
             {!invalidRange && reportQuery.isError && <span>ocorreu um erro ao buscar o estoque</span>}
             {products && (
                 <>
-                    <div className="grid grid-cols-2 gap-4 xl:grid-cols-6">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
                         <Metric label="produtos" value={String(products.length)} />
                         <Metric label="entradas (un.)" value={String(unitsIn)} />
                         <Metric label="saídas (un.)" value={String(unitsOut)} />

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DetailPanel } from "@/components/detail-panel"
 import { Card, CardContent } from '@/components/ui/card'
 import {
     Table,
@@ -40,17 +41,17 @@ function RouteComponent() {
     }, [clients, search])
 
     return (
-        <div className='p-4 gap-4 w-full flex self-start h-screen'>
-            <div className='w-full flex flex-col gap-4'>
-                <div className='flex items-center justify-between w-full'>
+        <div className='flex w-full flex-col gap-4 self-start p-3 md:p-4 lg:h-screen lg:flex-row'>
+            <div className='flex w-full min-w-0 flex-col gap-4'>
+                <div className='flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
                     <div>
-                        <h1 className='font-bold text-2xl uppercase'>clientes</h1>
+                        <h1 className='text-xl font-bold uppercase md:text-2xl'>clientes</h1>
                         <p className='text-muted-foreground'>cadastro e dados de contato dos clientes</p>
                     </div>
                     <NewClientDialog />
                 </div>
                 <Input
-                    className='max-w-lg'
+                    className='sm:max-w-lg'
                     placeholder='buscar por nome, documento, telefone ou e-mail'
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
@@ -68,14 +69,14 @@ function RouteComponent() {
                     <ClientsTable clients={filteredClients} onSelect={(client) => { setSelectedClient(client); setIsEditing(false) }} />
                 )}
             </div>
-            <div className='w-[380px] shrink-0'>
+            <DetailPanel className='w-[380px]' title='detalhes do cliente' open={!!selectedClient} onClose={() => { setSelectedClient(null); setIsEditing(false) }}>
                 <ClientDetails
                     client={selectedClient}
                     isEditing={isEditing}
                     onCancelEdit={() => setIsEditing(false)}
                     onEdit={() => setIsEditing(true)}
                 />
-            </div>
+            </DetailPanel>
         </div>
     )
 }
@@ -94,8 +95,8 @@ function ClientsTable({ clients, onSelect }: ClientsTableProps) {
                     <TableHead className="w-[100px]">ID</TableHead>
                     <TableHead>nome</TableHead>
                     <TableHead>telefone</TableHead>
-                    <TableHead>documento</TableHead>
-                    <TableHead>e-mail</TableHead>
+                    <TableHead className="hidden md:table-cell">documento</TableHead>
+                    <TableHead className="hidden md:table-cell">e-mail</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -104,8 +105,8 @@ function ClientsTable({ clients, onSelect }: ClientsTableProps) {
                         <TableCell className="font-medium">{c.id}</TableCell>
                         <TableCell>{c.name}</TableCell>
                         <TableCell>{c.phone ?? ""}</TableCell>
-                        <TableCell>{c.document ?? ""}</TableCell>
-                        <TableCell className="text-right">{c.email ?? ""}</TableCell>
+                        <TableCell className="hidden md:table-cell">{c.document ?? ""}</TableCell>
+                        <TableCell className="hidden text-right md:table-cell">{c.email ?? ""}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>
@@ -123,7 +124,7 @@ function ClientDetails({ client, isEditing, onEdit, onCancelEdit }: {
     const { editClientIsPending } = useClients()
 
     return (
-        <Card className='w-full flex items-center justify-start h-screen'>
+        <Card className='flex w-full items-center justify-start lg:h-screen'>
             <h2 className='font-bold text-xl text-center'>{
                 client ? "detalhes do cliente" : "clique sobre um cliente para ver detalhes"
             }</h2>

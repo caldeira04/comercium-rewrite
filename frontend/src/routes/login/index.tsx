@@ -96,7 +96,10 @@ function RouteComponent() {
                                             onChange={(e) => field.handleChange(e.target.value)}
                                             aria-invalid={isInvalid}
                                             placeholder="emaildaloja@email.com"
-                                            autoComplete='off'
+                                            type="email"
+                                            inputMode="email"
+                                            autoCapitalize="none"
+                                            autoComplete="username"
                                         />
                                         {isInvalid && (
                                             <FieldError errors={field.state.meta.errors} />
@@ -122,7 +125,7 @@ function RouteComponent() {
                                             aria-invalid={isInvalid}
                                             type='password'
                                             placeholder="senha"
-                                            autoComplete='off'
+                                            autoComplete="current-password"
                                         />
                                         {isInvalid && (
                                             <FieldError errors={field.state.meta.errors} />
@@ -136,7 +139,7 @@ function RouteComponent() {
                 </form>
             </CardContent>
             <CardFooter className="flex w-full justify-end">
-                <Button type="submit" form="login-form">realizar login</Button>
+                <Button type="submit" form="login-form" className="w-full sm:w-auto">realizar login</Button>
             </CardFooter>
         </Card>
     )

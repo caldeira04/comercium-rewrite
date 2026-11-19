@@ -80,7 +80,7 @@ function RouteComponent() {
     })
 
     return (
-        <Card className='min-w-2/4'>
+        <Card className='w-full max-w-2xl'>
             <CardHeader>
                 <CardTitle>
                     <h1>registrar nova loja</h1>
@@ -254,7 +254,7 @@ function RouteComponent() {
                 </form>
             </CardContent>
             <CardFooter className="flex w-full justify-end">
-                <Button type="submit" form="register-form">realizar cadastro</Button>
+                <Button type="submit" form="register-form" className="w-full sm:w-auto">realizar cadastro</Button>
             </CardFooter>
         </Card>
     )

@@ -12,7 +12,9 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    useSidebar,
 } from "./ui/sidebar"
+import { useEffect } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu"
 import { items } from "./items"
 import { Button } from "./ui/button"
@@ -23,6 +25,12 @@ import { getApiUrl } from "@/lib/api-config"
 export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<ResponseUser, "tenantId">) {
     const { pathname } = useLocation()
     const normalizedPathname = pathname.replace(/\/$/, "") || "/"
+    const { setOpenMobile } = useSidebar()
+
+    // No mobile o sidebar é um Sheet: fecha ao trocar de página
+    useEffect(() => {
+        setOpenMobile(false)
+    }, [normalizedPathname, setOpenMobile])
 
     async function handleLogout() {
         await fetch(getApiUrl("/master/auth/logout"), {
@@ -60,7 +68,7 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<Respo
 
                                             return (
                                                 <SidebarMenuItem key={s.label}>
-                                                    <SidebarMenuButton asChild isActive={isActive} className="h-9 px-3">
+                                                    <SidebarMenuButton asChild isActive={isActive} className="h-10 px-3 md:h-9">
                                                         <Link to={s.url}>
                                                             {s.icon}
                                                             <span>{s.label}</span>
@@ -82,7 +90,7 @@ export default function AppSidebar({ login, tenantName, tenantSlug }: Omit<Respo
                             <SidebarGroupContent>
                                 <SidebarMenu>
                                     <SidebarMenuItem>
-                                        <SidebarMenuButton asChild isActive={isActive} className="h-9 px-3">
+                                        <SidebarMenuButton asChild isActive={isActive} className="h-10 px-3 md:h-9">
                                             <Link to={i.url}>
                                                 {i.icon}
                                                 <span>{i.label}</span>

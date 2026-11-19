@@ -68,9 +68,9 @@ function RouteComponent() {
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:min-h-screen md:p-4">
             <div>
-                <h1 className="text-2xl font-bold uppercase">relatório de vendas</h1>
+                <h1 className="text-xl font-bold uppercase md:text-2xl">relatório de vendas</h1>
                 <p className="text-muted-foreground">resultado comercial do período</p>
             </div>
             <ReportFilters
@@ -85,7 +85,7 @@ function RouteComponent() {
                 <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="cliente"
-                    className="w-56"
+                    className="sm:w-56"
                     value={filters.clientId}
                     onChange={(value) => setFilter("clientId", value)}
                     options={clientFilterOptions}
@@ -95,13 +95,13 @@ function RouteComponent() {
             {!invalidRange && salesQuery.isError && <span>ocorreu um erro ao buscar as vendas</span>}
             {sales && (
                 <>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
                         <Metric label="vendas" value={String(sales.length)} />
                         <Metric label="total vendido" value={formatCurrency(totalSold)} />
                         <Metric label="total pago" value={formatCurrency(totalPaid)} />
                         <Metric label="ticket médio" value={formatCurrency(averageTicket)} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
                         <Card>
                             <CardContent>
                                 <h2 className="mb-4 font-bold">produtos mais vendidos</h2>

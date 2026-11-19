@@ -69,40 +69,40 @@ export default function LandingPage() {
 
 
     return (
-        <div className="flex flex-col">
+        <div className="flex w-full min-w-0 flex-col">
             <div
                 className={`
-          flex w-screen
+          flex w-full
           bg-background overflow-y-hidden
           ${scrolled
-                        ? 'sticky top-0 h-20 px-8 items-center justify-between'
-                        : 'h-screen items-center justify-center flex-col'}
+                        ? 'sticky top-0 h-16 gap-2 px-4 items-center justify-between md:h-20 md:px-8'
+                        : 'h-svh px-4 items-center justify-center flex-col'}
           transition-[height, opacity] duration-700 ease-in-out z-10
         `}
             >
                 {!scrolled && (
-                    <div className='absolute border-border border-1 rounded-lg px-4 py-2 top-8 right-8 flex items-center gap-8'>
-                        <div className='flex flex-col self-center items-center'>
+                    <div className='absolute top-4 right-4 flex items-center gap-8 rounded-lg sm:top-8 sm:right-8 sm:border-1 sm:border-border sm:px-4 sm:py-2'>
+                        <div className='hidden flex-col items-center self-center sm:flex'>
                             <span>prefere outro tema?</span>
                             <span>clique neste botão</span>
                         </div>
-                        <ArrowRight />
+                        <ArrowRight className='hidden sm:block' />
                         <ModeToggle />
                     </div>
                 )}
                 <h1
                     className={`
             font-bold uppercase
-            ${scrolled ? 'text-4xl' : 'text-8xl'}
+            ${scrolled ? 'text-2xl md:text-4xl' : 'text-5xl sm:text-7xl lg:text-8xl'}
             transition-all duration-700 ease-in-out
           `}
                 >
                     Comercium
                 </h1>
-                <h2 className={`w-1/2 mt-2 text-center text-2xl font-bold transition-all duration-300 ease-in-out ${scrolled ? "opacity-0 max-h-0 max-w-0 overflow-hidden" : "opacity-100"}`}>o mais intuitivo e simples sistema para gerenciamento de vendas, controle de caixa e estoque e emissão de notas</h2>
+                <h2 className={`w-full md:w-1/2 mt-2 text-center text-lg md:text-2xl font-bold transition-all duration-300 ease-in-out ${scrolled ? "opacity-0 max-h-0 max-w-0 overflow-hidden" : "opacity-100"}`}>o mais intuitivo e simples sistema para gerenciamento de vendas, controle de caixa e estoque e emissão de notas</h2>
                 {!scrolled && (
                     <Button
-                        className={`${!scrolled && 'mt-4'} px-8 py-6 text-xl font-black hover:cursor-pointer`}
+                        className={`${!scrolled && 'mt-4'} px-6 py-5 text-lg md:px-8 md:py-6 md:text-xl font-black hover:cursor-pointer`}
                         onClick={() => {
                             triggered.current = true
                             setScrolled(true)
@@ -120,15 +120,16 @@ export default function LandingPage() {
                         <Button
                             variant="default"
                             asChild
-                            className="px-8 py-6 text-xl font-black hover:cursor-pointer"
+                            className="px-3 text-sm font-black hover:cursor-pointer md:px-8 md:py-6 md:text-xl"
                         >
                             <Link to="/register">
-                                iniciar período de testes
+                                <span className="sm:hidden">testar grátis</span>
+                                <span className="hidden sm:inline">iniciar período de testes</span>
                             </Link>
                         </Button>
                     }
                     {!scrolled &&
-                        <div className='flex flex-col mt-4 gap-2'>
+                        <div className='flex flex-col mt-4 gap-2 items-center'>
                             <span>já possui conta?</span>
                             <Button variant="default" asChild>
                                 <Link to="/login">
@@ -139,22 +140,22 @@ export default function LandingPage() {
                     }
                 </div>
             </div>
-            <main className={`relative opacity-0 z-0 w-full px-12
+            <main className={`relative opacity-0 z-0 w-full px-4 md:px-12
                 ${scrolled
                     ? 'opacity-100'
                     : ''
                 }
                 transition-all duration-700 ease-in-out
                 `}>
-                <div className='h-screen' />
-                <div ref={mainRef} className="relative min-h-[calc(100vh-6rem)] max-h-screen w-full flex flex-col items-center">
-                    <div className='w-full h-full gap-8 flex justify-between'>
-                        <div className='w-full flex flex-col gap-4 self-start'>
-                            <h2 className="text-8xl">
+                <div className='h-svh' />
+                <div ref={mainRef} className="relative w-full flex flex-col items-center lg:min-h-[calc(100vh-6rem)] lg:max-h-screen">
+                    <div className='w-full h-full gap-8 flex flex-col justify-between lg:flex-row'>
+                        <div className='flex w-full min-w-0 flex-col gap-4 self-start'>
+                            <h2 className="text-4xl wrap-break-word sm:text-5xl md:text-7xl lg:text-8xl">
                                 vantagens
                             </h2>
-                            <p className="text-2xl">dá uma olhada no que o Comercium tem a oferecer</p>
-                            <ul className='text-justify flex flex-col gap-6'>
+                            <p className="text-lg md:text-2xl">dá uma olhada no que o Comercium tem a oferecer</p>
+                            <ul className='flex flex-col gap-6 pl-5 md:text-justify'>
                                 {advantages.map((a) => (
                                     <li className='list-disc' key={a.title}>
                                         <h4 className='font-bold text-xl'>{a.title}</h4>
@@ -163,32 +164,32 @@ export default function LandingPage() {
                                 ))}
                             </ul>
                         </div>
-                        <div className='flex flex-col text-end gap-8'>
+                        <div className='flex min-w-0 flex-col gap-6 lg:gap-8 lg:text-end'>
                             <Pricing />
-                            <h2 className='text-8xl'>planos</h2>
-                            <p className="text-xl">vendedor ambulante? dono de loja? CEO de supermercado? aqui nós atendemos praticamente <strong>qualquer demanda</strong>.</p>
-                            <p className="text-xl">além disso, também oferecemos <strong>30 dias de acesso grátis</strong> ao plano controle para você testar.</p>
+                            <h2 className='text-4xl wrap-break-word sm:text-5xl md:text-7xl lg:text-8xl'>planos</h2>
+                            <p className="text-base md:text-xl">vendedor ambulante? dono de loja? CEO de supermercado? aqui nós atendemos praticamente <strong>qualquer demanda</strong>.</p>
+                            <p className="text-base md:text-xl">além disso, também oferecemos <strong>30 dias de acesso grátis</strong> ao plano controle para você testar.</p>
                         </div>
                     </div>
-                    <div className='absolute bottom-2 flex gap-4'>
-                        <ArrowDown className='animate-bounce' />
+                    <div className='mt-10 flex items-center gap-4 text-center lg:absolute lg:bottom-2 lg:mt-0'>
+                        <ArrowDown className='hidden shrink-0 animate-bounce sm:block' />
                         <span className='font-bold animate-bounce'>ainda não te convenci? que tal uma demonstração de como é utilizar o Comercium?</span>
-                        <ArrowDown className='animate-bounce' />
+                        <ArrowDown className='hidden shrink-0 animate-bounce sm:block' />
                     </div>
                 </div>
                 <div className='h-24' />
-                <div className="relative h-[calc(100vh-6rem)] w-full flex flex-col items-end">
+                <div className="relative w-full flex flex-col items-end pb-8 lg:h-[calc(100vh-6rem)] lg:pb-0">
                     <div className='w-full pb-4 flex items-center justify-between'>
                         <div>
-                            <h2 className="text-8xl">
+                            <h2 className="text-4xl wrap-break-word sm:text-5xl md:text-7xl lg:text-8xl">
                                 funcionalidades
                             </h2>
-                            <p className="p-4 text-xl">tudo nesta seção representa a experiência real do Comercium.</p>
+                            <p className="py-4 text-base md:p-4 md:text-xl">tudo nesta seção representa a experiência real do Comercium.</p>
                         </div>
                     </div>
-                    <div className='border-1 border-border p-4 w-full flex justify-center h-3/4 rouded-lg'>
+                    <div className='border-1 border-border p-2 w-full flex justify-center rounded-lg md:p-4 lg:h-3/4'>
 <Tabs defaultValue='dashboard' className='w-full flex items-center justify-center'>
-                            <TabsList className='gap-8'>
+                            <TabsList className='max-w-full justify-start gap-2 overflow-x-auto md:gap-8'>
                                 <TabsTrigger value='dashboard'>dashboard</TabsTrigger>
                                 <TabsTrigger value='pdv'>ponto de venda</TabsTrigger>
                                 <TabsTrigger value='estoque'>estoque</TabsTrigger>

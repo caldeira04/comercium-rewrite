@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "next-themes"
 import AppSidebar from "@/components/sidebar"
+import MobileHeader from "@/components/mobile-header"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner"
 import { TenantTimeZoneProvider } from "@/hooks/use-tenant-timezone"
@@ -105,10 +106,11 @@ function RootComponent() {
 
                         <TenantTimeZoneProvider timeZone={user?.tenantTimezone}>
                         <TooltipProvider>
-                            <div className={`relative flex min-h-svh min-w-0 flex-1 flex-col ${!isSidebarVisible ? "items-center justify-center" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
+                            <div className={`relative flex min-h-svh min-w-0 flex-1 flex-col ${!isSidebarVisible ? "items-center justify-center px-4 py-8" : ""} ${user?.impersonatedByAdminId ? "pt-10" : ""}`}>
                                 {user?.impersonatedByAdminId && (
                                     <ImpersonationBanner tenantName={user.tenantName} />
                                 )}
+                                {isSidebarVisible && user && <MobileHeader />}
                                 <Outlet />
                             </div>
                         </TooltipProvider>

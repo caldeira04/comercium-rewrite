@@ -60,19 +60,19 @@ function RouteComponent() {
 
     if (!user) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
+            <div className="flex min-h-[50svh] w-full items-center justify-center md:h-screen">
                 <p className="text-muted-foreground">faça login para acessar as configurações</p>
             </div>
         )
     }
 
     return (
-        <div className="flex h-screen w-full flex-col gap-4 self-start overflow-y-auto p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:h-screen md:overflow-y-auto md:p-4">
             <div>
-                <h1 className="text-2xl font-bold uppercase">configurações</h1>
+                <h1 className="text-xl font-bold uppercase md:text-2xl">configurações</h1>
                 <p className="text-muted-foreground">informações da empresa, usuários e preferências</p>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Card>
                     <CardContent className="flex flex-col gap-3">
                         <h2 className="font-bold">preferências</h2>
@@ -158,7 +158,7 @@ function CompanyForm({ tenantId, tenantSlug }: { tenantId: string, tenantSlug: s
                 </div>
                 {tenantIsPending && <Spinner />}
                 {tenant && (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <FormField label="nome" value={form.name} onChange={(value) => setField("name", value)} />
                         <FormField label="razão social" value={form.legalName} onChange={(value) => setField("legalName", value)} />
                         <FormField label="CPF/CNPJ" value={form.document} onChange={(value) => setField("document", value)} />
@@ -232,7 +232,7 @@ function UsersSection() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="user-login">login</Label>
                     <Input id="user-login" value={login} onChange={(event) => setLogin(event.target.value)} placeholder="novo@email.com" />

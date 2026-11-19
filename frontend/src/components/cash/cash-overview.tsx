@@ -24,7 +24,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
     return (
         <div className="w-full flex flex-col gap-4">
             <div className='flex flex-col gap-4'>
-                <div className='flex gap-2 justify-between'>
+                <div className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:justify-between'>
                     <Card className='flex-1'>
                         <CardContent className='flex items-center gap-4'>
                             <div className='flex h-12 w-12 items-center justify-center rounded-md bg-[var(--success-soft)] text-[var(--success)]'><ArrowDown /> </div>
@@ -79,7 +79,7 @@ export function CashOverview({ cash }: { cash: NonNullable<CurrentCash> }) {
                 </div>
                 <Card className='flex flex-col px-4'>
                     <h2 className='font-bold'>entradas por forma de pagamento</h2>
-                    <div className='flex items-center gap-2 justify-between'>
+                    <div className='grid grid-cols-2 gap-2 xl:flex xl:items-center xl:justify-between'>
                         <Card className='flex-1'>
                             <CardContent className='flex flex-col items-start gap-4'>
                                 <div className='flex gap-2 items-center justify-start'>
@@ -169,8 +169,8 @@ function CashMovementsTable({ cash }: {
                             </div>
                         </TableHead>
                         <TableHead>Descrição</TableHead>
-                        <TableHead className="w-[140px]">Método</TableHead>
-                        <TableHead className="w-[140px]">Operador</TableHead>
+                        <TableHead className="hidden md:table-cell w-[140px]">Método</TableHead>
+                        <TableHead className="hidden md:table-cell w-[140px]">Operador</TableHead>
                         <TableHead className="text-right w-[140px]">Valor</TableHead>
                         <TableHead className="text-right w-[80px]">Ações</TableHead>
                     </TableRow>
@@ -195,14 +195,14 @@ function CashMovementsTable({ cash }: {
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="hidden md:table-cell">
                                     {item.reference?.type === "payment" ? (
                                         <Badge variant="outline" className="capitalize">pagamento</Badge>
                                     ) : (
                                         <Badge variant="secondary" className="capitalize">manual</Badge>
                                     )}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell className="hidden md:table-cell">
                                     {item.createdByUser ? (
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium">

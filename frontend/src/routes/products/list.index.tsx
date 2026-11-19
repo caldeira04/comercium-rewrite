@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { DetailPanel } from "@/components/detail-panel"
 import { toast } from "sonner"
 import { createFileRoute } from "@tanstack/react-router"
 import NewProductDialog from "@/components/new-product-dialog"
@@ -49,26 +50,26 @@ function RouteComponent() {
     }, [products, search, categoryFilter])
 
     return (
-        <div className="flex h-screen w-full gap-4 self-start overflow-hidden p-4">
+        <div className="flex w-full flex-col gap-4 self-start p-3 md:p-4 lg:h-screen lg:flex-row lg:overflow-hidden">
             <div className="flex min-h-0 w-full flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold uppercase">catálogo de produtos</h1>
+                        <h1 className="text-xl font-bold uppercase md:text-2xl">catálogo de produtos</h1>
                         <p className="text-muted-foreground">cadastro, preços e saldo atual em estoque</p>
                     </div>
                     <NewProductDialog />
                 </div>
-                <Card className="min-h-0 flex-1">
+                <Card className="min-h-0 lg:flex-1">
                     <CardContent className="flex h-full min-h-0 flex-col gap-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <Input
-                                className="max-w-lg"
+                                className="sm:max-w-lg"
                                 placeholder="buscar por nome ou GTIN"
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                             />
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full sm:w-auto">
                                     <SelectValue placeholder="categoria" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -95,9 +96,9 @@ function RouteComponent() {
                     </CardContent>
                 </Card>
             </div>
-            <div className="w-[360px] shrink-0">
+            <DetailPanel className="w-[360px]" title="detalhes do produto" open={!!selectedProduct} onClose={() => setSelectedProduct(null)}>
                 <ProductDetails product={selectedProduct} />
-            </div>
+            </DetailPanel>
         </div>
     )
 }

@@ -151,7 +151,7 @@ function LoginForm({ onSuccess }: { onSuccess: () => void }) {
                 </form>
             </CardContent>
             <div className="flex justify-end p-6 pt-0">
-                <Button type="submit" form="admin-login-form">entrar</Button>
+                <Button type="submit" form="admin-login-form" className="w-full sm:w-auto">entrar</Button>
             </div>
         </Card>
     )
@@ -260,7 +260,7 @@ function BootstrapForm({ onSuccess }: { onSuccess: () => void }) {
                 </form>
             </CardContent>
             <div className="flex justify-end p-6 pt-0">
-                <Button type="submit" form="admin-bootstrap-form">criar administrador</Button>
+                <Button type="submit" form="admin-bootstrap-form" className="w-full sm:w-auto">criar administrador</Button>
             </div>
         </Card>
     )

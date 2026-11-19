@@ -244,7 +244,7 @@ export function ActionCard({ action, onConfirm, onReject }: {
         <section
             aria-label={action.title}
             className={cn(
-                "w-full max-w-[85%] rounded-xl border bg-card p-4 text-sm",
+                "w-full max-w-full rounded-xl border bg-card p-3 text-sm md:max-w-[85%] md:p-4",
                 status === "proposed" && "border-primary/40",
                 status === "failed" && "border-destructive/40"
             )}
@@ -336,14 +336,14 @@ export function ActionCard({ action, onConfirm, onReject }: {
 
             {isEditable && (
                 <footer className="mt-4 flex flex-wrap items-center justify-end gap-2">
-                    <span className="mr-auto text-xs text-muted-foreground">
+                    <span className="w-full text-xs text-muted-foreground sm:mr-auto sm:w-auto">
                         Nada foi gravado ainda. Válido até {new Date(action.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.
                     </span>
-                    <Button type="button" variant="outline" size="sm" disabled={isSubmitting} onClick={() => void decide(onReject)}>
+                    <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" disabled={isSubmitting} onClick={() => void decide(onReject)}>
                         <XIcon />
                         Cancelar
                     </Button>
-                    <Button type="button" size="sm" disabled={isSubmitting} onClick={confirm}>
+                    <Button type="button" size="sm" className="flex-1 sm:flex-none" disabled={isSubmitting} onClick={confirm}>
                         <CheckIcon />
                         {isSubmitting ? "Executando…" : "Confirmar"}
                     </Button>
