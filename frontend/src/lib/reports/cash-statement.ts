@@ -3,10 +3,10 @@ import { csvMoney } from "@/lib/export/csv"
 import type { ReportExport } from "@/lib/export/types"
 import { formatCurrency } from "@/utils/finance"
 import { formatCashMovementType, formatPaymentMethod, formatRecordNumber } from "@/utils/formatters"
+import type { ReportContext } from "./types"
 
 export type CashStatementMovement = CashMovementStatement["movements"][number]
 
-type FormatDateTime = (value: string | null | undefined) => { date: string, time: string }
 
 /** Itens de uma venda em uma linha: "2× Coca 350ml, 1× Pão". */
 export function summarizeSaleItems(items: Array<{ name: string, quantity: number }>) {
@@ -47,10 +47,10 @@ export function describeCashMovement(movement: CashStatementMovement) {
     return { title, details: movement.description ? [movement.description] : [] }
 }
 
-export function buildCashStatementExport(statement: CashMovementStatement, context: {
-    tenantName: string
-    formatDateTime: FormatDateTime
-}): ReportExport {
+export function buildCashStatementExport(
+    statement: CashMovementStatement,
+    context: Pick<ReportContext, "tenantName" | "formatDateTime">,
+): ReportExport {
     const { cash, totals } = statement
     const opened = context.formatDateTime(cash.openedAt)
     const closed = cash.closedAt ? context.formatDateTime(cash.closedAt) : null

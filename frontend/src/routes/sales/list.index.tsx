@@ -16,7 +16,7 @@ import {
     useSelectedCash,
 } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { buildSalesHistoryExport, salePaidAmount, saleStatusLabel } from "@/lib/export/sales-history"
+import { buildSalesHistoryExport, salePaidAmount, saleStatusLabel } from "@/lib/reports/sales-history"
 import { usePayments } from "@/hooks/use-payments"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"

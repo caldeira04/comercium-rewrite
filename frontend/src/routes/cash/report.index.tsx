@@ -24,7 +24,7 @@ import {
     useSelectedCash,
 } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
+import { buildCashReportExport, getPaymentRows, summarizeCashes } from "@/lib/reports/cash-report"
 import type { ReportExport } from "@/lib/export/types"
 import { formatCurrency, translatePaymentMethod } from "@/utils/finance"
 
@@ -47,85 +47,20 @@ function RouteComponent() {
     const selectedCash = useSelectedCash(filters.cashId)
     const cashesQuery = useCashList({ ...periodOrCash(filters), status: filters.status }, { enabled: !invalidRange })
     const cashes = invalidRange ? undefined : cashesQuery.data
-    const totalInflow = cashes?.reduce((total, cash) => total + cash.amounts.inflow, 0) ?? 0
-    const totalOutflow = cashes?.reduce((total, cash) => total + cash.amounts.outflow, 0) ?? 0
-    const totalDifference = cashes?.reduce((total, cash) => total + (cash.amounts.difference ?? 0), 0) ?? 0
-    const closedCashes = cashes?.filter((cash) => cash.status === "closed").length ?? 0
+    const { inflow: totalInflow, outflow: totalOutflow, difference: totalDifference, closed: closedCashes } = summarizeCashes(cashes ?? [])
     const paymentRows = getPaymentRows(cashes ?? [])
 
     function buildExport(): ReportExport | null {
         if (!cashes || cashes.length === 0) return null
 
         const period = periodExportInfo(filters, selectedCash)
-        const rows = cashes.map((cash) => ({
-            cash,
-            opened: formatDateTime(cash.openedAt),
-            closed: cash.closedAt ? formatDateTime(cash.closedAt) : null,
-        }))
 
-        return {
-            title: "Relatório de caixas",
-            fileName: `relatorio-de-caixas_${period.fileSuffix}`,
+        return buildCashReportExport(cashes, {
             tenantName,
+            formatDateTime,
+            fileSuffix: period.fileSuffix,
             filters: [period.filter, { label: "Situação", value: optionLabel(CASH_STATUS_OPTIONS, filters.status) }],
-            metrics: [
-                { label: "caixas", value: String(cashes.length) },
-                { label: "fechados", value: String(closedCashes) },
-                { label: "entradas", value: formatCurrency(totalInflow) },
-                { label: "saídas", value: formatCurrency(totalOutflow) },
-                { label: "saldo líquido", value: formatCurrency(totalInflow - totalOutflow) },
-                { label: "diferença acumulada", value: formatCurrency(totalDifference) },
-            ],
-            tables: [
-                {
-                    title: "Entradas por forma de pagamento",
-                    head: ["forma", "pagamentos", "total"],
-                    rows: paymentRows.map((row) => [translatePaymentMethod(row.method) ?? row.method, String(row.salesCount), formatCurrency(row.amount)]),
-                    align: { 1: "right", 2: "right" },
-                },
-                {
-                    title: "Caixas",
-                    head: ["nº", "abertura", "fechamento", "entradas", "saídas", "esperado", "contado", "diferença"],
-                    rows: rows.map(({ cash, opened, closed }) => [
-                        String(cash.number),
-                        `${opened.date} ${opened.time}`,
-                        closed ? `${closed.date} ${closed.time}` : "aberto",
-                        formatCurrency(cash.amounts.inflow),
-                        formatCurrency(cash.amounts.outflow),
-                        formatCurrency(cash.amounts.expectedClosing),
-                        cash.amounts.actualClosing === null ? "-" : formatCurrency(cash.amounts.actualClosing),
-                        cash.amounts.difference === null ? "-" : formatCurrency(cash.amounts.difference),
-                    ]),
-                    align: { 0: "right", 3: "right", 4: "right", 5: "right", 6: "right", 7: "right" },
-                },
-            ],
-            csv: {
-                headers: ["nº", "situação", "data de abertura", "hora de abertura", "data de fechamento", "hora de fechamento", "operador", "entradas", "saídas", "esperado", "contado", "diferença", "dinheiro", "PIX", "débito", "crédito", "cheque"],
-                rows: rows.map(({ cash, opened, closed }) => {
-                    const byMethod = (method: string) => cash.paymentSummary.find((entry) => entry.method === method)?.amount ?? 0
-
-                    return [
-                        cash.number,
-                        cash.status === "open" ? "aberto" : "fechado",
-                        opened.date,
-                        opened.time,
-                        closed?.date ?? "",
-                        closed?.time ?? "",
-                        cash.users.createdBy?.login ?? "sistema",
-                        csvMoney(cash.amounts.inflow),
-                        csvMoney(cash.amounts.outflow),
-                        csvMoney(cash.amounts.expectedClosing),
-                        csvMoney(cash.amounts.actualClosing),
-                        csvMoney(cash.amounts.difference),
-                        csvMoney(byMethod("cash")),
-                        csvMoney(byMethod("pix")),
-                        csvMoney(byMethod("debit")),
-                        csvMoney(byMethod("credit")),
-                        csvMoney(byMethod("voucher")),
-                    ]
-                }),
-            },
-        }
+        })
     }
 
     return (
@@ -197,22 +132,4 @@ function RouteComponent() {
 
 function Metric({ label, value }: { label: string, value: string }) {
     return <Card><CardContent><p className="text-sm uppercase text-muted-foreground">{label}</p><p className="text-2xl font-bold">{value}</p></CardContent></Card>
-}
-
-function getPaymentRows(cashes: NonNullable<ReturnType<typeof useCashList>["data"]>) {
-    const rows = new Map<"cash" | "pix" | "debit" | "credit" | "voucher", { method: "cash" | "pix" | "debit" | "credit" | "voucher", amount: number, salesCount: number }>()
-
-    cashes.forEach((cash) => {
-        cash.paymentSummary.forEach((payment) => {
-            const method = payment.method as "cash" | "pix" | "debit" | "credit" | "voucher"
-            const current = rows.get(method) ?? { method, amount: 0, salesCount: 0 }
-            rows.set(method, {
-                method,
-                amount: current.amount + payment.amount,
-                salesCount: current.salesCount + payment.salesCount,
-            })
-        })
-    })
-
-    return [...rows.values()].sort((a, b) => b.amount - a.amount)
 }

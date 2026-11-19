@@ -78,23 +78,30 @@ automaticamente e os itens saem do estoque.
 
 ## Histórico de Vendas
 
-Acesse **Vendas → Histórico** para consultar todas as vendas realizadas.
+Acesse **Vendas → Histórico** para consultar as vendas realizadas. Filtros:
+período **ou caixa** (com um caixa selecionado, o período é o do caixa),
+cliente e forma de pagamento.
 
 A tabela mostra:
 
-- ID da venda
+- **Número da venda** (nº sequencial, ex.: venda nº 152)
 - Data
 - Cliente
+- Caixa em que a venda foi feita
 - Quantidade de itens
 - Total pago
 - Total da venda
+
+O botão **"exportar"** gera o histórico em PDF ou CSV, com a coluna
+**produtos** (um produto por linha na mesma célula).
 
 Clique em uma venda para ver detalhes no painel lateral: cliente, itens,
 produtos, totais e status (quitada ou pendente).
 
 ## Relatório de Vendas
 
-Acesse **Vendas → Rel. Vendas** para ver um resumo comercial:
+Acesse **Vendas → Rel. Vendas** para ver um resumo comercial (filtros: período
+**ou caixa**, e cliente; exporta PDF e CSV):
 
 - Número total de vendas
 - Total vendido (valor bruto)

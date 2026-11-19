@@ -41,7 +41,7 @@ import { parseReferenceFilter, useReportFilters } from "@/hooks/use-report-filte
 import { useTenantDates } from "@/hooks/use-tenant-timezone"
 import { FilterSelect, ReportFilters } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
+import { buildPayablesExport } from "@/lib/reports/finance"
 import type { ReportExport } from "@/lib/export/types"
 import type { Payable } from "@/lib/api-types"
 import { PayableFormDialog } from "@/components/payables/payable-form-dialog"
@@ -192,33 +192,16 @@ function RouteComponent() {
         const result = await fetchExport()
         if (!result) return null
 
-        return {
-            title: "Contas a pagar",
-            fileName: `contas-a-pagar_${startDate}_${endDate}`,
+        return buildPayablesExport(result, {
             tenantName: result.tenantName,
+            fileSuffix: `${startDate}_${endDate}`,
             filters: [
                 { label: "Período (vencimento)", value: `${formatDateInput(startDate)} a ${formatDateInput(endDate)}` },
                 { label: "Situação", value: statusFilterLabels[status] },
                 { label: "Favorecido", value: payeeLabel },
                 { label: "Conta", value: bankAccountLabel },
             ],
-            tables: [],
-            csv: {
-                headers: ["vencimento", "parcela", "pagamento", "favorecido", "descrição", "categoria", "forma", "conta", "valor", "situação"],
-                rows: result.rows.map((row) => [
-                    formatDateInput(row.dueDate),
-                    row.installmentCount > 1 ? `${row.installmentNumber}/${row.installmentCount}` : "",
-                    row.paidDate ? formatDateInput(row.paidDate) : "",
-                    row.payee?.name ?? "não informado",
-                    row.description,
-                    row.category?.name ?? "",
-                    row.paymentMethod ? formatPaymentMethod({ method: row.paymentMethod }) : "",
-                    row.bankAccount?.name ?? "",
-                    csvMoney(row.amount),
-                    payableStatusLabels[row.status] ?? row.status,
-                ]),
-            },
-        }
+        })
     }
 
     async function handleDelete() {

@@ -47,21 +47,38 @@ conta, retirada do caixa).
 
 ## Histórico de Caixas
 
-Acesse **Caixa → Histórico** para ver todos os caixas abertos anteriormente.
-Cada linha mostra:
+Acesse **Caixa → Histórico** para ver os caixas abertos no período (filtros:
+período e situação). Cada linha mostra:
 
-- ID do caixa
+- **Número do caixa** (nº sequencial, ex.: caixa nº 34)
 - Status (aberto/fechado)
 - Data de abertura e fechamento
-- Operador que abriu/fechou
+- Operador que abriu
 - Saldo esperado e contado
 - Diferença
 
-Clique em um caixa para ver os detalhes no painel lateral.
+O botão **"exportar"** gera a lista de caixas em PDF ou CSV.
+
+## Extrato do Caixa (Movimentações)
+
+Em **Caixa → Histórico**, clique em um caixa para abrir o painel lateral com
+os totais e o **extrato de movimentações**: tudo o que entrou e saiu daquele
+caixa, em ordem, com hora, operador, valor e saldo acumulado. Cada lançamento
+tem uma descrição do que ocorreu:
+
+- **Abertura do caixa**.
+- **Venda nº 152 · PIX**, com o cliente e os produtos vendidos.
+- **Estorno da venda nº 152**.
+- **Suprimento** e **sangria**, com a observação do operador.
+- **Fechamento do caixa**, com o valor contado e o esperado.
+
+As abas **todas / entradas / saídas** filtram a lista. O botão **"exportar"**
+do painel gera o extrato do caixa em PDF ou CSV.
 
 ## Relatório de Caixas
 
-Acesse **Caixa → Rel. Caixas** para ver um resumo consolidado:
+Acesse **Caixa → Rel. Caixas** para ver um resumo consolidado (filtros:
+período ou caixa, e situação; exporta PDF e CSV):
 
 - Total de caixas e quantos foram fechados.
 - Total de entradas e saídas acumuladas.

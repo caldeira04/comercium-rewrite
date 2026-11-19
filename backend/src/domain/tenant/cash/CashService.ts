@@ -230,6 +230,12 @@ export type CashFilters = {
     status?: "open" | "closed"
     /** Quando informado, substitui o período. */
     cashId?: string
+    /**
+     * "opened" (padrão): caixas abertos no período. "active": caixas que
+     * estiveram abertos em algum momento do período (ex.: aberto às 23h e
+     * fechado de madrugada conta nos dois dias).
+     */
+    periodMatch?: "opened" | "active"
     timeZone?: string | null
 }
 
@@ -239,12 +245,15 @@ export async function getCashes(tenantSlug: string, filters: CashFilters = {}) {
     const range = filters.cashId ? null : resolveDateRangeFilter(filters, filters.timeZone)
 
     const cashes = await db.query.cash.findMany({
-        where: (cash, { and, eq, gte, isNotNull, isNull, lt }) => {
+        where: (cash, { and, eq, gte, isNotNull, isNull, lt, or }) => {
             const conditions: SQL[] = []
 
             if (filters.cashId) conditions.push(eq(cash.id, filters.cashId))
 
-            if (range) {
+            if (range && filters.periodMatch === "active") {
+                conditions.push(lt(cash.createdAt, range.endExclusiveUtc))
+                conditions.push(or(isNull(cash.closedAt), gte(cash.closedAt, range.startUtc))!)
+            } else if (range) {
                 conditions.push(gte(cash.createdAt, range.startUtc))
                 conditions.push(lt(cash.createdAt, range.endExclusiveUtc))
             }

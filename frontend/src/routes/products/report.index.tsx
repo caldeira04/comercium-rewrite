@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useCategories } from "@/hooks/use-categories"
 import { useStockReport } from "@/hooks/use-stock"
 import { periodOrCash, useReportFilters } from "@/hooks/use-report-filters"
-import { useTenantDates } from "@/hooks/use-tenant-timezone"
+import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
 import { useTenantName } from "@/hooks/use-tenant-name"
 import {
     CASH_PERIOD_HINT,
@@ -24,7 +24,7 @@ import {
     useSelectedCash,
 } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
+import { STOCK_PRICE_NOTE, buildStockReportExport, formatAdjustment, matchesStockFilters, summarizeStock } from "@/lib/reports/stock"
 import type { ReportExport } from "@/lib/export/types"
 import type { StockReportProduct } from "@/lib/api-types"
 import { formatCurrency } from "@/utils/finance"
@@ -40,12 +40,11 @@ const STOCK_OPTIONS = [
     { value: "empty", label: "sem estoque" },
 ]
 
-const PRICE_NOTE = "custos e valores de venda calculados com os preços atuais dos produtos"
-
 function RouteComponent() {
     const { monthStart, monthEnd } = useTenantDates()
     const { categories } = useCategories()
     const tenantName = useTenantName()
+    const formatDateTime = useFormatDateTime()
     const { filters, invalidRange: invalidPeriod, setFilter, setFilters, reset } = useReportFilters({
         startDate: monthStart,
         endDate: monthEnd,
@@ -68,14 +67,8 @@ function RouteComponent() {
         })),
     ]
 
-    const products = report?.products.filter((product) => matchesFilters(product, filters))
-    const moved = products?.filter((product) => product.inflow > 0 || product.outflow > 0 || product.adjustments > 0) ?? []
-    const zeroStock = products?.filter((product) => product.closing <= 0) ?? []
-    const negativeMargin = products?.filter((product) => product.sellPrice < product.buyPrice) ?? []
-    const stockValue = products?.reduce((total, product) => total + Math.max(product.closing, 0) * product.buyPrice, 0) ?? 0
-    const saleValue = products?.reduce((total, product) => total + Math.max(product.closing, 0) * product.sellPrice, 0) ?? 0
-    const unitsIn = products?.reduce((total, product) => total + product.inflow, 0) ?? 0
-    const unitsOut = products?.reduce((total, product) => total + product.outflow, 0) ?? 0
+    const products = report?.products.filter((product) => matchesStockFilters(product, filters))
+    const { moved, zeroStock, negativeMargin, stockValue, saleValue, unitsIn, unitsOut } = summarizeStock(products ?? [])
 
     const positionLabel = hasCash
         ? "posição no fechamento do caixa (ou agora, se ainda aberto)"
@@ -86,73 +79,16 @@ function RouteComponent() {
 
         const period = periodExportInfo(filters, selectedCash)
 
-        return {
-            title: "Relatório de estoque",
-            fileName: `relatorio-de-estoque_${period.fileSuffix}`,
+        return buildStockReportExport(products, {
             tenantName,
-            orientation: "landscape",
+            formatDateTime,
+            fileSuffix: period.fileSuffix,
             filters: [
                 period.filter,
                 { label: "Categoria", value: optionLabel(categoryOptions, filters.categoryId) },
                 { label: "Estoque", value: optionLabel(STOCK_OPTIONS, filters.stock) },
             ],
-            metrics: [
-                { label: "produtos", value: String(products.length) },
-                { label: "entradas (un.)", value: String(unitsIn) },
-                { label: "saídas (un.)", value: String(unitsOut) },
-                { label: "custo em estoque", value: formatCurrency(stockValue) },
-                { label: "valor de venda", value: formatCurrency(saleValue) },
-                { label: "lucro potencial", value: formatCurrency(saleValue - stockValue) },
-            ],
-            tables: [
-                {
-                    title: "Movimentação no período",
-                    head: ["produto", "categoria", "inicial", "entradas", "saídas", "ajustes", "final"],
-                    rows: moved.map((product) => [
-                        product.name,
-                        product.category?.name ?? "-",
-                        String(product.opening),
-                        String(product.inflow),
-                        String(product.outflow),
-                        formatAdjustment(product),
-                        String(product.closing),
-                    ]),
-                    align: { 2: "right", 3: "right", 4: "right", 5: "right", 6: "right" },
-                    empty: "nenhuma movimentação no período",
-                },
-                {
-                    title: "Produtos sem estoque",
-                    head: ["produto", "estoque", "margem"],
-                    rows: zeroStock.map((product) => [product.name, String(product.closing), formatCurrency(product.sellPrice - product.buyPrice)]),
-                    align: { 1: "right", 2: "right" },
-                    empty: "nenhum produto sem estoque",
-                },
-                {
-                    title: "Margem negativa",
-                    head: ["produto", "estoque", "margem"],
-                    rows: negativeMargin.map((product) => [product.name, String(product.closing), formatCurrency(product.sellPrice - product.buyPrice)]),
-                    align: { 1: "right", 2: "right" },
-                    empty: "nenhum produto com margem negativa",
-                },
-            ],
-            notes: [PRICE_NOTE],
-            csv: {
-                headers: ["produto", "categoria", "saldo inicial", "entradas", "saídas", "ajuste", "saldo final", "custo unitário", "preço de venda", "custo em estoque", "valor de venda"],
-                rows: products.map((product) => [
-                    product.name,
-                    product.category?.name ?? "",
-                    product.opening,
-                    product.inflow,
-                    product.outflow,
-                    product.adjustments > 0 ? product.adjustmentDelta : "",
-                    product.closing,
-                    csvMoney(product.buyPrice),
-                    csvMoney(product.sellPrice),
-                    csvMoney(Math.max(product.closing, 0) * product.buyPrice),
-                    csvMoney(Math.max(product.closing, 0) * product.sellPrice),
-                ]),
-            },
-        }
+        })
     }
 
     return (
@@ -217,7 +153,7 @@ function RouteComponent() {
                             </CardContent>
                         </Card>
                     </div>
-                    <p className="text-xs text-muted-foreground">{PRICE_NOTE}</p>
+                    <p className="text-xs text-muted-foreground">{STOCK_PRICE_NOTE}</p>
                 </>
             )}
         </div>
@@ -233,12 +169,6 @@ function Metric({ label, value }: { label: string, value: string }) {
             </CardContent>
         </Card>
     )
-}
-
-function formatAdjustment(product: StockReportProduct) {
-    if (product.adjustments === 0) return "-"
-
-    return product.adjustmentDelta > 0 ? `+${product.adjustmentDelta}` : String(product.adjustmentDelta)
 }
 
 function MovementTable({ products }: { products: StockReportProduct[] }) {
@@ -299,15 +229,4 @@ function ProductSummaryTable({ products }: { products: StockReportProduct[] }) {
             </Table>
         </div>
     )
-}
-
-function matchesFilters(product: StockReportProduct, filters: { categoryId: string, stock: string }) {
-    if (filters.categoryId === "none" && product.category) return false
-    if (filters.categoryId !== "all" && filters.categoryId !== "none"
-        && String(product.category?.id) !== filters.categoryId) return false
-
-    if (filters.stock === "available" && product.closing <= 0) return false
-    if (filters.stock === "empty" && product.closing > 0) return false
-
-    return true
 }

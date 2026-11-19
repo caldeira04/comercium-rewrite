@@ -216,22 +216,121 @@ describe("assistant tools", () => {
 
         expect(payables.quantidadeRegistros).toBe(1)
         expect(payables.arquivo).toEqual({
-            kind: "payables_pdf",
-            title: "Contas a pagar pagos de 2026-10-01 a 2026-10-31",
+            kind: "report",
+            report: "contas_a_pagar",
+            format: "pdf",
+            title: "Contas a pagar · 01/10/2026 a 31/10/2026",
             filters: { startDate: "2026-10-01", endDate: "2026-10-31", status: "paid" },
-            labels: { status: "pagos" },
+            labels: [{ label: "Situação", value: "pagos" }, { label: "Favorecido", value: "todos" }],
         })
 
         const byPayee = await runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", favorecido: "enel" })
         expect(byPayee.arquivo.filters.payeeId).toBe("pe1")
 
         const receivables = await runTool("gerar_relatorio", { tipo: "contas_a_receber", dataInicial: "2026-10-01", dataFinal: "2026-10-31" })
-        expect(receivables.arquivo).toMatchObject({ kind: "receivables_pdf", filters: { status: "paid" } })
+        expect(receivables.arquivo).toMatchObject({ report: "contas_a_receber", filters: { status: "paid" } })
 
         await expect(runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", favorecido: "Light" }))
             .rejects.toThrow("Não encontrei favorecido")
         await expect(runTool("gerar_relatorio", { tipo: "contas_a_pagar", dataInicial: "2026-10-01", dataFinal: "2026-10-31", situacao: "estornados" }))
             .rejects.toThrow("situacao")
+    })
+
+    test("gerar_relatorio cobre os relatórios das telas, com CSV e filtros", async () => {
+        const sales = await runTool("gerar_relatorio", {
+            tipo: "historico_vendas", formato: "csv", dataInicial: "2026-10-01", dataFinal: "2026-10-31", cliente: "maria",
+        })
+        expect(sales.arquivo).toMatchObject({
+            report: "historico_vendas",
+            format: "csv",
+            title: "Histórico de vendas · 01/10/2026 a 31/10/2026",
+            filters: { startDate: "2026-10-01", endDate: "2026-10-31", clientId: "1" },
+        })
+        expect(sales.arquivo.labels).toContainEqual({ label: "Cliente", value: "Maria Souza" })
+
+        const withoutClient = await runTool("gerar_relatorio", {
+            tipo: "relatorio_vendas", dataInicial: "2026-10-01", dataFinal: "2026-10-31", cliente: "sem cliente",
+        })
+        expect(withoutClient.arquivo.filters.clientId).toBe("none")
+
+        const stock = await runTool("gerar_relatorio", {
+            tipo: "estoque", dataInicial: "2026-10-01", dataFinal: "2026-10-31", estoque: "com_estoque",
+        })
+        expect(stock.arquivo.filters.stock).toBe("available")
+        expect(stock.quantidadeRegistros).toBeGreaterThan(0)
+
+        const cashes = await runTool("gerar_relatorio", { tipo: "relatorio_caixas", dataInicial: "2026-10-01", dataFinal: "2026-10-31", situacao: "fechados" })
+        expect(cashes.arquivo.filters.status).toBe("closed")
+
+        // Filtro que a tela não tem, caixa inexistente e extrato sem caixa viram erro para o modelo
+        await expect(runTool("gerar_relatorio", { tipo: "relatorio_vendas", dataInicial: "2026-10-01", dataFinal: "2026-10-31", formaPagamento: "pix" }))
+            .rejects.toThrow("não aceita o filtro formaPagamento")
+        await expect(runTool("gerar_relatorio", { tipo: "historico_vendas", caixa: 99 }))
+            .rejects.toThrow("caixa nº 99")
+        await expect(runTool("gerar_relatorio", { tipo: "extrato_caixa", dataInicial: "2026-10-01", dataFinal: "2026-10-31" }))
+            .rejects.toThrow("extrato_caixa exige")
+        await expect(runTool("gerar_relatorio", { tipo: "estoque" }))
+            .rejects.toThrow("dataInicial")
+    })
+
+    test("gerar_relatorio aceita o número do caixa no lugar do período", async () => {
+        const sqlite = new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`))
+        sqlite.exec(`
+            INSERT INTO cash (id, opening_amount, created_at, closed_at) VALUES ('cx1', 0, '2026-10-10 12:00:00', '2026-10-10 22:00:00');
+            INSERT INTO cash_movement (id, cash_id, nature, type, amount) VALUES ('cm1', 'cx1', 'in', 'open', 0);
+        `)
+        const number = (sqlite.query("SELECT number FROM cash WHERE id = 'cx1'").get() as { number: number }).number
+        sqlite.close()
+
+        const statement = await runTool("gerar_relatorio", { tipo: "extrato_caixa", caixa: number })
+        expect(statement.arquivo).toMatchObject({
+            report: "extrato_caixa",
+            title: `Extrato do caixa · caixa nº ${number}`,
+            filters: { cashId: "cx1" },
+        })
+        expect(statement.quantidadeRegistros).toBe(1)
+    })
+})
+
+describe("listar_caixas", () => {
+    test("inclui o caixa aberto num dia e fechado de madrugada, com horários locais", async () => {
+        const sqlite = new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`))
+        // 24/10 23:00 a 25/10 05:00 em São Paulo
+        sqlite.exec(`
+            INSERT INTO cash (id, opening_amount, created_at, closed_at) VALUES ('cx2', 5000, '2026-10-25 02:00:00', '2026-10-25 08:00:00');
+            INSERT INTO cash_movement (id, cash_id, nature, type, amount) VALUES ('cm2', 'cx2', 'in', 'open', 5000);
+        `)
+        const number = (sqlite.query("SELECT number FROM cash WHERE id = 'cx2'").get() as { number: number }).number
+        sqlite.close()
+
+        for (const day of ["2026-10-24", "2026-10-25"]) {
+            const result = await runTool("listar_caixas", { dataInicial: day, dataFinal: day })
+            expect(result.caixas).toEqual([{
+                numero: number,
+                situacao: "fechado",
+                abertura: "2026-10-24 23:00",
+                fechamento: "2026-10-25 05:00",
+                operador: null,
+                entradas: 50,
+                saidas: 0,
+            }])
+        }
+
+        expect((await runTool("listar_caixas", { dataInicial: "2026-10-26", dataFinal: "2026-10-26" })).quantidade).toBe(0)
+    })
+})
+
+describe("downloads de conversas antigas", () => {
+    test("o formato anterior (só PDF de contas) é convertido", async () => {
+        const { normalizeDownload } = await import("./reports")
+
+        expect(normalizeDownload({
+            kind: "receivables_pdf",
+            title: "Contas a receber recebidos de 2026-10-01 a 2026-10-31",
+            filters: { startDate: "2026-10-01", endDate: "2026-10-31", status: "paid" },
+            labels: { status: "recebidos" },
+        })).toMatchObject({ kind: "report", report: "contas_a_receber", format: "pdf", filters: { status: "paid" } })
+        expect(normalizeDownload({ kind: "outro" })).toBeUndefined()
     })
 })
 
@@ -309,10 +408,41 @@ describe("assistant agent", () => {
 
         const answer = await modules.agent.runAssistantChat({ ...chatInput, message: "pdf das contas de outubro" }, model.complete)
         expect(answer.downloads).toHaveLength(1)
-        expect(answer.downloads[0].kind).toBe("payables_pdf")
+        expect(answer.downloads[0]).toMatchObject({ kind: "report", report: "contas_a_pagar", format: "pdf" })
 
         const conversation = await modules.agent.getAssistantConversation(TENANT, answer.conversationId, USER_ID)
         expect(conversation.messages[1].downloads).toEqual(answer.downloads)
+    })
+
+    test("relatório pelo caixa de ontem: descobre o número com listar_caixas", async () => {
+        const sqlite = new Database(path.join(dataDir, "tenants", `${TENANT}.sqlite`))
+        const number = (sqlite.query("SELECT number FROM cash WHERE id = 'cx2'").get() as { number: number }).number
+        sqlite.close()
+
+        const model = scriptedModel([
+            {
+                content: null,
+                toolCalls: [{ id: "list", type: "function", function: { name: "listar_caixas", arguments: JSON.stringify({ dataInicial: "2026-10-25", dataFinal: "2026-10-25" }) } }],
+            },
+            {
+                content: null,
+                toolCalls: [{ id: "report", type: "function", function: { name: "gerar_relatorio", arguments: JSON.stringify({ tipo: "relatorio_vendas", caixa: number }) } }],
+            },
+            { content: "Relatório de vendas do caixa gerado.", toolCalls: [] },
+        ])
+
+        const answer = await modules.agent.runAssistantChat({ ...chatInput, message: "relatório de vendas pelo caixa de ontem" }, model.complete)
+
+        expect(answer.downloads).toHaveLength(1)
+        expect(answer.downloads[0]).toMatchObject({ report: "relatorio_vendas", filters: { cashId: "cx2" }, title: `Relatório de vendas · caixa nº ${number}` })
+
+        // O prompt e as ferramentas levam o modelo a usar gerar_relatorio, não os guias
+        const firstRequest = model.requests[0]
+        const system = firstRequest.messages[0].content as string
+        expect(system).toContain("não pelos guias de uso")
+        expect(system).toContain("listar_caixas")
+        expect(JSON.stringify(firstRequest.tools)).toContain("listar_caixas")
+        expect(JSON.stringify(firstRequest.tools)).toContain("Aceitam o número do caixa")
     })
 
     test("devolve erros de ferramenta ao modelo em vez de falhar", async () => {

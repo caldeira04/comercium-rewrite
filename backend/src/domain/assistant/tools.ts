@@ -2,12 +2,12 @@ import { and, asc, desc, eq, gte, isNotNull, isNull, lt, like, max, ne, sql } fr
 import { getTenantDb } from "@/db/db"
 import { client, product, sale, saleItem, stockMovement, category } from "@/db/schema/tenant"
 import { getPayables, payableStatuses, type PayableStatus } from "../tenant/payables/PayablesService"
-import { getPayees } from "../tenant/payables/PayeesService"
-import { getReceivables, type ReceivableStatusFilter } from "../tenant/receivables/ReceivablesService"
-import { currentCash } from "../tenant/cash/CashService"
+import { getReceivables } from "../tenant/receivables/ReceivablesService"
+import { currentCash, getCashes } from "../tenant/cash/CashService"
 import { AppError } from "../../utils/errors"
 import { isValidDateInput, localDateRangeToUtc, normalizeTimeZone } from "../../utils/dates"
-import { actionToolDefinitions, resolveByName } from "./actions"
+import { actionToolDefinitions } from "./actions"
+import { buildReportDownload, reportToolParameters } from "./reports"
 
 const GENERIC_PRODUCT_ID = 0
 
@@ -100,6 +100,23 @@ export function utcToLocalDate(value: string, timeZone: string) {
     return `${values.get("year")}-${values.get("month")}-${values.get("day")}`
 }
 
+// Timestamp UTC do SQLite como data e hora locais do tenant ("AAAA-MM-DD HH:MM")
+export function utcToLocalDateTime(value: string, timeZone: string) {
+    const instant = new Date(`${value.replace(" ", "T")}Z`)
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: normalizeTimeZone(timeZone),
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).formatToParts(instant)
+    const values = new Map(parts.map((part) => [part.type, part.value]))
+
+    return `${values.get("year")}-${values.get("month")}-${values.get("day")} ${values.get("hour")}:${values.get("minute")}`
+}
+
 function settledSalesInRange(startUtc: string, endExclusiveUtc: string) {
     return and(
         gte(sale.settledAt, startUtc),
@@ -140,27 +157,7 @@ async function activeProducts(tenantSlug: string) {
         .where(and(isNull(product.deletedAt), ne(product.id, GENERIC_PRODUCT_ID)))
 }
 
-// Anexo de download devolvido por gerar_relatorio; o frontend gera o PDF
-// com os mesmos endpoints de exportação das telas
-export type AssistantDownload = {
-    kind: "payables_pdf" | "receivables_pdf"
-    title: string
-    filters: { startDate: string, endDate: string, status: string, payeeId?: string }
-    labels: { status: string, payee?: string }
-}
-
-const payableStatusArgs: Record<string, { status: PayableStatus, label: string }> = {
-    pendentes: { status: "pending", label: "pendentes" },
-    pagas: { status: "paid", label: "pagos" },
-    vencidas: { status: "overdue", label: "vencidos" },
-    todas: { status: "all", label: "todos" },
-}
-
-const receivableStatusArgs: Record<string, { status: ReceivableStatusFilter, label: string }> = {
-    recebidos: { status: "paid", label: "recebidos" },
-    estornados: { status: "refunded", label: "estornados" },
-    todos: { status: "all", label: "todos" },
-}
+export type { AssistantDownload } from "./reports"
 
 // Mesma regra da tela de produtos: "adjustment" define o saldo absoluto
 async function stockBalances(tenantSlug: string) {
@@ -543,6 +540,7 @@ export const assistantTools: AssistantTool[] = [
             if (!cash) return { caixa: null, observacao: "Nenhum caixa foi aberto ainda." }
 
             return {
+                numero: cash.number,
                 situacao: cash.status === "open" ? "aberto" : "fechado",
                 abertoEm: cash.openedAt,
                 fechadoEm: cash.closedAt,
@@ -557,6 +555,42 @@ export const assistantTools: AssistantTool[] = [
                     .filter((entry) => entry.salesCount > 0)
                     .map((entry) => ({ forma: entry.method, quantidade: entry.salesCount, valor: reais(entry.amount) })),
                 movimentacoes: cash.movementSummary,
+            }
+        },
+    },
+    {
+        name: "listar_caixas",
+        label: "Caixas",
+        description: "Lista os caixas que estiveram abertos em um dia ou período (inclui caixa aberto num dia e fechado de madrugada), com número, abertura, fechamento, operador, entradas e saídas. Use para descobrir o número do caixa pedido pelo usuário (ex.: \"caixa de ontem\") antes de gerar_relatorio. Valores em reais; datas no fuso da loja.",
+        parameters: {
+            type: "object",
+            properties: dateRangeProperties,
+            required: ["dataInicial", "dataFinal"],
+            additionalProperties: false,
+        },
+        async run(args, context) {
+            const { startDate, endDate } = dateRangeArgs(args)
+            const cashes = await getCashes(context.tenantSlug, {
+                startDate,
+                endDate,
+                periodMatch: "active",
+                timeZone: context.timeZone,
+            })
+            const limit = 50
+
+            return {
+                periodo: { dataInicial: startDate, dataFinal: endDate },
+                quantidade: cashes.length,
+                caixas: cashes.slice(0, limit).map((cash) => ({
+                    numero: cash.number,
+                    situacao: cash.status === "open" ? "aberto" : "fechado",
+                    abertura: utcToLocalDateTime(cash.openedAt, context.timeZone),
+                    fechamento: cash.closedAt ? utcToLocalDateTime(cash.closedAt, context.timeZone) : null,
+                    operador: cash.users.createdBy?.login ?? null,
+                    entradas: reais(cash.amounts.inflow),
+                    saidas: reais(cash.amounts.outflow),
+                })),
+                ...(cashes.length > limit ? { observacao: `mostrando os ${limit} mais recentes; reduza o período` } : {}),
             }
         },
     },
@@ -825,68 +859,10 @@ export const assistantTools: AssistantTool[] = [
     {
         name: "gerar_relatorio",
         label: "Relatório",
-        description: "Gera um relatório em PDF de contas a pagar ou de contas a receber (recebimentos) num período. O usuário baixa o arquivo por um botão abaixo da resposta; você não precisa repetir os dados.",
-        parameters: {
-            type: "object",
-            properties: {
-                tipo: { type: "string", enum: ["contas_a_pagar", "contas_a_receber"] },
-                ...dateRangeProperties,
-                situacao: {
-                    type: "string",
-                    description: "Contas a pagar: pendentes, pagas, vencidas ou todas (padrão). Contas a receber: recebidos (padrão), estornados ou todos.",
-                },
-                favorecido: { type: "string", description: "Só contas a pagar: nome do favorecido para filtrar." },
-            },
-            required: ["tipo", "dataInicial", "dataFinal"],
-            additionalProperties: false,
-        },
+        description: "Gera o arquivo (PDF ou CSV) de um relatório do sistema com o período ou caixa e os filtros pedidos, igual ao exportado pelas telas. O usuário baixa por um botão abaixo da resposta; não repita os dados do relatório.",
+        parameters: reportToolParameters,
         async run(args, context) {
-            const type = enumArg(args, "tipo", ["contas_a_pagar", "contas_a_receber"] as const, "contas_a_pagar")
-            const { startDate, endDate } = dateRangeArgs(args)
-            const situation = optionalStringArg(args, "situacao")?.toLowerCase()
-
-            if (type === "contas_a_receber") {
-                const status = receivableStatusArgs[situation ?? "recebidos"]
-                if (!status) {
-                    throw new AppError(`situacao deve ser uma destas: ${Object.keys(receivableStatusArgs).join(", ")}`, 400, "INVALID_TOOL_ARGUMENT")
-                }
-
-                const result = await getReceivables(context.tenantSlug, {
-                    startDate, endDate, status: status.status, pageSize: 1, timeZone: context.timeZone,
-                })
-                const download: AssistantDownload = {
-                    kind: "receivables_pdf",
-                    title: `Contas a receber ${status.label} de ${startDate} a ${endDate}`,
-                    filters: { startDate, endDate, status: status.status },
-                    labels: { status: status.label },
-                }
-
-                return { arquivo: download, quantidadeRegistros: result.summary.count }
-            }
-
-            const status = payableStatusArgs[situation ?? "todas"]
-            if (!status) {
-                throw new AppError(`situacao deve ser uma destas: ${Object.keys(payableStatusArgs).join(", ")}`, 400, "INVALID_TOOL_ARGUMENT")
-            }
-
-            const payeeName = optionalStringArg(args, "favorecido") ?? null
-            const payees = await getPayees(context.tenantSlug)
-            const warnings: string[] = []
-            const payeeId = resolveByName("favorecido", payees, payeeName, warnings)
-            if (warnings.length) throw new AppError(warnings[0], 400, "PAYEE_NOT_FOUND")
-
-            const result = await getPayables(context.tenantSlug, {
-                startDate, endDate, status: status.status, payeeId: payeeId ?? undefined, pageSize: 1, timeZone: context.timeZone,
-            })
-            const payeeLabel = payeeId ? payees.find((payee) => payee.id === payeeId)?.name : undefined
-            const download: AssistantDownload = {
-                kind: "payables_pdf",
-                title: `Contas a pagar ${status.label}${payeeLabel ? ` de ${payeeLabel}` : ""} de ${startDate} a ${endDate}`,
-                filters: { startDate, endDate, status: status.status, ...(payeeId ? { payeeId } : {}) },
-                labels: { status: status.label, ...(payeeLabel ? { payee: payeeLabel } : {}) },
-            }
-
-            return { arquivo: download, quantidadeRegistros: result.summary.count }
+            return await buildReportDownload(args, context)
         },
     },
 ]

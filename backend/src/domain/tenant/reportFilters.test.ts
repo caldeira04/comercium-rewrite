@@ -125,6 +125,12 @@ describe("getCashes filters", () => {
         expect(await cashIds({ startDate: "2026-11-17", endDate: "2026-11-17" })).toEqual(["c3"])
     })
 
+    test("periodMatch active inclui caixas que estavam abertos no período", async () => {
+        // c1 fechou em 16/11 22:00 local; c2 abriu em 16/11 23:30 e segue aberto
+        expect(await cashIds({ startDate: "2026-11-17", endDate: "2026-11-17", periodMatch: "active" })).toEqual(["c2", "c3"])
+        expect(await cashIds({ startDate: "2026-11-16", endDate: "2026-11-16", periodMatch: "active" })).toEqual(["c1", "c2"])
+    })
+
     test("filtra por situação", async () => {
         expect(await cashIds({ status: "closed" })).toEqual(["c1"])
         expect(await cashIds({ status: "open", startDate: "2026-11-16", endDate: "2026-11-16" })).toEqual(["c2"])

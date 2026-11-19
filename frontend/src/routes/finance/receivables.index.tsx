@@ -34,7 +34,7 @@ import {
     useSelectedCash,
 } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
+import { buildReceivablesExport } from "@/lib/reports/finance"
 import type { ReportExport } from "@/lib/export/types"
 
 export const Route = createFileRoute("/finance/receivables/")({
@@ -152,29 +152,11 @@ function RouteComponent() {
 
         const period = periodExportInfo(filters, selectedCash)
 
-        return {
-            title: "Contas a receber",
-            fileName: `contas-a-receber_${period.fileSuffix}`,
+        return buildReceivablesExport(result, {
             tenantName: result.tenantName,
+            fileSuffix: period.fileSuffix,
             filters: [period.filter, { label: "Cliente", value: clientLabel }, { label: "Situação", value: statusLabel }],
-            tables: [],
-            csv: {
-                headers: ["data do pagamento", "hora", "cliente", "venda nº", "forma", "valor", "situação"],
-                rows: result.rows.map((row) => {
-                    const paidAt = formatDateTimeInZone(row.paidAt, result.timeZone)
-
-                    return [
-                        paidAt.date,
-                        paidAt.time,
-                        row.client?.name ?? "não informado",
-                        row.sale.number,
-                        formatPaymentMethod({ method: row.paymentMethod }),
-                        csvMoney(row.amount),
-                        statusLabels[row.status] ?? row.status,
-                    ]
-                }),
-            },
-        }
+        })
     }
 
     return (

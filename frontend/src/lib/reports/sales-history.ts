@@ -3,8 +3,7 @@ import { csvMoney } from "@/lib/export/csv"
 import type { ReportExport } from "@/lib/export/types"
 import { formatCurrency } from "@/utils/finance"
 import { formatPaymentMethod, formatRecordNumber } from "@/utils/formatters"
-
-type FormatDateTime = (value: string | null | undefined) => { date: string, time: string }
+import type { ReportContext } from "./types"
 
 /** Total efetivamente pago (pagamentos estornados não contam). */
 export function salePaidAmount(sale: Pick<SaleListItem, "payment">) {
@@ -52,12 +51,7 @@ function salePaymentMethods(sale: Pick<SaleListItem, "payment">) {
     return [...methods].join(", ")
 }
 
-export function buildSalesHistoryExport(sales: SaleListItem[], context: {
-    tenantName: string
-    filters: ReportExport["filters"]
-    fileSuffix: string
-    formatDateTime: FormatDateTime
-}): ReportExport {
+export function buildSalesHistoryExport(sales: SaleListItem[], context: ReportContext): ReportExport {
     const rows = sales.map((sale) => {
         const createdAt = context.formatDateTime(sale.createdAt)
         const paid = salePaidAmount(sale)

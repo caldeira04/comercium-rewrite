@@ -18,7 +18,7 @@ Cada linha mostra:
 
 - **Data do pagamento** (data e hora).
 - **Cliente** (ou "não informado" quando a venda não tem cliente).
-- **Venda**: código curto da venda de origem.
+- **Venda**: número da venda de origem (ex.: nº 152).
 - **Forma**: dinheiro, PIX, débito, crédito ou cheque.
 - **Valor**.
 - **Situação**: recebido, estornado, pendente ou cancelado.
@@ -28,6 +28,7 @@ Cada linha mostra:
 Filtros disponíveis:
 
 - **Data inicial** e **data final** (padrão: mês atual).
+- **Caixa**: o caixa em que o pagamento entrou; substitui o período.
 - **Cliente**: todos os clientes, "não informado" ou um cliente específico.
 - **Situação**: recebidos (padrão), estornados ou todos.
 
@@ -138,9 +139,10 @@ repetir o valor), forma de pagamento e conta bancária.
 Esses lançamentos aparecem no Contas a Pagar com a origem **"estoque"**,
 vinculados à movimentação de estoque.
 
-## Exportar PDF do Financeiro
+## Exportar PDF e CSV do Financeiro
 
-Nas telas de Contas a Receber e Contas a Pagar, o botão **"exportar PDF"** gera
-um relatório com os filtros aplicados (período, cliente ou favorecido,
-situação etc.) e os totais. O PDF é limitado a 5.000 lançamentos; se o período
-tiver mais do que isso, reduza o intervalo de datas para exportar tudo.
+Nas telas de Contas a Receber e Contas a Pagar, o botão **"exportar"** gera um
+relatório em **PDF** ou **CSV (Excel)** com os filtros aplicados (período ou
+caixa, cliente ou favorecido, situação etc.) e os totais. A exportação é
+limitada a 5.000 lançamentos; se o período tiver mais do que isso, reduza o
+intervalo de datas para exportar tudo.

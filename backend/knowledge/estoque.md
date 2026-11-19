@@ -27,14 +27,21 @@ A coluna "Estoque" mostra a quantidade disponível calculada.
 
 ## Relatório de Estoque
 
-Acesse **Estoque → Rel. Estoque** para ver um resumo completo:
+Acesse **Estoque → Rel. Estoque**. Filtros: período **ou caixa** (com um
+caixa selecionado, vale a janela da abertura ao fechamento do caixa),
+categoria e estoque (com ou sem estoque).
 
-- **Produtos cadastrados**: total de produtos no catálogo.
-- **Custo em estoque**: valor total do estoque a preço de custo.
-- **Valor de venda**: valor total do estoque a preço de venda.
+- **Movimentação no período**: saldo inicial, entradas, saídas, ajustes e
+  saldo final de cada produto movimentado.
+- **Entradas e saídas (un.)** no período.
+- **Custo em estoque**: valor do estoque final a preço de custo.
+- **Valor de venda**: valor do estoque final a preço de venda.
 - **Lucro potencial**: diferença entre valor de venda e custo.
-- **Produtos sem estoque**: lista de produtos com saldo zero ou negativo.
-- **Margem negativa**: lista de produtos vendidos por menos do que custam.
+- **Produtos sem estoque**: produtos com saldo final zero ou negativo.
+- **Margem negativa**: produtos vendidos por menos do que custam.
+
+Custos e valores usam os preços atuais dos produtos. O botão **"exportar"**
+gera o relatório em PDF ou CSV.
 
 ## Movimentações de Estoque
 

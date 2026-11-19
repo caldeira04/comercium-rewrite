@@ -23,9 +23,9 @@ import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
 import { useTenantName } from "@/hooks/use-tenant-name"
 import { CASH_STATUS_OPTIONS, FilterSelect, ReportFilters, optionLabel } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
+import { buildCashListExport } from "@/lib/reports/cash-report"
 import type { ReportExport } from "@/lib/export/types"
-import { buildCashStatementExport, describeCashMovement, type CashStatementMovement } from "@/lib/cash-movements"
+import { buildCashStatementExport, describeCashMovement, type CashStatementMovement } from "@/lib/reports/cash-statement"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/cash/list/")({
@@ -49,58 +49,15 @@ function RouteComponent() {
     function buildExport(): ReportExport | null {
         if (!cashes || cashes.length === 0) return null
 
-        const rows = cashes.map((cash) => {
-            const opened = formatDateTime(cash.openedAt)
-            const closed = cash.closedAt ? formatDateTime(cash.closedAt) : null
-
-            return { cash, opened, closed }
-        })
-
-        return {
-            title: "Histórico de caixas",
-            fileName: `historico-de-caixas_${filters.startDate}_${filters.endDate}`,
+        return buildCashListExport(cashes, {
             tenantName,
-            orientation: "landscape",
+            formatDateTime,
+            fileSuffix: `${filters.startDate}_${filters.endDate}`,
             filters: [
                 { label: "Período (abertura)", value: `${formatDateInput(filters.startDate)} a ${formatDateInput(filters.endDate)}` },
                 { label: "Situação", value: optionLabel(CASH_STATUS_OPTIONS, filters.status) },
             ],
-            tables: [{
-                head: ["nº", "situação", "abertura", "fechamento", "operador", "abertura (R$)", "entradas", "saídas", "esperado", "contado", "diferença"],
-                rows: rows.map(({ cash, opened, closed }) => [
-                    String(cash.number),
-                    cash.status === "open" ? "aberto" : "fechado",
-                    `${opened.date} ${opened.time}`,
-                    closed ? `${closed.date} ${closed.time}` : "-",
-                    cash.users.createdBy?.login ?? "sistema",
-                    formatCurrency(cash.amounts.opening),
-                    formatCurrency(cash.amounts.inflow),
-                    formatCurrency(cash.amounts.outflow),
-                    formatCurrency(cash.amounts.expectedClosing),
-                    cash.amounts.actualClosing === null ? "-" : formatCurrency(cash.amounts.actualClosing),
-                    cash.amounts.difference === null ? "-" : formatCurrency(cash.amounts.difference),
-                ]),
-                align: { 0: "right", 5: "right", 6: "right", 7: "right", 8: "right", 9: "right", 10: "right" },
-            }],
-            csv: {
-                headers: ["nº", "situação", "data de abertura", "hora de abertura", "data de fechamento", "hora de fechamento", "operador", "abertura", "entradas", "saídas", "esperado", "contado", "diferença"],
-                rows: rows.map(({ cash, opened, closed }) => [
-                    cash.number,
-                    cash.status === "open" ? "aberto" : "fechado",
-                    opened.date,
-                    opened.time,
-                    closed?.date ?? "",
-                    closed?.time ?? "",
-                    cash.users.createdBy?.login ?? "sistema",
-                    csvMoney(cash.amounts.opening),
-                    csvMoney(cash.amounts.inflow),
-                    csvMoney(cash.amounts.outflow),
-                    csvMoney(cash.amounts.expectedClosing),
-                    csvMoney(cash.amounts.actualClosing),
-                    csvMoney(cash.amounts.difference),
-                ]),
-            },
-        }
+        })
     }
 
     return (

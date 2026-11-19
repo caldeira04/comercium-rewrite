@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { useSalesList } from "@/hooks/use-sales"
 import { useClients } from "@/hooks/use-clients"
 import { periodOrCash, useReportFilters } from "@/hooks/use-report-filters"
-import { useTenantDates } from "@/hooks/use-tenant-timezone"
+import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
 import { useTenantName } from "@/hooks/use-tenant-name"
 import {
     CASH_PERIOD_HINT,
@@ -25,10 +25,8 @@ import {
     useSelectedCash,
 } from "@/components/report-filters"
 import { ExportMenu } from "@/components/export-menu"
-import { csvMoney } from "@/lib/export/csv"
 import type { ReportExport } from "@/lib/export/types"
-import { salePaidAmount } from "@/lib/export/sales-history"
-import type { Sales } from "@/lib/api-types"
+import { buildSalesReportExport, getTopClients, getTopProducts, summarizeSales } from "@/lib/reports/sales-report"
 import { formatCurrency } from "@/utils/finance"
 
 export const Route = createFileRoute("/sales/report/")({
@@ -47,13 +45,12 @@ function RouteComponent() {
     const invalidRange = invalidPeriod && !hasCash
     const { clients } = useClients()
     const tenantName = useTenantName()
+    const formatDateTime = useFormatDateTime()
     const selectedCash = useSelectedCash(filters.cashId)
     const clientFilterOptions = clientOptions(clients)
     const salesQuery = useSalesList({ ...periodOrCash(filters), clientId: filters.clientId }, { enabled: !invalidRange })
     const sales = invalidRange ? undefined : salesQuery.data
-    const totalSold = sales?.reduce((total, sale) => total + sale.totalAmount, 0) ?? 0
-    const totalPaid = sales?.reduce((total, sale) => total + salePaidAmount(sale), 0) ?? 0
-    const averageTicket = sales?.length ? totalSold / sales.length : 0
+    const { totalSold, totalPaid, averageTicket } = summarizeSales(sales ?? [])
     const productRows = getTopProducts(sales ?? [])
     const clientRows = getTopClients(sales ?? [])
 
@@ -61,35 +58,13 @@ function RouteComponent() {
         if (!sales || sales.length === 0) return null
 
         const period = periodExportInfo(filters, selectedCash)
-        const toRows = (rows: Array<{ name: string, quantity: number, amount: number }>) =>
-            rows.map((row) => [row.name, String(row.quantity), formatCurrency(row.amount)])
 
-        return {
-            title: "Relatório de vendas",
-            fileName: `relatorio-de-vendas_${period.fileSuffix}`,
+        return buildSalesReportExport(sales, {
             tenantName,
+            formatDateTime,
+            fileSuffix: period.fileSuffix,
             filters: [period.filter, { label: "Cliente", value: optionLabel(clientFilterOptions, filters.clientId) }],
-            metrics: [
-                { label: "vendas", value: String(sales.length) },
-                { label: "total vendido", value: formatCurrency(totalSold) },
-                { label: "total pago", value: formatCurrency(totalPaid) },
-                { label: "ticket médio", value: formatCurrency(averageTicket) },
-            ],
-            tables: [
-                { title: "Produtos vendidos", head: ["produto", "qtd.", "faturamento"], rows: toRows(productRows), align: { 1: "right", 2: "right" } },
-                { title: "Clientes", head: ["cliente", "compras", "total"], rows: toRows(clientRows), align: { 1: "right", 2: "right" } },
-            ],
-            // O CSV traz o ranking completo de produtos, que é a tabela detalhada
-            csv: {
-                headers: ["produto", "quantidade", "faturamento", "participação (%)"],
-                rows: productRows.map((row) => [
-                    row.name,
-                    row.quantity,
-                    csvMoney(row.amount),
-                    totalSold > 0 ? Number(((row.amount / totalSold) * 100).toFixed(2)) : 0,
-                ]),
-            },
-        }
+        })
     }
 
     return (
@@ -180,37 +155,4 @@ function ReportTable({ rows, amountLabel }: { rows: Array<{ name: string, quanti
             </TableBody>
         </Table>
     )
-}
-
-function getTopProducts(sales: NonNullable<Sales>) {
-    const rows = new Map<string, { name: string, quantity: number, amount: number }>()
-
-    sales.forEach((sale) => {
-        sale.saleItem.forEach((item) => {
-            const current = rows.get(item.product.name) ?? { name: item.product.name, quantity: 0, amount: 0 }
-            rows.set(item.product.name, {
-                ...current,
-                quantity: current.quantity + item.quantity,
-                amount: current.amount + item.totalPrice,
-            })
-        })
-    })
-
-    return [...rows.values()].sort((a, b) => b.amount - a.amount)
-}
-
-function getTopClients(sales: NonNullable<Sales>) {
-    const rows = new Map<string, { name: string, quantity: number, amount: number }>()
-
-    sales.forEach((sale) => {
-        const name = sale.client?.name ?? "cliente não informado"
-        const current = rows.get(name) ?? { name, quantity: 0, amount: 0 }
-        rows.set(name, {
-            ...current,
-            quantity: current.quantity + 1,
-            amount: current.amount + sale.totalAmount,
-        })
-    })
-
-    return [...rows.values()].sort((a, b) => b.amount - a.amount)
 }
