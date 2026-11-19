@@ -43,3 +43,8 @@ export function formatPaymentMethod({
     return paymentMethodMap[method]
 }
 
+
+/** Número sequencial de venda ou caixa, como exibido ao cliente ("nº 152"). */
+export function formatRecordNumber(number: number) {
+    return `nº ${number}`
+}

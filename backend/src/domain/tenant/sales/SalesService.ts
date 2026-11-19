@@ -1,8 +1,8 @@
 import { getTenantDb } from "@/db/db";
 import { sale, saleItem } from "@/db/schema/tenant/sale"
-import { and, desc, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { createBulkStockMovements } from "../stock/StockService";
-import { cash, payment } from "@/db/schema/tenant";
+import { cash, cashMovement, payment } from "@/db/schema/tenant";
 import { resolveDateRangeFilter } from "../../../utils/dates";
 import { AppError } from "../../../utils/errors";
 
@@ -16,16 +16,42 @@ export type SalesFilters = {
     endDate?: string
     clientId?: number | "none"
     paymentMethod?: PaymentMethod
+    /** Quando informado, substitui o período. */
+    cashId?: string
     timeZone?: string | null
+}
+
+// Vendas ligadas a um caixa: finalizadas nele ou com algum pagamento lançado
+// nele (vendas ainda pendentes não têm `cashId`).
+export function saleInCashCondition(
+    db: ReturnType<typeof getTenantDb>,
+    cashId: string,
+    saleTable: { id: typeof sale.id, cashId: typeof sale.cashId } = sale,
+) {
+    return or(
+        eq(saleTable.cashId, cashId),
+        inArray(
+            saleTable.id,
+            db.select({ saleId: payment.saleId })
+                .from(payment)
+                .innerJoin(cashMovement, and(
+                    eq(cashMovement.referenceId, payment.id),
+                    eq(cashMovement.referenceType, "payment"),
+                ))
+                .where(eq(cashMovement.cashId, cashId)),
+        ),
+    )!
 }
 
 export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
     const db = getTenantDb(tenantSlug)
-    const range = resolveDateRangeFilter(filters, filters.timeZone)
+    const range = filters.cashId ? null : resolveDateRangeFilter(filters, filters.timeZone)
 
     const sales = await db.query.sale.findMany({
         columns: {
             id: true,
+            number: true,
+            cashId: true,
             createdAt: true,
             settledAt: true,
             totalAmount: true
@@ -39,6 +65,8 @@ export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
                 conditions.push(gte(sale.createdAt, range.startUtc))
                 conditions.push(lt(sale.createdAt, range.endExclusiveUtc))
             }
+
+            if (filters.cashId) conditions.push(saleInCashCondition(db, filters.cashId, sale))
 
             if (filters.clientId === "none") {
                 conditions.push(isNull(sale.clientId))
@@ -65,6 +93,12 @@ export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
                     name: true
                 }
             },
+            cash: {
+                columns: {
+                    id: true,
+                    number: true,
+                }
+            },
             payment: {
                 columns: {
                     id: true,
@@ -77,6 +111,8 @@ export async function getSales(tenantSlug: string, filters: SalesFilters = {}) {
             saleItem: {
                 columns: {
                     quantity: true,
+                    unitPrice: true,
+                    discount: true,
                     totalPrice: true
                 },
                 where: (saleItem, { isNull }) =>
@@ -104,6 +140,7 @@ export async function currentSale(tenantSlug: string, includeDeleted?: boolean) 
         orderBy: [desc(sale.createdAt)],
         columns: {
             id: true,
+            number: true,
             createdAt: true,
             updatedAt: true
         },
@@ -163,6 +200,7 @@ export async function createSale(tenantSlug: string, data: {
     const { userId } = data
 
     const [newSale] = await db.insert(sale).values({
+        number: sql`(SELECT COALESCE(MAX(${sale.number}), 0) + 1 FROM ${sale})`,
         createdByUserId: userId,
     }).returning()
 

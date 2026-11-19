@@ -31,7 +31,7 @@ function RouteComponent() {
                         )}
                         <h1 className='p-4 font-bold text-2xl uppercase'>caixa {currentCashIsPending ? <Skeleton /> : currentCash?.closedAt ? "fechado" : currentCash?.openedAt ? "aberto" : ""}</h1>
                         {!currentCashIsPending && currentCash && (
-                            <Badge variant={"secondary"}>ID: #{currentCash.id.split("-")[0]}</Badge>
+                            <Badge variant={"secondary"}>nº {currentCash.number}</Badge>
                         )}
                     </div>
                     <div>

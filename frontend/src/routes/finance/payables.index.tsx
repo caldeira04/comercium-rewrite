@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import { DownloadIcon, MoreHorizontalIcon, PlusIcon, Settings2Icon } from "lucide-react"
+import { MoreHorizontalIcon, PlusIcon, Settings2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,9 @@ import { formatDateInput } from "@/utils/time"
 import { parseReferenceFilter, useReportFilters } from "@/hooks/use-report-filters"
 import { useTenantDates } from "@/hooks/use-tenant-timezone"
 import { FilterSelect, ReportFilters } from "@/components/report-filters"
+import { ExportMenu } from "@/components/export-menu"
+import { csvMoney } from "@/lib/export/csv"
+import type { ReportExport } from "@/lib/export/types"
 import type { Payable } from "@/lib/api-types"
 import { PayableFormDialog } from "@/components/payables/payable-form-dialog"
 import { PayablePaymentDialog } from "@/components/payables/payable-payment-dialog"
@@ -141,23 +144,28 @@ function RouteComponent() {
         setDeleteScope(scope)
     }
 
-    async function handleExport() {
-        if (invalidRange) {
-            toast.error("a data inicial deve ser anterior ou igual à data final")
-            return
+    async function fetchExport() {
+        const result = await exportMutation.mutateAsync({
+            startDate,
+            endDate,
+            payeeId: parsedPayeeId,
+            bankAccountId: parsedBankAccountId,
+            categoryId: parsedCategoryId,
+            status,
+        })
+
+        if (result?.truncated) {
+            toast.warning("a exportação foi limitada a 5.000 lançamentos; reduza o período para exportar tudo")
         }
 
-        try {
-            const result = await exportMutation.mutateAsync({
-                startDate,
-                endDate,
-                payeeId: parsedPayeeId,
-                bankAccountId: parsedBankAccountId,
-                categoryId: parsedCategoryId,
-                status,
-            })
+        return result && result.rows.length > 0 ? result : null
+    }
 
-            if (!result || result.rows.length === 0) {
+    async function handleExportPdf() {
+        try {
+            const result = await fetchExport()
+
+            if (!result) {
                 toast.info("nenhum lançamento para exportar")
                 return
             }
@@ -175,12 +183,41 @@ function RouteComponent() {
                 summary: result.summary,
                 truncated: result.truncated,
             })
-
-            if (result.truncated) {
-                toast.warning("o PDF foi limitado a 5.000 lançamentos; reduza o período para exportar tudo")
-            }
         } catch (error) {
             toast.error(getApiErrorMessage(error, "erro ao exportar PDF"))
+        }
+    }
+
+    async function buildCsvExport(): Promise<ReportExport | null> {
+        const result = await fetchExport()
+        if (!result) return null
+
+        return {
+            title: "Contas a pagar",
+            fileName: `contas-a-pagar_${startDate}_${endDate}`,
+            tenantName: result.tenantName,
+            filters: [
+                { label: "Período (vencimento)", value: `${formatDateInput(startDate)} a ${formatDateInput(endDate)}` },
+                { label: "Situação", value: statusFilterLabels[status] },
+                { label: "Favorecido", value: payeeLabel },
+                { label: "Conta", value: bankAccountLabel },
+            ],
+            tables: [],
+            csv: {
+                headers: ["vencimento", "parcela", "pagamento", "favorecido", "descrição", "categoria", "forma", "conta", "valor", "situação"],
+                rows: result.rows.map((row) => [
+                    formatDateInput(row.dueDate),
+                    row.installmentCount > 1 ? `${row.installmentNumber}/${row.installmentCount}` : "",
+                    row.paidDate ? formatDateInput(row.paidDate) : "",
+                    row.payee?.name ?? "não informado",
+                    row.description,
+                    row.category?.name ?? "",
+                    row.paymentMethod ? formatPaymentMethod({ method: row.paymentMethod }) : "",
+                    row.bankAccount?.name ?? "",
+                    csvMoney(row.amount),
+                    payableStatusLabels[row.status] ?? row.status,
+                ]),
+            },
         }
     }
 
@@ -243,10 +280,11 @@ function RouteComponent() {
                 invalidRange={invalidRange}
                 onReset={reset}
                 actions={
-                    <Button disabled={exportMutation.isPending || invalidRange} onClick={handleExport}>
-                        <DownloadIcon />
-                        {exportMutation.isPending ? "gerando..." : "exportar PDF"}
-                    </Button>
+                    <ExportMenu
+                        build={buildCsvExport}
+                        onPdf={handleExportPdf}
+                        disabled={exportMutation.isPending || invalidRange}
+                    />
                 }
             >
                 <FilterSelect

@@ -1,6 +1,6 @@
 import { api } from "@/lib/api"
 import { queryClient } from "@/lib/queryClient"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query"
 import { throwApiError } from "@/lib/api-error"
 
 type PaymentMethod = "cash" | "pix" | "debit" | "credit" | "voucher"
@@ -19,6 +19,29 @@ export type CreatePurchasePayload = {
     paymentMethod?: PaymentMethod | null
     notes?: string | null
     installments?: { count?: number, mode?: InstallmentMode }
+}
+
+export type StockReportFilters = {
+    startDate?: string
+    endDate?: string
+    /** Usa a janela do caixa no lugar do período. */
+    cashId?: string
+}
+
+// Posição de estoque por produto no período (saldo inicial, entradas, saídas e final).
+export function useStockReport(filters: StockReportFilters, options: { enabled?: boolean } = {}) {
+    return useQuery({
+        queryKey: ["stockReport", filters],
+        queryFn: async () => {
+            const { data, error } = await api.tenant.stock.report.get({
+                query: filters.cashId ? { cashId: filters.cashId } : { startDate: filters.startDate, endDate: filters.endDate },
+            })
+            if (error) throwApiError(error)
+            return data
+        },
+        placeholderData: keepPreviousData,
+        enabled: options.enabled ?? true,
+    })
 }
 
 export function useStock() {

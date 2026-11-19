@@ -16,6 +16,8 @@ const TIME_ZONE = "America/Sao_Paulo"
 
 let sales: typeof import("./sales/SalesService")
 let cashes: typeof import("./cash/CashService")
+let receivables: typeof import("./receivables/ReceivablesService")
+let stock: typeof import("./stock/StockService")
 
 beforeAll(async () => {
     mkdirSync(path.join(dataDir, "tenants"), { recursive: true })
@@ -31,20 +33,49 @@ beforeAll(async () => {
             ('c2', 1000, '2026-11-17 02:30:00', NULL),
             ('c3', 1000, '2026-11-17 12:00:00', NULL);
 
-        INSERT INTO sale (id, total_amount, client_id, created_at) VALUES
-            ('s1', 1000, 1, '2026-11-16 15:00:00'),
-            ('s2', 2000, NULL, '2026-11-17 00:30:00'),
-            ('s3', 3000, 1, '2026-11-17 03:30:00');
+        -- s2 ficou pendente (sem cash_id), mas recebeu um pagamento no caixa c1
+        INSERT INTO sale (id, total_amount, client_id, cash_id, created_at) VALUES
+            ('s1', 1000, 1, 'c1', '2026-11-16 15:00:00'),
+            ('s2', 2000, NULL, NULL, '2026-11-17 00:30:00'),
+            ('s3', 3000, 1, 'c2', '2026-11-17 03:30:00');
 
         INSERT INTO payment (id, sale_id, amount, payment_method, status, paid_at) VALUES
             ('p1', 's1', 1000, 'pix', 'paid', '2026-11-16 15:00:00'),
             ('p2', 's2', 2000, 'cash', 'paid', '2026-11-17 00:30:00'),
-            ('p3', 's3', 3000, 'pix', 'paid', '2026-11-17 03:30:00');
+            ('p3', 's3', 3000, 'pix', 'refunded', '2026-11-17 03:30:00');
+
+        INSERT INTO product (id, name, sell_price, buy_price) VALUES
+            (10, 'Coca 350ml', 600, 300),
+            (11, 'Pão', 100, 50);
+
+        INSERT INTO sale_items (id, sale_id, product_id, quantity, unit_price, total_price) VALUES
+            ('i1', 's1', 10, 1, 600, 600),
+            ('i2', 's1', 11, 3, 100, 300),
+            ('i3', 's1', 11, 1, 100, 100);
+
+        INSERT INTO cash_movement (id, cash_id, nature, type, amount, description, reference_type, reference_id, created_at) VALUES
+            ('m0', 'c1', 'in', 'open', 1000, NULL, NULL, NULL, '2026-11-16 12:00:00'),
+            ('m1', 'c1', 'in', 'payment', 1000, 'venda realizada', 'payment', 'p1', '2026-11-16 15:00:00'),
+            ('m2', 'c1', 'in', 'payment', 2000, 'venda realizada', 'payment', 'p2', '2026-11-17 00:30:00'),
+            ('m3', 'c1', 'out', 'drop', 500, 'troco para o cofre', 'manual', NULL, '2026-11-17 00:40:00'),
+            ('m4', 'c2', 'in', 'payment', 3000, 'venda realizada', 'payment', 'p3', '2026-11-17 03:30:00'),
+            ('m5', 'c2', 'out', 'refund', 3000, 'estorno de pagamento', 'refund', 'p3', '2026-11-17 04:00:00');
+
+        -- Estoque: o ajuste define o saldo absoluto; movimentos excluídos não contam
+        INSERT INTO stock_movement (id, product_id, type, quantity, created_at, deleted_at) VALUES
+            ('e1', 10, 'in', 10, '2026-11-10 12:00:00', NULL),
+            ('e2', 10, 'out', 2, '2026-11-16 13:00:00', NULL),
+            ('e3', 10, 'adjustment', 5, '2026-11-16 14:00:00', NULL),
+            ('e4', 10, 'out', 1, '2026-11-16 15:00:00', NULL),
+            ('e5', 10, 'in', 4, '2026-11-18 12:00:00', NULL),
+            ('e6', 11, 'in', 7, '2026-11-16 13:00:00', '2026-11-16 13:05:00');
     `)
     sqlite.close()
 
     sales = await import("./sales/SalesService")
     cashes = await import("./cash/CashService")
+    receivables = await import("./receivables/ReceivablesService")
+    stock = await import("./stock/StockService")
 })
 
 afterAll(() => {
@@ -97,5 +128,108 @@ describe("getCashes filters", () => {
     test("filtra por situação", async () => {
         expect(await cashIds({ status: "closed" })).toEqual(["c1"])
         expect(await cashIds({ status: "open", startDate: "2026-11-16", endDate: "2026-11-16" })).toEqual(["c2"])
+    })
+})
+
+describe("número sequencial", () => {
+    test("registros sem número recebem o próximo pelo trigger", async () => {
+        const list = await sales.getSales(TENANT, { timeZone: TIME_ZONE })
+        expect(list.map((sale) => [sale.id, sale.number]).sort()).toEqual([["s1", 1], ["s2", 2], ["s3", 3]])
+    })
+
+    test("createSale e createCash devolvem o número atribuído", async () => {
+        const sale = await sales.createSale(TENANT, { userId: "u1" })
+        expect(sale.number).toBe(4)
+
+        const cash = await cashes.createCash(TENANT, { openingAmount: 0, userId: "u1" })
+        expect(cash.number).toBe(4)
+    })
+})
+
+describe("filtro por caixa", () => {
+    test("vendas finalizadas no caixa ou com pagamento lançado nele", async () => {
+        expect(await saleIds({ cashId: "c1" })).toEqual(["s1", "s2"])
+        expect(await saleIds({ cashId: "c2" })).toEqual(["s3"])
+        expect(await saleIds({ cashId: "c3" })).toEqual([])
+    })
+
+    test("o caixa substitui o período", async () => {
+        expect(await saleIds({ cashId: "c1", startDate: "2026-01-01", endDate: "2026-01-01" })).toEqual(["s1", "s2"])
+    })
+
+    test("caixas e recebimentos", async () => {
+        expect(await cashIds({ cashId: "c2" })).toEqual(["c2"])
+
+        const received = await receivables.getReceivables(TENANT, { cashId: "c1", status: "all", timeZone: TIME_ZONE })
+        expect(received.rows.map((row) => row.id).sort()).toEqual(["p1", "p2"])
+        expect(received.rows.find((row) => row.id === "p1")?.sale.number).toBe(1)
+
+        await expect(receivables.getReceivables(TENANT, { status: "all", timeZone: TIME_ZONE })).rejects.toThrow()
+    })
+})
+
+describe("extrato do caixa", () => {
+    test("lista entradas e saídas em ordem, com saldo e contexto da venda", async () => {
+        const statement = await cashes.getCashMovements(TENANT, "c1")
+
+        expect(statement.cash.number).toBe(1)
+        expect(statement.movements.map((movement) => [movement.type, movement.balance])).toEqual([
+            ["open", 1000],
+            ["payment", 2000],
+            ["payment", 4000],
+            ["drop", 3500],
+        ])
+
+        const firstPayment = statement.movements[1]
+        expect(firstPayment.paymentMethod).toBe("pix")
+        expect(firstPayment.sale?.number).toBe(1)
+        expect(firstPayment.sale?.client?.name).toBe("Maria Souza")
+        expect(firstPayment.sale?.items).toEqual([
+            { name: "Coca 350ml", quantity: 1, totalPrice: 600 },
+            { name: "Pão", quantity: 4, totalPrice: 400 },
+        ])
+        expect(statement.movements[3].description).toBe("troco para o cofre")
+        expect(statement.totals).toMatchObject({ inflow: 4000, outflow: 500, balance: 3500 })
+    })
+
+    test("estorno aponta para a venda do pagamento", async () => {
+        const statement = await cashes.getCashMovements(TENANT, "c2")
+        const refund = statement.movements.find((movement) => movement.type === "refund")
+
+        expect(refund?.sale?.number).toBe(3)
+        expect(refund?.paymentMethod).toBe("pix")
+    })
+
+    test("caixa inexistente", async () => {
+        await expect(cashes.getCashMovements(TENANT, "nope")).rejects.toThrow()
+    })
+})
+
+describe("relatório de estoque", () => {
+    test("saldo inicial, movimentos e saldo final do período", async () => {
+        const report = await stock.getStockReport(TENANT, { startDate: "2026-11-16", endDate: "2026-11-16", timeZone: TIME_ZONE })
+        const coca = report.products.find((product) => product.id === 10)
+        const pao = report.products.find((product) => product.id === 11)
+
+        expect(coca).toMatchObject({ opening: 10, inflow: 0, outflow: 3, adjustments: 1, adjustmentDelta: -3, closing: 4 })
+        expect(pao).toMatchObject({ opening: 0, inflow: 0, outflow: 0, closing: 0 })
+    })
+
+    test("período posterior parte do saldo acumulado", async () => {
+        const report = await stock.getStockReport(TENANT, { startDate: "2026-11-18", endDate: "2026-11-18", timeZone: TIME_ZONE })
+
+        expect(report.products.find((product) => product.id === 10)).toMatchObject({ opening: 4, inflow: 4, closing: 8 })
+    })
+
+    test("janela do caixa vai da abertura ao fechamento", async () => {
+        // c1: 16/11 12:00 a 17/11 01:00 UTC
+        const report = await stock.getStockReport(TENANT, { cashId: "c1", timeZone: TIME_ZONE })
+
+        expect(report.cash?.number).toBe(1)
+        expect(report.products.find((product) => product.id === 10)).toMatchObject({ opening: 10, outflow: 3, closing: 4 })
+    })
+
+    test("exige período ou caixa", async () => {
+        await expect(stock.getStockReport(TENANT, { timeZone: TIME_ZONE })).rejects.toThrow()
     })
 })

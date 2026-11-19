@@ -1,7 +1,8 @@
 import { db as masterDb, getTenantDb } from "@/db/db"
 import { cash, cashMovement } from "@/db/schema/tenant"
-import { desc, eq, sql, type SQL } from "drizzle-orm"
+import { asc, desc, eq, inArray, sql, type SQL } from "drizzle-orm"
 import { resolveDateRangeFilter } from "../../../utils/dates"
+import { AppError } from "../../../utils/errors"
 
 type PaymentMethod =
     | "cash"
@@ -18,6 +19,7 @@ export async function currentCash(tenantSlug: string) {
         columns: {
             actualClosingAmount: true,
             id: true,
+            number: true,
             closedAt: true,
             closedByUserId: true,
             createdAt: true,
@@ -179,6 +181,7 @@ export async function currentCash(tenantSlug: string) {
 
     return {
         id: cashData.id,
+        number: cashData.number,
 
         status: cashData.closedAt ? "closed" : "open",
 
@@ -225,17 +228,21 @@ export type CashFilters = {
     startDate?: string
     endDate?: string
     status?: "open" | "closed"
+    /** Quando informado, substitui o período. */
+    cashId?: string
     timeZone?: string | null
 }
 
 export async function getCashes(tenantSlug: string, filters: CashFilters = {}) {
     const db = getTenantDb(tenantSlug)
     // O período considera a data de abertura do caixa.
-    const range = resolveDateRangeFilter(filters, filters.timeZone)
+    const range = filters.cashId ? null : resolveDateRangeFilter(filters, filters.timeZone)
 
     const cashes = await db.query.cash.findMany({
-        where: (cash, { and, gte, isNotNull, isNull, lt }) => {
+        where: (cash, { and, eq, gte, isNotNull, isNull, lt }) => {
             const conditions: SQL[] = []
+
+            if (filters.cashId) conditions.push(eq(cash.id, filters.cashId))
 
             if (range) {
                 conditions.push(gte(cash.createdAt, range.startUtc))
@@ -251,6 +258,7 @@ export async function getCashes(tenantSlug: string, filters: CashFilters = {}) {
         columns: {
             actualClosingAmount: true,
             id: true,
+            number: true,
             closedAt: true,
             closedByUserId: true,
             createdAt: true,
@@ -315,6 +323,7 @@ export async function getCashes(tenantSlug: string, filters: CashFilters = {}) {
 
         return {
             id: cashData.id,
+            number: cashData.number,
             status: cashData.closedAt ? "closed" : "open",
             openedAt: cashData.createdAt,
             closedAt: cashData.closedAt,
@@ -367,6 +376,7 @@ export async function createCash(tenantSlug: string, data: {
 
     const transaction = await db.transaction(async (tx) => {
         const [newCash] = await tx.insert(cash).values({
+            number: sql`(SELECT COALESCE(MAX(${cash.number}), 0) + 1 FROM ${cash})`,
             openingAmount,
             createdByUserId: userId,
             updatedByUserId: userId
@@ -444,4 +454,204 @@ export async function createCashMovement(tenantSlug: string, data: {
     }).returning()
 
     return newCashMovement
+}
+
+async function loadUserLogins(userIds: Array<string | null | undefined>) {
+    const uniqueUserIds = [...new Set(userIds.filter(Boolean) as string[])]
+
+    const users = uniqueUserIds.length
+        ? await masterDb.query.tenantUser.findMany({
+            columns: { id: true, login: true },
+            where: (tenantUser, { inArray }) => inArray(tenantUser.id, uniqueUserIds),
+        })
+        : []
+
+    return new Map(users.map((user) => [user.id, user.login]))
+}
+
+// Agrupa itens do mesmo produto (lançados em linhas separadas na venda),
+// mantendo a ordem em que apareceram.
+function groupSaleItems(items: Array<{ quantity: number, totalPrice: number, product: { id: number, name: string } }>) {
+    const grouped = new Map<number, { name: string, quantity: number, totalPrice: number }>()
+
+    for (const item of items) {
+        const current = grouped.get(item.product.id)
+
+        if (current) {
+            current.quantity += item.quantity
+            current.totalPrice += item.totalPrice
+        } else {
+            grouped.set(item.product.id, { name: item.product.name, quantity: item.quantity, totalPrice: item.totalPrice })
+        }
+    }
+
+    return [...grouped.values()]
+}
+
+// Lista enxuta para o filtro "caixa" dos relatórios.
+export async function getCashOptions(tenantSlug: string) {
+    const db = getTenantDb(tenantSlug)
+
+    const cashes = await db.query.cash.findMany({
+        columns: {
+            id: true,
+            number: true,
+            createdAt: true,
+            closedAt: true,
+            createdByUserId: true,
+        },
+        orderBy: [desc(cash.number)],
+    })
+
+    const logins = await loadUserLogins(cashes.map((entry) => entry.createdByUserId))
+
+    return cashes.map((entry) => ({
+        id: entry.id,
+        number: entry.number,
+        openedAt: entry.createdAt,
+        closedAt: entry.closedAt,
+        operator: entry.createdByUserId ? logins.get(entry.createdByUserId) ?? null : null,
+    }))
+}
+
+// Extrato de um caixa: todas as entradas e saídas em ordem cronológica, com o
+// saldo acumulado e o contexto de cada lançamento (venda, cliente, itens).
+export async function getCashMovements(tenantSlug: string, cashId: string) {
+    const db = getTenantDb(tenantSlug)
+
+    const cashData = await db.query.cash.findFirst({
+        where: (entry, { eq }) => eq(entry.id, cashId),
+        columns: {
+            id: true,
+            number: true,
+            openingAmount: true,
+            expectedClosingAmount: true,
+            actualClosingAmount: true,
+            createdAt: true,
+            createdByUserId: true,
+            closedAt: true,
+            closedByUserId: true,
+        },
+    })
+
+    if (!cashData) throw new AppError("caixa não encontrado", 404, "CASH_NOT_FOUND")
+
+    const movements = await db
+        .select({
+            id: cashMovement.id,
+            createdAt: cashMovement.createdAt,
+            createdByUserId: cashMovement.createdByUserId,
+            nature: cashMovement.nature,
+            type: cashMovement.type,
+            amount: cashMovement.amount,
+            description: cashMovement.description,
+            referenceType: cashMovement.referenceType,
+            referenceId: cashMovement.referenceId,
+        })
+        .from(cashMovement)
+        .where(eq(cashMovement.cashId, cashId))
+        .orderBy(asc(cashMovement.createdAt), sql`${cashMovement}.rowid`)
+
+    // Pagamentos e estornos apontam para o pagamento; carregamos as vendas em lote
+    const paymentIds = movements
+        .filter((movement) => movement.referenceId
+            && (movement.referenceType === "payment" || movement.referenceType === "refund"))
+        .map((movement) => movement.referenceId as string)
+
+    const payments = paymentIds.length
+        ? await db.query.payment.findMany({
+            where: (entry) => inArray(entry.id, [...new Set(paymentIds)]),
+            columns: { id: true, paymentMethod: true, saleId: true },
+        })
+        : []
+
+    const saleIds = [...new Set(payments.map((entry) => entry.saleId))]
+    const sales = saleIds.length
+        ? await db.query.sale.findMany({
+            where: (entry) => inArray(entry.id, saleIds),
+            columns: { id: true, number: true, totalAmount: true },
+            with: {
+                client: { columns: { id: true, name: true } },
+                saleItem: {
+                    columns: { quantity: true, totalPrice: true },
+                    where: (item, { isNull }) => isNull(item.deletedAt),
+                    with: { product: { columns: { id: true, name: true } } },
+                },
+            },
+        })
+        : []
+
+    const paymentsById = new Map(payments.map((entry) => [entry.id, entry]))
+    const salesById = new Map(sales.map((entry) => [entry.id, entry]))
+    const logins = await loadUserLogins([
+        cashData.createdByUserId,
+        cashData.closedByUserId,
+        ...movements.map((movement) => movement.createdByUserId),
+    ])
+
+    let balance = 0
+    let inflow = 0
+    let outflow = 0
+
+    const rows = movements.map((movement) => {
+        if (movement.nature === "in") {
+            balance += movement.amount
+            inflow += movement.amount
+        } else {
+            balance -= movement.amount
+            outflow += movement.amount
+        }
+
+        const linkedPayment = movement.referenceId ? paymentsById.get(movement.referenceId) : undefined
+        const linkedSale = linkedPayment ? salesById.get(linkedPayment.saleId) : undefined
+        // A abertura é gravada sem usuário; vale quem abriu o caixa
+        const userId = movement.createdByUserId
+            ?? (movement.type === "open" ? cashData.createdByUserId : null)
+
+        return {
+            id: movement.id,
+            createdAt: movement.createdAt,
+            nature: movement.nature,
+            type: movement.type,
+            amount: movement.amount,
+            balance,
+            description: movement.description,
+            user: userId ? logins.get(userId) ?? null : null,
+            paymentMethod: linkedPayment?.paymentMethod ?? null,
+            sale: linkedSale
+                ? {
+                    id: linkedSale.id,
+                    number: linkedSale.number,
+                    totalAmount: linkedSale.totalAmount,
+                    client: linkedSale.client,
+                    items: groupSaleItems(linkedSale.saleItem),
+                }
+                : null,
+        }
+    })
+
+    const expectedClosing = cashData.expectedClosingAmount ?? balance
+
+    return {
+        cash: {
+            id: cashData.id,
+            number: cashData.number,
+            status: cashData.closedAt ? "closed" as const : "open" as const,
+            openedAt: cashData.createdAt,
+            closedAt: cashData.closedAt,
+            openedBy: cashData.createdByUserId ? logins.get(cashData.createdByUserId) ?? null : null,
+            closedBy: cashData.closedByUserId ? logins.get(cashData.closedByUserId) ?? null : null,
+        },
+        movements: rows,
+        totals: {
+            inflow,
+            outflow,
+            balance,
+            expectedClosing,
+            actualClosing: cashData.actualClosingAmount,
+            difference: cashData.actualClosingAmount !== null
+                ? cashData.actualClosingAmount - expectedClosing
+                : null,
+        },
+    }
 }

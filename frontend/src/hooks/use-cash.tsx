@@ -8,6 +8,8 @@ export type CashListFilters = {
     endDate?: string
     /** "all", "open" ou "closed" */
     status?: string
+    /** "all" ou o id do caixa (substitui o período) */
+    cashId?: string
 }
 
 // Lista de caixas filtrada no backend; o período considera a data de abertura
@@ -25,6 +27,32 @@ export function useCashList(filters: CashListFilters = {}, options: { enabled?: 
         },
         placeholderData: keepPreviousData,
         enabled: options.enabled ?? true,
+    })
+}
+
+// Caixas para o filtro "caixa" dos relatórios (mais recentes primeiro).
+export function useCashOptions() {
+    return useQuery({
+        queryKey: ["cash", "options"],
+        queryFn: async () => {
+            const { data, error } = await api.tenant.cash.options.get()
+            if (error) throwApiError(error)
+            return data
+        },
+        staleTime: 30_000,
+    })
+}
+
+// Extrato do caixa: entradas e saídas com saldo acumulado.
+export function useCashMovements(cashId: string | null) {
+    return useQuery({
+        queryKey: ["cash", "movements", cashId],
+        queryFn: async () => {
+            const { data, error } = await api.tenant.cash({ cashId: cashId! }).movements.get()
+            if (error) throwApiError(error)
+            return data
+        },
+        enabled: Boolean(cashId),
     })
 }
 

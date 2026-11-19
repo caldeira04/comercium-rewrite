@@ -6,8 +6,11 @@ export type ReceivableStatusFilter = "paid" | "refunded" | "all"
 export type ReceivableClientFilter = number | "none" | undefined
 
 export type ReceivableFilters = {
-    startDate: string
-    endDate: string
+    /** Obrigatórias, a menos que `cashId` seja informado. */
+    startDate?: string
+    endDate?: string
+    /** Caixa em que o pagamento entrou; substitui o período. */
+    cashId?: string
     clientId?: ReceivableClientFilter
     status: ReceivableStatusFilter
     page: number
@@ -19,8 +22,9 @@ type ExportFilters = Omit<ReceivableFilters, "page" | "pageSize">
 
 function buildQuery(filters: QueryFilters) {
     return {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+        ...(filters.cashId
+            ? { cashId: filters.cashId }
+            : { startDate: filters.startDate, endDate: filters.endDate }),
         status: filters.status,
         ...(filters.clientId === undefined ? {} : { clientId: String(filters.clientId) }),
     }

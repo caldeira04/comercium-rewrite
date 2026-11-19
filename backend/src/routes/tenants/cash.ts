@@ -1,6 +1,6 @@
-import { closeCash, createCash, createCashMovement, currentCash, getCashes } from "@/domain/tenant/cash/CashService"
+import { closeCash, createCash, createCashMovement, currentCash, getCashes, getCashMovements, getCashOptions } from "@/domain/tenant/cash/CashService"
 import { authPlugin } from "@/utils/elysia"
-import { dateRangeQuery } from "../../utils/reportFilters"
+import { cashIdQuery, dateRangeQuery, parseCashId } from "../../utils/reportFilters"
 import { AppError } from "../../utils/errors"
 import Elysia, { t } from "elysia"
 
@@ -19,12 +19,26 @@ const cash = new Elysia({ prefix: "/cash" })
             startDate: query.startDate,
             endDate: query.endDate,
             status: parseCashStatus(query.status),
+            cashId: parseCashId(query.cashId),
             timeZone: auth.tenantTimezone,
         })
     }, {
         query: t.Object({
             ...dateRangeQuery,
+            ...cashIdQuery,
             status: t.Optional(t.String()),
+        })
+    })
+
+    .get("/options", async ({ auth }) => {
+        return await getCashOptions(auth.tenantSlug)
+    })
+
+    .get("/:cashId/movements", async ({ auth, params }) => {
+        return await getCashMovements(auth.tenantSlug, params.cashId)
+    }, {
+        params: t.Object({
+            cashId: t.String()
         })
     })
 

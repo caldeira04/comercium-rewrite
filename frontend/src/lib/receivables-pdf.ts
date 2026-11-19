@@ -11,6 +11,8 @@ export type ReceivablesPdfInput = {
     endDate: string
     statusLabel: string
     clientLabel: string
+    /** Quando informado, substitui o período no cabeçalho. */
+    cashLabel?: string
     timeZone: string
     rows: Receivable[]
     summary: {
@@ -41,7 +43,13 @@ export function generateReceivablesPdf(input: ReceivablesPdfInput) {
 
     doc.setFontSize(9)
     doc.text(input.tenantName, margin, 56)
-    doc.text(`Período: ${formatDateInput(input.startDate)} a ${formatDateInput(input.endDate)}`, margin, 70)
+    doc.text(
+        input.cashLabel
+            ? `Caixa: ${input.cashLabel}`
+            : `Período: ${formatDateInput(input.startDate)} a ${formatDateInput(input.endDate)}`,
+        margin,
+        70,
+    )
     doc.text(`Situação: ${input.statusLabel}`, margin, 84)
     doc.text(`Cliente: ${input.clientLabel}`, margin, 98)
     doc.text(`Emitido em: ${generatedAt.toLocaleString("pt-BR")}`, pageWidth - margin, 56, { align: "right" })
@@ -55,7 +63,7 @@ export function generateReceivablesPdf(input: ReceivablesPdfInput) {
             return [
                 `${paidAt.date} ${paidAt.time}`.trim(),
                 row.client?.name ?? "não informado",
-                `#${row.sale.id.split("-")[0]}`,
+                `nº ${row.sale.number}`,
                 formatPaymentMethod({ method: row.paymentMethod }),
                 formatCurrency(row.amount),
                 statusLabels[row.status] ?? row.status,

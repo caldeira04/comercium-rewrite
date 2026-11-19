@@ -11,6 +11,9 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useCashOptions } from "@/hooks/use-cash"
+import { useFormatDateTime } from "@/hooks/use-tenant-timezone"
+import { formatDateInput } from "@/utils/time"
 
 type ReportFiltersProps = {
     /** Informe as datas para exibir o filtro de período. */
@@ -18,6 +21,8 @@ type ReportFiltersProps = {
     endDate?: string
     onPeriodChange?: (patch: { startDate?: string, endDate?: string }) => void
     invalidRange?: boolean
+    /** Desabilita o período (ex.: um caixa selecionado o substitui) e explica o motivo. */
+    periodDisabledHint?: string
     onReset: () => void
     /** Filtros específicos da tela (normalmente `FilterSelect`). */
     children?: React.ReactNode
@@ -31,6 +36,7 @@ export function ReportFilters({
     endDate,
     onPeriodChange,
     invalidRange,
+    periodDisabledHint,
     onReset,
     children,
     actions,
@@ -51,6 +57,7 @@ export function ReportFilters({
                                 type="date"
                                 value={startDate}
                                 max={endDate}
+                                disabled={Boolean(periodDisabledHint)}
                                 onChange={(event) => onPeriodChange?.({ startDate: event.target.value })}
                             />
                         </div>
@@ -62,6 +69,7 @@ export function ReportFilters({
                                 type="date"
                                 value={endDate}
                                 min={startDate}
+                                disabled={Boolean(periodDisabledHint)}
                                 onChange={(event) => onPeriodChange?.({ endDate: event.target.value })}
                             />
                         </div>
@@ -74,7 +82,10 @@ export function ReportFilters({
                 </Button>
                 {actions}
             </div>
-            {invalidRange && (
+            {periodDisabledHint && (
+                <p className="text-sm text-muted-foreground">{periodDisabledHint}</p>
+            )}
+            {invalidRange && !periodDisabledHint && (
                 <p className="text-sm text-destructive">
                     a data inicial deve ser anterior ou igual à data final
                 </p>
@@ -133,3 +144,80 @@ export const CASH_STATUS_OPTIONS = [
     { value: "open", label: "abertos" },
     { value: "closed", label: "fechados" },
 ]
+
+type CashOption = {
+    number: number
+    openedAt: string
+    closedAt: string | null
+    operator: string | null
+}
+
+export function formatCashOption(cash: CashOption, formatDateTime: ReturnType<typeof useFormatDateTime>) {
+    const opened = formatDateTime(cash.openedAt)
+    const closed = cash.closedAt ? formatDateTime(cash.closedAt) : null
+    const period = closed
+        ? closed.date === opened.date
+            ? `${opened.date} ${opened.time}–${closed.time}`
+            : `${opened.date} ${opened.time} – ${closed.date} ${closed.time}`
+        : `${opened.date} ${opened.time} (aberto)`
+
+    return [`caixa nº ${cash.number}`, period, cash.operator].filter(Boolean).join(" · ")
+}
+
+/** Caixa selecionado no filtro: rótulo e número ("todos" quando nenhum). */
+export function useSelectedCash(cashId: string) {
+    const { data } = useCashOptions()
+    const formatDateTime = useFormatDateTime()
+
+    if (cashId === "all") return { label: "todos", number: null }
+
+    const cash = data?.find((entry) => entry.id === cashId)
+
+    return cash
+        ? { label: formatCashOption(cash, formatDateTime), number: cash.number }
+        : { label: "selecionado", number: null }
+}
+
+/** Linha de filtro (período ou caixa) e sufixo do nome do arquivo exportado. */
+export function periodExportInfo(
+    filters: { startDate: string, endDate: string, cashId: string },
+    cash: { label: string, number: number | null },
+) {
+    if (filters.cashId !== "all") {
+        return {
+            filter: { label: "Caixa", value: cash.label },
+            fileSuffix: `caixa-${cash.number ?? "selecionado"}`,
+        }
+    }
+
+    return {
+        filter: { label: "Período", value: `${formatDateInput(filters.startDate)} a ${formatDateInput(filters.endDate)}` },
+        fileSuffix: `${filters.startDate}_${filters.endDate}`,
+    }
+}
+
+export const CASH_PERIOD_HINT = "com um caixa selecionado, o período considerado é o do caixa"
+
+/** Filtro "caixa" dos relatórios; quando preenchido, substitui o período. */
+export function CashFilterSelect({ value, onChange }: { value: string, onChange: (value: string) => void }) {
+    const { data } = useCashOptions()
+    const formatDateTime = useFormatDateTime()
+
+    return (
+        <FilterSelect
+            label="caixa"
+            className="w-72"
+            value={value}
+            onChange={onChange}
+            options={[
+                { value: "all", label: "todos os caixas" },
+                ...(data ?? []).map((cash) => ({ value: cash.id, label: formatCashOption(cash, formatDateTime) })),
+            ]}
+        />
+    )
+}
+
+/** Rótulo de uma opção de filtro pelo valor selecionado. */
+export function optionLabel(options: Array<{ value: string, label: string }>, value: string) {
+    return options.find((option) => option.value === value)?.label ?? value
+}

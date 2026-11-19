@@ -1,4 +1,5 @@
-import { createStockMovement, deleteStockMovements, getStockMovements } from "@/domain/tenant/stock/StockService"
+import { createStockMovement, deleteStockMovements, getStockMovements, getStockReport } from "@/domain/tenant/stock/StockService"
+import { cashIdQuery, dateRangeQuery, parseCashId } from "../../utils/reportFilters"
 import { createStockPurchase } from "@/domain/tenant/payables/StockPurchaseService"
 import { assertStockMovementDeletable, paymentMethods } from "@/domain/tenant/payables/PayablesService"
 import { authPlugin } from "@/utils/elysia"
@@ -17,6 +18,20 @@ const stock = new Elysia({ prefix: "/stock" })
             includeDeleted: t.String(),
             products: t.String(),
         }))
+    })
+
+    .get("/report", async ({ query, auth }) => {
+        return await getStockReport(auth.tenantSlug, {
+            startDate: query.startDate,
+            endDate: query.endDate,
+            cashId: parseCashId(query.cashId),
+            timeZone: auth.tenantTimezone,
+        })
+    }, {
+        query: t.Object({
+            ...dateRangeQuery,
+            ...cashIdQuery,
+        })
     })
 
     .post("/movements", async ({ body, auth }) => {

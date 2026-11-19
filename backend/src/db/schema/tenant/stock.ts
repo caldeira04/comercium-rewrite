@@ -1,5 +1,5 @@
 import { timestamps, auditing } from "@/utils/drizzle";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { product } from "./product";
 import { relations } from "drizzle-orm";
 
@@ -18,7 +18,9 @@ export const stockMovement = sqliteTable("stock_movement", {
 
     ...auditing(),
     ...timestamps()
-})
+}, (table) => [
+    index("stock_movement_product_created_idx").on(table.productId, table.createdAt),
+])
 
 export const stockMovementRelations = relations(stockMovement, ({ one }) => ({
     product: one(product, {

@@ -24,6 +24,7 @@ export const dashboardFixtures = {
 
 export const pdvFixtures: NonNullable<CurrentSale> = {
     id: "a1b2c3d4-0000-4000-8000-000000000001",
+    number: 152,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     client: { id: 1, name: "Maria Souza" },
@@ -165,6 +166,7 @@ export const catalogFixtures: Product[] = [
 
 export const cashFixtures: NonNullable<CurrentCash> = {
     id: "b2c3d4e5-0000-4000-8000-000000000001",
+    number: 34,
     status: "open",
     openedAt: new Date().toISOString(),
     closedAt: null,

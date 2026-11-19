@@ -120,6 +120,13 @@
       "when": 1793155912480,
       "tag": "0016_assistant_phase_3",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1795095800167,
+      "tag": "0017_add_sale_cash_number",
+      "breakpoints": true
     }
   ]
 }

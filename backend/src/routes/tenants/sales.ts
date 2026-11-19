@@ -1,6 +1,6 @@
 import { addProductToSale, cancelSale, createSale, currentSale, getSales, type PaymentMethod, reactivateProductFromSale, removeProductFromSale, settleSale, updateSaleClient, updateSaleItem } from "@/domain/tenant/sales/SalesService";
 import { authPlugin } from "@/utils/elysia";
-import { dateRangeQuery, parseClientId } from "../../utils/reportFilters";
+import { cashIdQuery, dateRangeQuery, parseCashId, parseClientId } from "../../utils/reportFilters";
 import { AppError } from "../../utils/errors";
 import Elysia, { t } from "elysia";
 
@@ -25,11 +25,13 @@ const sales = new Elysia({ prefix: "/sales" })
             endDate: query.endDate,
             clientId: parseClientId(query.clientId),
             paymentMethod: parsePaymentMethod(query.paymentMethod),
+            cashId: parseCashId(query.cashId),
             timeZone: auth.tenantTimezone,
         })
     }, {
         query: t.Object({
             ...dateRangeQuery,
+            ...cashIdQuery,
             includeDeleted: t.Optional(t.String()),
             clientId: t.Optional(t.String()),
             paymentMethod: t.Optional(t.String()),

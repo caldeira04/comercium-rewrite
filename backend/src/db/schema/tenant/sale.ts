@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { product } from "./product";
 import { timestamps, auditing } from "@/utils/drizzle";
@@ -8,6 +8,9 @@ import { payment } from "./payment";
 
 export const sale = sqliteTable("sale", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
+    // Número sequencial exibido ao cliente. Preenchido pelo insert (ou, como
+    // garantia, pelo trigger `sale_assign_number` da migração 0017).
+    number: integer("number").notNull().default(0),
 
     totalAmount: integer("total_amount").notNull().default(0),
     clientId: integer("client_id").references(() => client.id, { onDelete: "restrict" }),
@@ -17,7 +20,10 @@ export const sale = sqliteTable("sale", {
 
     ...auditing(),
     ...timestamps()
-})
+}, (table) => [
+    uniqueIndex("sale_number_idx").on(table.number),
+    index("sale_cash_idx").on(table.cashId),
+])
 
 export const saleRelations = relations(sale, ({ many, one }) => ({
     saleItem: many(saleItem),

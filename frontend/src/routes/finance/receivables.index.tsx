@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { DownloadIcon } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -22,11 +20,22 @@ import {
 } from "@/hooks/use-receivables"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { formatCurrency } from "@/utils/finance"
-import { formatPaymentMethod } from "@/utils/formatters"
+import { formatPaymentMethod, formatRecordNumber } from "@/utils/formatters"
 import { formatDateTimeInZone } from "@/utils/time"
 import { useReportFilters } from "@/hooks/use-report-filters"
 import { useTenantDates } from "@/hooks/use-tenant-timezone"
-import { FilterSelect, ReportFilters, clientOptions } from "@/components/report-filters"
+import {
+    CASH_PERIOD_HINT,
+    CashFilterSelect,
+    FilterSelect,
+    ReportFilters,
+    clientOptions,
+    periodExportInfo,
+    useSelectedCash,
+} from "@/components/report-filters"
+import { ExportMenu } from "@/components/export-menu"
+import { csvMoney } from "@/lib/export/csv"
+import type { ReportExport } from "@/lib/export/types"
 
 export const Route = createFileRoute("/finance/receivables/")({
     component: RouteComponent,
@@ -43,13 +52,17 @@ const statusLabels: Record<string, string> = {
 
 function RouteComponent() {
     const { monthStart, monthEnd } = useTenantDates()
-    const { filters, page, invalidRange, setFilter, setFilters, setPage, reset } = useReportFilters({
+    const { filters, page, invalidRange: invalidPeriod, setFilter, setFilters, setPage, reset } = useReportFilters({
         startDate: monthStart,
         endDate: monthEnd,
         clientId: "all",
         status: "paid",
+        cashId: "all",
     })
     const { startDate, endDate, clientId } = filters
+    const cashId = filters.cashId === "all" ? undefined : filters.cashId
+    const invalidRange = invalidPeriod && !cashId
+    const selectedCash = useSelectedCash(filters.cashId)
     const status = filters.status as ReceivableStatusFilter
 
     const { clients } = useClients()
@@ -65,6 +78,7 @@ function RouteComponent() {
         {
             startDate,
             endDate,
+            cashId,
             clientId: parsedClientId,
             status,
             page,
@@ -89,21 +103,27 @@ function RouteComponent() {
             ? "estornados"
             : "todos"
 
-    async function handleExport() {
-        if (invalidRange) {
-            toast.error("a data inicial deve ser anterior ou igual à data final")
-            return
+    async function fetchExport() {
+        const result = await exportReceivables({
+            startDate,
+            endDate,
+            cashId,
+            clientId: parsedClientId,
+            status,
+        })
+
+        if (result?.truncated) {
+            toast.warning("a exportação foi limitada a 5.000 lançamentos; reduza o período para exportar tudo")
         }
 
-        try {
-            const result = await exportReceivables({
-                startDate,
-                endDate,
-                clientId: parsedClientId,
-                status,
-            })
+        return result && result.rows.length > 0 ? result : null
+    }
 
-            if (!result || result.rows.length === 0) {
+    async function handleExportPdf() {
+        try {
+            const result = await fetchExport()
+
+            if (!result) {
                 toast.info("nenhum lançamento para exportar")
                 return
             }
@@ -116,16 +136,44 @@ function RouteComponent() {
                 endDate,
                 statusLabel,
                 clientLabel,
+                cashLabel: cashId ? selectedCash.label : undefined,
                 timeZone: result.timeZone,
                 rows: result.rows,
                 summary: result.summary,
             })
-
-            if (result.truncated) {
-                toast.warning("o PDF foi limitado a 5.000 lançamentos; reduza o período para exportar tudo")
-            }
         } catch (error) {
             toast.error(getApiErrorMessage(error, "erro ao exportar PDF"))
+        }
+    }
+
+    async function buildCsvExport(): Promise<ReportExport | null> {
+        const result = await fetchExport()
+        if (!result) return null
+
+        const period = periodExportInfo(filters, selectedCash)
+
+        return {
+            title: "Contas a receber",
+            fileName: `contas-a-receber_${period.fileSuffix}`,
+            tenantName: result.tenantName,
+            filters: [period.filter, { label: "Cliente", value: clientLabel }, { label: "Situação", value: statusLabel }],
+            tables: [],
+            csv: {
+                headers: ["data do pagamento", "hora", "cliente", "venda nº", "forma", "valor", "situação"],
+                rows: result.rows.map((row) => {
+                    const paidAt = formatDateTimeInZone(row.paidAt, result.timeZone)
+
+                    return [
+                        paidAt.date,
+                        paidAt.time,
+                        row.client?.name ?? "não informado",
+                        row.sale.number,
+                        formatPaymentMethod({ method: row.paymentMethod }),
+                        csvMoney(row.amount),
+                        statusLabels[row.status] ?? row.status,
+                    ]
+                }),
+            },
         }
     }
 
@@ -141,17 +189,17 @@ function RouteComponent() {
                 endDate={endDate}
                 onPeriodChange={setFilters}
                 invalidRange={invalidRange}
+                periodDisabledHint={cashId ? CASH_PERIOD_HINT : undefined}
                 onReset={reset}
                 actions={
-                    <Button
+                    <ExportMenu
+                        build={buildCsvExport}
+                        onPdf={handleExportPdf}
                         disabled={exportIsPending || invalidRange}
-                        onClick={handleExport}
-                    >
-                        <DownloadIcon />
-                        {exportIsPending ? "gerando..." : "exportar PDF"}
-                    </Button>
+                    />
                 }
             >
+                <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="cliente"
                     className="w-56"
@@ -217,8 +265,8 @@ function RouteComponent() {
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell>{row.client?.name ?? "não informado"}</TableCell>
-                                                            <TableCell className="font-mono text-xs">
-                                                                #{row.sale.id.split("-")[0]}
+                                                            <TableCell className="tabular-nums">
+                                                                {formatRecordNumber(row.sale.number)}
                                                             </TableCell>
                                                             <TableCell className="capitalize">
                                                                 {formatPaymentMethod({ method: row.paymentMethod })}

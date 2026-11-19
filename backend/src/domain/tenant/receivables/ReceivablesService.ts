@@ -1,14 +1,18 @@
 import { getTenantDb } from "@/db/db"
-import { client, payment, sale } from "@/db/schema/tenant"
-import { and, count, desc, eq, gte, isNull, lt, sum, type SQL } from "drizzle-orm"
+import { cashMovement, client, payment, sale } from "@/db/schema/tenant"
+import { and, count, desc, eq, gte, isNull, lt, sql, sum, type SQL } from "drizzle-orm"
 import { assertDateRange, localDateRangeToUtc, normalizeTimeZone } from "../../../utils/dates"
+import { AppError } from "../../../utils/errors"
 
 export type ReceivableStatusFilter = "paid" | "refunded" | "all"
 export type ReceivableClientFilter = number | "none" | undefined
 
 export type ReceivableFilters = {
-    startDate: string
-    endDate: string
+    /** Obrigatórias, a menos que `cashId` seja informado. */
+    startDate?: string
+    endDate?: string
+    /** Caixa em que o pagamento entrou; substitui o período. */
+    cashId?: string
     clientId?: ReceivableClientFilter
     status?: ReceivableStatusFilter
     page?: number
@@ -21,16 +25,28 @@ const MAX_PAGE_SIZE = 100
 const EXPORT_LIMIT = 5000
 
 function buildConditions(filters: ReceivableFilters, timeZone: string) {
-    assertDateRange(filters.startDate, filters.endDate)
-
-    const { startUtc, endExclusiveUtc } = localDateRangeToUtc(filters.startDate, filters.endDate, timeZone)
-
     const conditions: SQL[] = [
-        gte(payment.paidAt, startUtc),
-        lt(payment.paidAt, endExclusiveUtc),
         isNull(sale.deletedAt),
         isNull(sale.cancelledAt),
     ]
+
+    if (filters.cashId) {
+        // O caixa do recebimento é aquele em que o pagamento foi lançado
+        conditions.push(sql`${payment.id} IN (
+            SELECT ${cashMovement.referenceId} FROM ${cashMovement}
+            WHERE ${cashMovement.cashId} = ${filters.cashId} AND ${cashMovement.referenceType} = 'payment'
+        )`)
+    } else {
+        if (!filters.startDate || !filters.endDate) {
+            throw new AppError("informe a data inicial e a data final", 400, "INVALID_DATE_RANGE")
+        }
+
+        assertDateRange(filters.startDate, filters.endDate)
+
+        const { startUtc, endExclusiveUtc } = localDateRangeToUtc(filters.startDate, filters.endDate, timeZone)
+
+        conditions.push(gte(payment.paidAt, startUtc), lt(payment.paidAt, endExclusiveUtc))
+    }
 
     if (filters.clientId === "none") {
         conditions.push(isNull(sale.clientId))
@@ -76,6 +92,7 @@ export async function getReceivables(tenantSlug: string, filters: ReceivableFilt
             status: payment.status,
             paymentMethod: payment.paymentMethod,
             saleId: sale.id,
+            saleNumber: sale.number,
             saleCreatedAt: sale.createdAt,
             clientId: client.id,
             clientName: client.name,
@@ -161,6 +178,7 @@ export async function getReceivables(tenantSlug: string, filters: ReceivableFilt
             paymentMethod: row.paymentMethod,
             sale: {
                 id: row.saleId,
+                number: row.saleNumber,
                 createdAt: row.saleCreatedAt,
             },
             client: row.clientId === null
@@ -201,6 +219,7 @@ export async function exportReceivables(tenantSlug: string, filters: ReceivableF
             status: payment.status,
             paymentMethod: payment.paymentMethod,
             saleId: sale.id,
+            saleNumber: sale.number,
             saleCreatedAt: sale.createdAt,
             clientId: client.id,
             clientName: client.name,
@@ -245,6 +264,7 @@ export async function exportReceivables(tenantSlug: string, filters: ReceivableF
             paymentMethod: row.paymentMethod,
             sale: {
                 id: row.saleId,
+                number: row.saleNumber,
                 createdAt: row.saleCreatedAt,
             },
             client: row.clientId === null

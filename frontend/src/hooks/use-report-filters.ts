@@ -61,3 +61,13 @@ export function useReportFilters<T extends FilterValues>(defaults: T) {
 export function parseReferenceFilter(value: string): string | undefined {
     return value === "all" ? undefined : value
 }
+
+/**
+ * Parte de período da query enviada à API: com um caixa selecionado, ele
+ * substitui as datas.
+ */
+export function periodOrCash(filters: { startDate: string, endDate: string, cashId: string }) {
+    return filters.cashId !== "all"
+        ? { cashId: filters.cashId }
+        : { startDate: filters.startDate, endDate: filters.endDate }
+}

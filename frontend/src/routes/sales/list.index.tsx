@@ -1,9 +1,22 @@
 import { Spinner } from "@/components/ui/spinner"
 import { useSales, useSalesList } from "@/hooks/use-sales"
 import { useClients } from "@/hooks/use-clients"
-import { useReportFilters } from "@/hooks/use-report-filters"
+import { periodOrCash, useReportFilters } from "@/hooks/use-report-filters"
 import { useFormatDateTime, useTenantDates } from "@/hooks/use-tenant-timezone"
-import { FilterSelect, PAYMENT_METHOD_OPTIONS, ReportFilters, clientOptions } from "@/components/report-filters"
+import { useTenantName } from "@/hooks/use-tenant-name"
+import {
+    CASH_PERIOD_HINT,
+    CashFilterSelect,
+    FilterSelect,
+    PAYMENT_METHOD_OPTIONS,
+    ReportFilters,
+    clientOptions,
+    optionLabel,
+    periodExportInfo,
+    useSelectedCash,
+} from "@/components/report-filters"
+import { ExportMenu } from "@/components/export-menu"
+import { buildSalesHistoryExport, salePaidAmount, saleStatusLabel } from "@/lib/export/sales-history"
 import { usePayments } from "@/hooks/use-payments"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
@@ -19,7 +32,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatCurrency } from "@/utils/finance"
-import { formatPaymentMethod } from "@/utils/formatters"
+import { formatPaymentMethod, formatRecordNumber } from "@/utils/formatters"
 import { getApiErrorMessage } from "@/lib/api-error"
 import { toast } from "sonner"
 import type { SaleListItem, Sales } from "@/lib/api-types"
@@ -30,15 +43,42 @@ export const Route = createFileRoute('/sales/list/')({
 
 function RouteComponent() {
     const { monthStart, monthEnd } = useTenantDates()
-    const { filters, invalidRange, setFilter, setFilters, reset } = useReportFilters({
+    const { filters, invalidRange: invalidPeriod, setFilter, setFilters, reset } = useReportFilters({
         startDate: monthStart,
         endDate: monthEnd,
         clientId: "all",
         paymentMethod: "all",
+        cashId: "all",
     })
+    const hasCash = filters.cashId !== "all"
+    const invalidRange = invalidPeriod && !hasCash
     const { clients } = useClients()
-    const salesQuery = useSalesList(filters, { enabled: !invalidRange })
+    const tenantName = useTenantName()
+    const formatDateTime = useFormatDateTime()
+    const selectedCash = useSelectedCash(filters.cashId)
+    const salesQuery = useSalesList(
+        { ...periodOrCash(filters), clientId: filters.clientId, paymentMethod: filters.paymentMethod },
+        { enabled: !invalidRange },
+    )
     const sales = invalidRange ? undefined : salesQuery.data
+    const clientFilterOptions = clientOptions(clients)
+
+    function buildExport() {
+        if (!sales || sales.length === 0) return null
+
+        const period = periodExportInfo(filters, selectedCash)
+
+        return buildSalesHistoryExport(sales, {
+            tenantName,
+            formatDateTime,
+            fileSuffix: period.fileSuffix,
+            filters: [
+                period.filter,
+                { label: "Cliente", value: optionLabel(clientFilterOptions, filters.clientId) },
+                { label: "Forma de pagamento", value: optionLabel(PAYMENT_METHOD_OPTIONS, filters.paymentMethod) },
+            ],
+        })
+    }
     const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
     const selectedSale = sales?.find((sale) => sale.id === selectedSaleId) ?? null
 
@@ -56,14 +96,17 @@ function RouteComponent() {
                     endDate={filters.endDate}
                     onPeriodChange={setFilters}
                     invalidRange={invalidRange}
+                    periodDisabledHint={hasCash ? CASH_PERIOD_HINT : undefined}
                     onReset={reset}
+                    actions={<ExportMenu build={buildExport} disabled={!sales || sales.length === 0} />}
                 >
+                    <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                     <FilterSelect
                         label="cliente"
                         className="w-56"
                         value={filters.clientId}
                         onChange={(value) => setFilter("clientId", value)}
-                        options={clientOptions(clients)}
+                        options={clientFilterOptions}
                     />
                     <FilterSelect
                         label="forma de pagamento"
@@ -110,22 +153,24 @@ function SalesTable({ sales, onSelect }: SalesTableProps) {
         <Table>
             <TableHeader>
                 <TableRow>
-                    <TableHead className="w-[100px]">ID</TableHead>
-                        <TableHead>data</TableHead>
-                        <TableHead>cliente</TableHead>
-                        <TableHead>itens</TableHead>
-                        <TableHead>pago</TableHead>
+                    <TableHead className="w-[80px]">nº</TableHead>
+                    <TableHead>data</TableHead>
+                    <TableHead>cliente</TableHead>
+                    <TableHead>caixa</TableHead>
+                    <TableHead>itens</TableHead>
+                    <TableHead>pago</TableHead>
                     <TableHead className="text-right">total</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {sales.map((s) => (
-                        <TableRow key={s.id} onClick={() => onSelect(s)} className='cursor-pointer'>
-                        <TableCell className="font-medium">{s.id.split("-")[0]}</TableCell>
+                    <TableRow key={s.id} onClick={() => onSelect(s)} className='cursor-pointer'>
+                        <TableCell className="font-medium tabular-nums">{s.number}</TableCell>
                         <TableCell>{formatDateTime(s.createdAt).date}</TableCell>
                         <TableCell>{s.client?.name ?? "-"}</TableCell>
+                        <TableCell className="tabular-nums">{s.cash ? formatRecordNumber(s.cash.number) : "-"}</TableCell>
                         <TableCell>{s.saleItem.length}</TableCell>
-                        <TableCell>{formatCurrency(s.payment.reduce((total, payment) => total + payment.amount, 0))}</TableCell>
+                        <TableCell>{formatCurrency(salePaidAmount(s))}</TableCell>
                         <TableCell className="text-right">{formatCurrency(s.totalAmount)}</TableCell>
                     </TableRow>
                 ))}
@@ -154,8 +199,8 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
     const formatDateTime = useFormatDateTime()
     const { cancelSale, cancelSaleIsPending } = useSales({ loadSales: false })
     const { refundPayment, refundPaymentIsPending } = usePayments()
-    const paidAmount = sale.payment.reduce((total, payment) => total + payment.amount, 0)
-    const pendingAmount = sale.totalAmount - paidAmount
+    const paidAmount = salePaidAmount(sale)
+    const pendingAmount = Math.max(sale.totalAmount - paidAmount, 0)
 
     async function handleRefund(paymentId: string) {
         const confirmed = window.confirm("estornar este pagamento?")
@@ -184,8 +229,11 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
     return (
         <>
             <div>
-                <h2 className="text-xl font-bold">venda #{sale.id.split("-")[0]}</h2>
-                <p className="text-muted-foreground">{formatDateTime(sale.createdAt).date} às {formatDateTime(sale.createdAt).time}</p>
+                <h2 className="text-xl font-bold">venda {formatRecordNumber(sale.number)}</h2>
+                <p className="text-muted-foreground">
+                    {formatDateTime(sale.createdAt).date} às {formatDateTime(sale.createdAt).time}
+                    {sale.cash && ` · caixa ${formatRecordNumber(sale.cash.number)}`}
+                </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
                 <Metric label="cliente" value={sale.client?.name ?? "não informado"} />
@@ -193,7 +241,7 @@ function ReadableSaleDetails({ sale }: { sale: SaleListItem }) {
                 <Metric label="total" value={formatCurrency(sale.totalAmount)} />
                 <Metric label="pago" value={formatCurrency(paidAmount)} />
                 <Metric label="pendente" value={formatCurrency(pendingAmount)} />
-                <Metric label="status" value={sale.settledAt ? "quitada" : pendingAmount <= 0 ? "quitada" : "pendente"} />
+                <Metric label="status" value={saleStatusLabel(sale)} />
             </div>
             <div>
                 <h3 className="mb-2 font-bold">produtos</h3>

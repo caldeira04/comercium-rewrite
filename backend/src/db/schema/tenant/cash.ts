@@ -1,10 +1,12 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { timestamps, auditing } from "@/utils/drizzle"
 import { relations } from "drizzle-orm"
 import { sale } from "./sale"
 
 export const cash = sqliteTable("cash", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
+    // Número sequencial exibido ao cliente (ver trigger `cash_assign_number`).
+    number: integer("number").notNull().default(0),
 
     openingAmount: integer("opening_amount").notNull().default(0),
     expectedClosingAmount: integer("expected_closing_amount"),
@@ -14,7 +16,9 @@ export const cash = sqliteTable("cash", {
 
     ...auditing(),
     ...timestamps()
-})
+}, (table) => [
+    uniqueIndex("cash_number_idx").on(table.number),
+])
 
 export const cashMovement = sqliteTable("cash_movement", {
     id: text("id").primaryKey().$default(() => crypto.randomUUID()),
@@ -30,7 +34,10 @@ export const cashMovement = sqliteTable("cash_movement", {
 
     ...auditing(),
     ...timestamps()
-})
+}, (table) => [
+    index("cash_movement_cash_idx").on(table.cashId),
+    index("cash_movement_reference_idx").on(table.referenceType, table.referenceId),
+])
 
 export const cashRelations = relations(cash, ({ many }) => ({
     cashMovements: many(cashMovement),

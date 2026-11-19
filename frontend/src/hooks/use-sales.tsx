@@ -10,6 +10,8 @@ export type SalesListFilters = {
     clientId?: string
     /** "all" ou a forma de pagamento */
     paymentMethod?: string
+    /** "all" ou o id do caixa (substitui o período) */
+    cashId?: string
 }
 
 function withoutAll(filters: Record<string, string | undefined>) {

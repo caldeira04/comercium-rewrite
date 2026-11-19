@@ -4,12 +4,13 @@ import {
     type ReceivableStatusFilter,
 } from "@/domain/tenant/receivables/ReceivablesService"
 import { AppError } from "../../utils/errors"
-import { parseClientId, requiredDateRangeQuery } from "../../utils/reportFilters"
+import { cashIdQuery, dateRangeQuery, parseCashId, parseClientId } from "../../utils/reportFilters"
 import { authPlugin } from "@/utils/elysia"
 import Elysia, { t } from "elysia"
 
 const receivablesQuery = t.Object({
-    ...requiredDateRangeQuery,
+    ...dateRangeQuery,
+    ...cashIdQuery,
     clientId: t.Optional(t.String()),
     status: t.Optional(t.String()),
     page: t.Optional(t.String()),
@@ -38,6 +39,7 @@ const receivables = new Elysia({ prefix: "/receivables" })
         const result = await getReceivables(auth.tenantSlug, {
             startDate: query.startDate,
             endDate: query.endDate,
+            cashId: parseCashId(query.cashId),
             clientId: parseClientId(query.clientId),
             status: parseStatus(query.status),
             page: parsePositiveInteger(query.page, 1),
@@ -57,6 +59,7 @@ const receivables = new Elysia({ prefix: "/receivables" })
         const result = await exportReceivables(auth.tenantSlug, {
             startDate: query.startDate,
             endDate: query.endDate,
+            cashId: parseCashId(query.cashId),
             clientId: parseClientId(query.clientId),
             status: parseStatus(query.status),
             timeZone: auth.tenantTimezone,

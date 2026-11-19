@@ -11,9 +11,23 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { useSalesList } from "@/hooks/use-sales"
 import { useClients } from "@/hooks/use-clients"
-import { useReportFilters } from "@/hooks/use-report-filters"
+import { periodOrCash, useReportFilters } from "@/hooks/use-report-filters"
 import { useTenantDates } from "@/hooks/use-tenant-timezone"
-import { FilterSelect, ReportFilters, clientOptions } from "@/components/report-filters"
+import { useTenantName } from "@/hooks/use-tenant-name"
+import {
+    CASH_PERIOD_HINT,
+    CashFilterSelect,
+    FilterSelect,
+    ReportFilters,
+    clientOptions,
+    optionLabel,
+    periodExportInfo,
+    useSelectedCash,
+} from "@/components/report-filters"
+import { ExportMenu } from "@/components/export-menu"
+import { csvMoney } from "@/lib/export/csv"
+import type { ReportExport } from "@/lib/export/types"
+import { salePaidAmount } from "@/lib/export/sales-history"
 import type { Sales } from "@/lib/api-types"
 import { formatCurrency } from "@/utils/finance"
 
@@ -23,19 +37,60 @@ export const Route = createFileRoute("/sales/report/")({
 
 function RouteComponent() {
     const { monthStart, monthEnd } = useTenantDates()
-    const { filters, invalidRange, setFilter, setFilters, reset } = useReportFilters({
+    const { filters, invalidRange: invalidPeriod, setFilter, setFilters, reset } = useReportFilters({
         startDate: monthStart,
         endDate: monthEnd,
         clientId: "all",
+        cashId: "all",
     })
+    const hasCash = filters.cashId !== "all"
+    const invalidRange = invalidPeriod && !hasCash
     const { clients } = useClients()
-    const salesQuery = useSalesList(filters, { enabled: !invalidRange })
+    const tenantName = useTenantName()
+    const selectedCash = useSelectedCash(filters.cashId)
+    const clientFilterOptions = clientOptions(clients)
+    const salesQuery = useSalesList({ ...periodOrCash(filters), clientId: filters.clientId }, { enabled: !invalidRange })
     const sales = invalidRange ? undefined : salesQuery.data
     const totalSold = sales?.reduce((total, sale) => total + sale.totalAmount, 0) ?? 0
-    const totalPaid = sales?.reduce((total, sale) => total + sale.payment.reduce((sum, payment) => sum + payment.amount, 0), 0) ?? 0
+    const totalPaid = sales?.reduce((total, sale) => total + salePaidAmount(sale), 0) ?? 0
     const averageTicket = sales?.length ? totalSold / sales.length : 0
     const productRows = getTopProducts(sales ?? [])
     const clientRows = getTopClients(sales ?? [])
+
+    function buildExport(): ReportExport | null {
+        if (!sales || sales.length === 0) return null
+
+        const period = periodExportInfo(filters, selectedCash)
+        const toRows = (rows: Array<{ name: string, quantity: number, amount: number }>) =>
+            rows.map((row) => [row.name, String(row.quantity), formatCurrency(row.amount)])
+
+        return {
+            title: "Relatório de vendas",
+            fileName: `relatorio-de-vendas_${period.fileSuffix}`,
+            tenantName,
+            filters: [period.filter, { label: "Cliente", value: optionLabel(clientFilterOptions, filters.clientId) }],
+            metrics: [
+                { label: "vendas", value: String(sales.length) },
+                { label: "total vendido", value: formatCurrency(totalSold) },
+                { label: "total pago", value: formatCurrency(totalPaid) },
+                { label: "ticket médio", value: formatCurrency(averageTicket) },
+            ],
+            tables: [
+                { title: "Produtos vendidos", head: ["produto", "qtd.", "faturamento"], rows: toRows(productRows), align: { 1: "right", 2: "right" } },
+                { title: "Clientes", head: ["cliente", "compras", "total"], rows: toRows(clientRows), align: { 1: "right", 2: "right" } },
+            ],
+            // O CSV traz o ranking completo de produtos, que é a tabela detalhada
+            csv: {
+                headers: ["produto", "quantidade", "faturamento", "participação (%)"],
+                rows: productRows.map((row) => [
+                    row.name,
+                    row.quantity,
+                    csvMoney(row.amount),
+                    totalSold > 0 ? Number(((row.amount / totalSold) * 100).toFixed(2)) : 0,
+                ]),
+            },
+        }
+    }
 
     return (
         <div className="flex min-h-screen w-full flex-col gap-4 self-start p-4">
@@ -48,14 +103,17 @@ function RouteComponent() {
                 endDate={filters.endDate}
                 onPeriodChange={setFilters}
                 invalidRange={invalidRange}
+                periodDisabledHint={hasCash ? CASH_PERIOD_HINT : undefined}
                 onReset={reset}
+                actions={<ExportMenu build={buildExport} disabled={!sales || sales.length === 0} />}
             >
+                <CashFilterSelect value={filters.cashId} onChange={(value) => setFilter("cashId", value)} />
                 <FilterSelect
                     label="cliente"
                     className="w-56"
                     value={filters.clientId}
                     onChange={(value) => setFilter("clientId", value)}
-                    options={clientOptions(clients)}
+                    options={clientFilterOptions}
                 />
             </ReportFilters>
             {!invalidRange && salesQuery.isPending && <Spinner />}

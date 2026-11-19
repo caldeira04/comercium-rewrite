@@ -13,6 +13,21 @@ export const requiredDateRangeQuery = {
     endDate: t.String(),
 }
 
+// Filtro por caixa: quando informado, substitui o período nos relatórios.
+export const cashIdQuery = {
+    cashId: t.Optional(t.String()),
+}
+
+export function parseCashId(value?: string): string | undefined {
+    if (!value || value === "all") return undefined
+
+    if (!/^[0-9a-zA-Z-]{1,64}$/.test(value)) {
+        throw new AppError("caixa inválido", 400, "INVALID_CASH")
+    }
+
+    return value
+}
+
 export function parseClientId(value?: string): number | "none" | undefined {
     if (!value || value === "all") return undefined
     if (value === "none") return "none"
